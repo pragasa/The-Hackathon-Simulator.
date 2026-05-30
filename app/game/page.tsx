@@ -25,12 +25,17 @@ import {
   Zap,
   Hammer,
   RotateCcw,
+  UserCheck,
   CheckCircle,
   HelpCircle,
+  Briefcase,
+  AlertTriangle,
+  Lightbulb,
+  Check,
 } from "lucide-react";
-import type { GameStage, Problem, TechItem } from "@/types/game";
+import type { GameStage, Problem, TechItem, Feature } from "@/types/game";
 
-// ─── Reusable Stage Container Card ────────────────────────────────────────
+// ─── Standard Reusable Stage Wrapper ───────────────────────────────────────
 
 function GameplayStageCard({
   stageKey,
@@ -354,7 +359,7 @@ function SolutionDirectionStage() {
   );
 }
 
-// ─── Stage 4: Tech Stack Phase (DnD Core) ──────────────────────────────────
+// ─── Stage 4: Tech Stack Phase ──────────────────────────────────────────────
 
 const SLOT_CATEGORIES = [
   { id: 'frontend', label: 'Frontend Slot' },
@@ -367,11 +372,8 @@ const SLOT_CATEGORIES = [
 function TechStackStage() {
   const { techStack, addTechItem, removeTechItem, updateScore } = useGameStore();
 
-  // Sensors config for Dnd
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   const selectedIds = new Set(techStack.map((t) => t.id));
@@ -398,34 +400,33 @@ function TechStackStage() {
     // Check specific stack synergies
     const ids = new Set(currentStack.map((t) => t.id));
     
-    // Synergy A: Next.js + Vercel (Frontend + Hosting optimization)
+    // Synergy A: Next.js + Vercel
     if (ids.has("tech-next") && ids.has("tech-vercel")) {
       feasibility += 10;
       design += 10;
       bonus += 5;
     }
     
-    // Synergy B: OpenAI/Gemini + Next.js (AI web applications)
+    // Synergy B: OpenAI/Gemini + Next.js
     if ((ids.has("tech-openai") || ids.has("tech-gemini")) && ids.has("tech-next")) {
       innovation += 15;
       pitchPotential += 10;
       bonus += 10;
     }
 
-    // Synergy C: ESP32 + Arduino (IOT hardware stack)
+    // Synergy C: ESP32 + Arduino
     if (ids.has("tech-esp32") && ids.has("tech-arduino")) {
       innovation += 15;
       feasibility += 10;
       bonus += 10;
     }
 
-    // Synergy D: Supabase + PostgreSQL (Optimized database layer)
+    // Synergy D: Supabase + PostgreSQL
     if (ids.has("tech-supabase") && ids.has("tech-postgres")) {
       feasibility += 12;
       bonus += 5;
     }
 
-    // Update store scores dynamically
     updateScore("innovation", Math.min(innovation, 100));
     updateScore("execution", Math.min(feasibility, 100));
     updateScore("design", Math.min(design, 100));
@@ -433,17 +434,14 @@ function TechStackStage() {
     updateScore("bonus", bonus);
   }, [updateScore]);
 
-  // Click-select action fallback
   const handleToggleTech = (tech: TechItem) => {
     if (selectedIds.has(tech.id)) {
       const nextStack = techStack.filter((t) => t.id !== tech.id);
       removeTechItem(tech.id);
       recalculateTechScores(nextStack);
     } else {
-      // Ensure one framework per slot or max 5 items
       const isSlotTaken = techStack.some((t) => t.category === tech.category);
       if (isSlotTaken) {
-        // Swap category item automatically
         const target = techStack.find((t) => t.category === tech.category);
         if (target) {
           removeTechItem(target.id);
@@ -456,7 +454,6 @@ function TechStackStage() {
     }
   };
 
-  // DnD Drop trigger
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
@@ -464,11 +461,9 @@ function TechStackStage() {
     const item = TECH_POOL.find((t) => t.id === active.id);
     if (!item) return;
 
-    // Verify if item dropped fits the target category slot
     const targetSlotId = over.id as string;
     if (item.category === targetSlotId) {
       if (!selectedIds.has(item.id)) {
-        // Clear matching category item if exists
         const duplicate = techStack.find((t) => t.category === item.category);
         if (duplicate) {
           removeTechItem(duplicate.id);
@@ -489,7 +484,6 @@ function TechStackStage() {
         subtitle="Drag technologies into designated category slots or click framework chips to lock components. Integrated stacks trigger synergy bonuses."
       >
         <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 max-w-4xl mx-auto text-left font-mono text-[11px]">
-          {/* Left panel: pool of 15 technologies (3 cols) */}
           <div className="lg:col-span-3 space-y-4">
             <span className="text-neutral-400 block text-[9px] uppercase">TECHNOLOGY_POOL (CLICK_TO_TOGGLE):</span>
             
@@ -517,7 +511,6 @@ function TechStackStage() {
             </div>
           </div>
 
-          {/* Right panel: 5 designated slots (2 cols) */}
           <div className="lg:col-span-2 space-y-3">
             <span className="text-neutral-400 block text-[9px] uppercase">COMPILER_SLOTS (DRAG_HERE):</span>
 
@@ -565,14 +558,415 @@ function TechStackStage() {
   );
 }
 
-// ─── Placeholder/Fallback stages views (Sprint 2 mappings) ────────────────
+// ─── Stage 5: USP Phase ─────────────────────────────────────────────────────
+
+function UspStage() {
+  const { usp, setUsp, updateScore } = useGameStore();
+
+  const options = [
+    { key: "Fastest", name: "FASTEST_SPEED.EXE", desc: "Build quick compiling prototypes // +18 Feasibility/Execution, -5 Innovation" },
+    { key: "Cheapest", name: "CHEAPEST_COST.EXE", desc: "Minimize cloud costs completely // +15 Feasibility/Execution, -5 Design" },
+    { key: "Most Scalable", name: "MOST_SCALABLE.EXE", desc: "High baseline server throughput // +12 Feasibility/Execution, +10 PitchPotential" },
+    { key: "AI-powered", name: "AI_COPROCESSOR.EXE", desc: "Integrate cognitive search pipelines // +25 Innovation, -5 Design, -5 Execution" },
+    { key: "Sustainable", name: "SUSTAINABLE_OFFSET.EXE", desc: "High environmental offset footprint // +20 Innovation, +15 PitchPotential" },
+    { key: "Hyper-personalized", name: "HYPER_PERSONALIZED.EXE", desc: "Granular user experience panels // +20 Design, +10 PitchPotential, -5 Execution" },
+    { key: "Community-first", name: "COMMUNITY_FIRST.EXE", desc: "High focus on cooperative meshes // +20 PitchPotential, +12 Innovation, -5 Execution" },
+  ] as const;
+
+  const handleSelect = (key: typeof options[number]['key']) => {
+    setUsp(key);
+    
+    // Apply immediate hidden score modifier tradeoffs
+    const weights = {
+      'Fastest': { innovation: 50, execution: 75, design: 55, pitch: 50 },
+      'Cheapest': { innovation: 55, execution: 70, design: 50, pitch: 50 },
+      'Most Scalable': { innovation: 60, execution: 68, design: 55, pitch: 60 },
+      'AI-powered': { innovation: 80, execution: 55, design: 50, pitch: 65 },
+      'Sustainable': { innovation: 75, execution: 60, design: 55, pitch: 65 },
+      'Hyper-personalized': { innovation: 60, execution: 55, design: 75, pitch: 60 },
+      'Community-first': { innovation: 65, execution: 55, design: 60, pitch: 70 },
+    }[key];
+
+    updateScore("innovation", weights.innovation);
+    updateScore("execution", weights.execution);
+    updateScore("design", weights.design);
+    updateScore("pitch", weights.pitch);
+  };
+
+  useEffect(() => {
+    if (!usp) {
+      handleSelect("Cheapest");
+    }
+  }, [usp]);
+
+  return (
+    <GameplayStageCard
+      stageKey="usp"
+      title="Define Unique Selling Prop"
+      subtitle="Define your project's competitive advantage. Card choices introduce hidden tradeoffs between Innovation, Execution, and Pitch Potential."
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-2xl mx-auto text-left font-mono text-[11px]">
+        {options.map((opt) => (
+          <button
+            key={opt.key}
+            onClick={() => handleSelect(opt.key)}
+            className={`p-4 rounded-md border text-left flex flex-col justify-between transition-all ${
+              usp === opt.key
+                ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
+                : "border-neutral-200 hover:border-neutral-400 bg-white"
+            }`}
+          >
+            <span className="font-bold text-neutral-900 block">{opt.name}</span>
+            <span className="text-[9px] text-muted-foreground mt-2 block font-sans font-light leading-relaxed">
+              {opt.desc}
+            </span>
+          </button>
+        ))}
+      </div>
+    </GameplayStageCard>
+  );
+}
+
+// ─── Stage 6: Feature Prioritization Phase ──────────────────────────────────
+
+const MOCK_BACKLOG_POOL: Feature[] = [
+  { id: "feat-ai", name: "AI Assistant", description: "Secures search logs", effort: "medium", impact: "high" },
+  { id: "feat-chat", name: "Interactive Chat", description: "Peer messaging streams", effort: "low", impact: "high" },
+  { id: "feat-maps", name: "Campus Maps Grid", description: "Indoor study coordinates", effort: "medium", impact: "medium" },
+  { id: "feat-analytics", name: "Emissions Analytics", description: "Live telemetry dashboards", effort: "medium", impact: "high" },
+  { id: "feat-game", name: "Study Gamification", description: "Streaks and study locks", effort: "low", impact: "medium" },
+  { id: "feat-lead", name: "Emissions Leaderboard", description: "Direct community matches", effort: "low", impact: "medium" },
+  { id: "feat-pay", name: "Micro Loans Payments", description: "Secured transactions checkouts", effort: "high", impact: "high" },
+  { id: "feat-notif", name: "Urgent Notifications", description: "Offline push channels", effort: "low", impact: "medium" },
+  { id: "feat-voice", name: "Local Voice Assistant", description: " Dialect audio synthesizer", effort: "high", impact: "high" },
+  { id: "feat-ar", name: "AR Navigation View", description: "Virtual indoor coordinate overlays", effort: "high", impact: "high" },
+];
+
+function FeaturesStage() {
+  const { reorderFeatures, updateScore, score } = useGameStore();
+
+  const [buckets, setBuckets] = useState<Record<string, 'must' | 'nice' | 'overkill'>>({
+    'feat-ai': 'must',
+    'feat-chat': 'must',
+    'feat-maps': 'nice',
+    'feat-analytics': 'nice',
+    'feat-game': 'nice',
+    'feat-lead': 'overkill',
+    'feat-pay': 'overkill',
+    'feat-notif': 'nice',
+    'feat-voice': 'overkill',
+    'feat-ar': 'overkill',
+  });
+
+  const recalculateFeatureScores = useCallback((nextBuckets: Record<string, 'must' | 'nice' | 'overkill'>) => {
+    let execution = 60;
+    let design = 55;
+    let innovation = 50;
+    let bonus = 0;
+
+    const items = Object.entries(nextBuckets);
+    const mustCount = items.filter(([_, b]) => b === 'must').length;
+
+    // 1. Over-scoping penalty
+    if (mustCount > 3) {
+      execution -= 18;
+      design -= 5;
+    }
+    // 2. Balanced scoping bonus
+    if (mustCount === 2 || mustCount === 3) {
+      execution += 15;
+      design += 10;
+      bonus += 5;
+    }
+    // 3. Smart scoping bonus (placing heavy things in overkill)
+    if (nextBuckets['feat-ar'] === 'overkill') {
+      execution += 6;
+      bonus += 3;
+    }
+    if (nextBuckets['feat-voice'] === 'overkill') {
+      execution += 6;
+      bonus += 3;
+    }
+    // 4. Critical features in must-have
+    if (nextBuckets['feat-chat'] === 'must' || nextBuckets['feat-ai'] === 'must') {
+      design += 5;
+    }
+
+    updateScore("execution", Math.min(execution, 100));
+    updateScore("design", Math.min(design, 100));
+    updateScore("innovation", Math.min(innovation, 100));
+    updateScore("bonus", bonus);
+  }, [updateScore]);
+
+  // Click trigger to cycle feature buckets
+  const handleCycleBucket = (id: string) => {
+    const nextBuckets = { ...buckets };
+    const current = nextBuckets[id];
+    nextBuckets[id] = current === 'must' ? 'nice' : current === 'nice' ? 'overkill' : 'must';
+    
+    setBuckets(nextBuckets);
+    recalculateFeatureScores(nextBuckets);
+    
+    // Save flat array of must-have features in Zustand backlog features
+    const mustList = MOCK_BACKLOG_POOL.filter(f => nextBuckets[f.id] === 'must');
+    reorderFeatures(mustList);
+  };
+
+  // Drag and drop end trigger
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const targetBucket = over.id as 'must' | 'nice' | 'overkill';
+    const nextBuckets = { ...buckets, [active.id]: targetBucket };
+
+    setBuckets(nextBuckets);
+    recalculateFeatureScores(nextBuckets);
+
+    const mustList = MOCK_BACKLOG_POOL.filter(f => nextBuckets[f.id] === 'must');
+    reorderFeatures(mustList);
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  return (
+    <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
+      <GameplayStageCard
+        stageKey="features"
+        title="Backlog Prioritization"
+        subtitle="Prioritize product backlogs. Drag cards into scoping buckets or click them to cycle columns. Scope bloat severely penalizes compile execution."
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 max-w-4xl mx-auto text-left font-mono text-[11px]">
+          {/* Backlog pool (1 col) */}
+          <div className="lg:col-span-1 space-y-3">
+            <span className="text-neutral-400 block text-[9px] uppercase">BACKLOG_POOL (CLICK_CYCLE):</span>
+            <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
+              {MOCK_BACKLOG_POOL.map((feat) => {
+                const b = buckets[feat.id];
+                return (
+                  <DraggableCard key={feat.id} id={feat.id} data={{ ...feat }}>
+                    <button
+                      onClick={() => handleCycleBucket(feat.id)}
+                      className="w-full text-left p-2 bg-white border border-neutral-200 rounded flex flex-col justify-between hover:border-neutral-400 transition-all"
+                    >
+                      <span className="font-bold text-neutral-900 block truncate">{feat.name}</span>
+                      <span className="text-[8px] text-muted-foreground mt-1 block uppercase">
+                        COL: {b === 'must' ? 'MUST_HAVE' : b === 'nice' ? 'NICE_TO_HAVE' : 'OVERKILL'}
+                      </span>
+                    </button>
+                  </DraggableCard>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 3 Columns Buckets (3 cols) */}
+          <div className="lg:col-span-3 grid grid-cols-3 gap-3">
+            {(['must', 'nice', 'overkill'] as const).map((col) => {
+              const items = MOCK_BACKLOG_POOL.filter(f => buckets[f.id] === col);
+              return (
+                <DropZone
+                  key={col}
+                  id={col}
+                  label={col === 'must' ? 'Must Have' : col === 'nice' ? 'Nice to Have' : 'Overkill'}
+                  currentCount={items.length}
+                >
+                  <div className="space-y-1.5 min-h-[250px] py-1">
+                    {items.map((it) => (
+                      <div
+                        key={it.id}
+                        className="p-2.5 bg-white border border-neutral-300 rounded flex items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
+                      >
+                        <span className="font-bold text-neutral-800 text-[10px] truncate">{it.name.toUpperCase()}</span>
+                      </div>
+                    ))}
+                  </div>
+                </DropZone>
+              );
+            })}
+          </div>
+        </div>
+      </GameplayStageCard>
+    </DndContext>
+  );
+}
+
+// ─── Stage 7: Mentor Phase ──────────────────────────────────────────────────
+
+function MentorStage() {
+  const { techStack, solutionDirection, usp, features, updateScore } = useGameStore();
+  const [isConsulted, setIsConsulted] = useState(false);
+  const [tips, setTips] = useState<string[]>([]);
+
+  const handleConsult = () => {
+    setIsConsulted(true);
+
+    const generatedTips: string[] = [];
+
+    // Analyze state to generate highly tailored tips
+    // Tip 1: Stack & Solution Direction Match
+    const ids = new Set(techStack.map((t) => t.id));
+    if (solutionDirection === 'ai-solution' && !ids.has('tech-openai') && !ids.has('tech-gemini')) {
+      generatedTips.push("⚠️ STACK_WARN: You are compiling an AI Solution but omitted OpenAI and Gemini API models from your pipeline.");
+    } else if (solutionDirection === 'iot-product' && !ids.has('tech-esp32') && !ids.has('tech-arduino')) {
+      generatedTips.push("⚠️ STACK_WARN: IoT Hardware products require ESP32/Arduino integration to verify baseline physical compiles.");
+    } else {
+      generatedTips.push("✅ STACK_ALIGNED: Framework choices display adequate category coverage for your selected project direction.");
+    }
+
+    // Tip 2: USP & Stack Match
+    if (usp === 'Fastest' && ids.has('tech-aws')) {
+      generatedTips.push("⚠️ USP_ALIGN_WARN: Setting 'Fastest' USP while deploying on AWS has latency overheads. Vercel would host faster.");
+    } else if (usp === 'Sustainable' && ids.has('tech-next')) {
+      generatedTips.push("✅ USP_ALIGNED: Sustainability objectives coupled with Next.js static generation are highly carbon efficient.");
+    } else {
+      generatedTips.push("💡 USP_TIP: Align unique selling propositions strictly with stack constraints to trigger judge pitch multipliers.");
+    }
+
+    // Tip 3: Scoping backlog
+    if (features.length > 3) {
+      generatedTips.push("⚠️ SCOPE_WARN: Your backlog has severe scope bloat. Consider ejecting features into Overkill to restore Execution.");
+    } else {
+      generatedTips.push("✅ SCOPE_ALIGNED: Compact Must-Have features secure high baseline feasibility indices. Excellent work.");
+    }
+
+    setTips(generatedTips);
+
+    // Apply minor advisor reliance scoring penalty (representative of consult costs)
+    updateScore("pitch", Math.max(0, useGameStore.getState().score.pitch - 3));
+    updateScore("bonus", useGameStore.getState().score.bonus + 5);
+  };
+
+  return (
+    <GameplayStageCard
+      stageKey="mentor"
+      title="Consult Mentor Advisor"
+      subtitle="Interact with advisors once. Mentors provide context-aware feedback pointing out stack discrepancies, at the expense of a minor pitch penalty."
+    >
+      <div className="max-w-md mx-auto space-y-5 text-left font-mono text-[11px]">
+        {!isConsulted ? (
+          <div className="text-center py-6 bg-white border border-neutral-200 rounded-md shadow-sm space-y-4">
+            <span className="text-[28px]">🧠</span>
+            <h3 className="font-bold text-neutral-900 uppercase">ADVISOR_MESH_READY</h3>
+            <p className="text-xs text-muted-foreground max-w-xs mx-auto font-sans font-light">
+              Click below to boot the cognitive evaluator. This will analyze your active stack and backlog pipelines.
+            </p>
+            <Button
+              onClick={handleConsult}
+              className="font-mono text-xs border border-neutral-900"
+            >
+              RUN_MENTOR_AUDIT.EXE
+            </Button>
+          </div>
+        ) : (
+          <div className="p-5 bg-neutral-900 border border-neutral-800 rounded-md text-white shadow-xl space-y-4 leading-relaxed font-mono">
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+              <span className="text-emerald-400 font-bold">COMPILER_MENTOR_AUDIT: DONE</span>
+              <span className="text-neutral-500 text-[9px]">[ONE_TIME_USE_EXPIRED]</span>
+            </div>
+
+            <div className="space-y-3">
+              {tips.map((tip, idx) => (
+                <div key={idx} className="p-3 bg-neutral-950 rounded border border-neutral-800 text-[10px] text-neutral-200">
+                  {tip}
+                </div>
+              ))}
+            </div>
+
+            <div className="text-[9px] text-neutral-400 pt-2 border-t border-neutral-800 text-center font-sans font-light">
+              Audit loaded. Score penalty applied: PITCH -3 pts // COMPILER_BONUS +5 pts.
+            </div>
+          </div>
+        )}
+      </div>
+    </GameplayStageCard>
+  );
+}
+
+// ─── Stage 8: Business Model Phase ──────────────────────────────────────────
+
+function BusinessModelStage() {
+  const { businessModel, setBusinessModel, selectedProblem, usp, solutionDirection, updateScore } = useGameStore();
+
+  const options = [
+    { id: "Freemium", name: "Freemium Accounts", desc: "Free core profiles with premium upgrades (+Consumer Fit)" },
+    { id: "Subscription", name: "SaaS Subscription Tiers", desc: "Operational licensing charges (+Scalable Fit)" },
+    { id: "Marketplace", name: "Marketplace Commission", desc: "Peer trade processing percentages (+Market Fit)" },
+    { id: "B2B SaaS", name: "B2B SaaS Hubs", desc: "Corporate nodes integration agreements (+Corporate Fit)" },
+    { id: "Commission", name: "Transaction Commissions", desc: "Dynamic checkout cuts (+Fintech Fit)" },
+    { id: "Government Partnership", name: "Government Sponsorship", desc: "Public carbon offsets sponsorship (+Gov Fit)" },
+    { id: "Ads", name: "Ad network grids", desc: "Consumer eyeballs monetization (+Platform Fit)" },
+  ] as const;
+
+  const handleSelect = (id: typeof options[number]['id']) => {
+    setBusinessModel(id);
+
+    // Contextual operational alignment fit score calculations
+    let pitch = 65;
+    let execution = 60;
+
+    // Gov fits sustainability / campus problems
+    if (id === "Government Partnership" && (selectedProblem?.category === "sustainability" || selectedProblem?.category === "smart-campus")) {
+      pitch += 20;
+    }
+    // B2B SaaS fits Scalable corporate solutions
+    if (id === "B2B SaaS" && (usp === "Most Scalable" || selectedProblem?.id === "prob-learnflow")) {
+      pitch += 18;
+      execution += 5;
+    }
+    // Freemium fits mobile app directions
+    if (id === "Freemium" && solutionDirection === "mobile-app") {
+      pitch += 12;
+    }
+
+    updateScore("pitch", Math.min(pitch, 100));
+    updateScore("execution", Math.min(execution, 100));
+  };
+
+  useEffect(() => {
+    if (!businessModel) {
+      handleSelect("Freemium");
+    }
+  }, [businessModel]);
+
+  return (
+    <GameplayStageCard
+      stageKey="businessModel"
+      title="Business Model Setup"
+      subtitle="Determine the operational business model template. Aligning operational models with problem statements unlocks maximum Pitch grades."
+    >
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-2xl mx-auto text-left font-mono text-[11px]">
+        {options.map((opt) => (
+          <button
+            key={opt.id}
+            onClick={() => handleSelect(opt.id)}
+            className={`p-4 rounded-md border text-left flex flex-col justify-between transition-all ${
+              businessModel === opt.id
+                ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
+                : "border-neutral-200 hover:border-neutral-400 bg-white"
+            }`}
+          >
+            <span className="font-bold text-neutral-900 block">{opt.name}</span>
+            <span className="text-[9px] text-muted-foreground mt-2 block font-sans font-light leading-relaxed">
+              {opt.desc}
+            </span>
+          </button>
+        ))}
+      </div>
+    </GameplayStageCard>
+  );
+}
+
+// ─── Placeholder Fallback views (Stages 9 to 12) ───────────────────────────
 
 function FallbackStage({ stageKey }: { stageKey: GameStage }) {
   return (
     <GameplayStageCard
       stageKey={stageKey}
       title={`${stageKey} Stage`}
-      subtitle="Operational templates compiled successfully. Stage transitions ready for gameplay integrations in Sprint 3B."
+      subtitle="Operational templates compiled successfully. Stage transitions ready for gameplay integrations in Sprint 4."
     />
   );
 }
@@ -711,11 +1105,15 @@ export default function GamePage() {
         return <SolutionDirectionStage key="solutionDirection" />;
       case "techStack":
         return <TechStackStage key="techStack" />;
-      // Fallback placeholder stages wrapper
       case "usp":
+        return <UspStage key="usp" />;
       case "features":
+        return <FeaturesStage key="features" />;
       case "mentor":
+        return <MentorStage key="mentor" />;
       case "businessModel":
+        return <BusinessModelStage key="businessModel" />;
+      // Fallback placeholder stages wrapper
       case "pitchPrep":
       case "judgeSpin":
       case "judging":
