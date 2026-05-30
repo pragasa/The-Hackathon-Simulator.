@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Terminal,
@@ -190,14 +191,14 @@ export default function LandingPage() {
 
       {/* Navigation Header */}
       <nav className="relative z-10 flex items-center justify-between px-6 md:px-12 py-5 border-b border-neutral-200 bg-[#fafaf8]/50 backdrop-blur-xs select-none">
-        <div className="flex items-center gap-3">
-          <div className="p-2 rounded bg-neutral-100 border border-neutral-200 text-neutral-800">
+        <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity cursor-pointer group">
+          <div className="p-2 rounded bg-neutral-100 border border-neutral-200 text-neutral-800 group-hover:border-neutral-300 transition-colors">
             <Terminal className="w-4 h-4" />
           </div>
           <span className="font-sans font-bold text-sm tracking-tight text-neutral-900">
             THE HACKATHON <span className="text-neutral-500 font-normal">SIMULATOR</span>
           </span>
-        </div>
+        </Link>
         <div>
           <span className="text-[10px] text-neutral-400 font-mono tracking-wider font-bold">
             v1.2.0//REALISM_PASS

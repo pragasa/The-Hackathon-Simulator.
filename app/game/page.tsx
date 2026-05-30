@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGameStore, STAGE_ORDER } from "@/store/gameStore";
 import GameLayout from "@/components/game/GameLayout";
@@ -2847,17 +2848,31 @@ function ResultsStage() {
         </div>
 
         {/* Action Controls */}
-        <div className="border-t border-neutral-200 pt-4">
+        <div className="border-t border-neutral-200 pt-4 flex flex-col gap-2.5">
           <Button
             onClick={() => {
               playMutedClick();
               resetGame();
             }}
             onMouseEnter={playSubtleHover}
-            className="w-full font-mono text-xs border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none cursor-pointer animate-pulse"
+            className="w-full font-mono text-xs border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none cursor-pointer"
           >
             🔄 REBOOT_SIMULATOR.EXE
           </Button>
+
+          <Link href="/" className="w-full">
+            <Button
+              onClick={() => {
+                playMutedClick();
+                resetGame();
+              }}
+              onMouseEnter={playSubtleHover}
+              variant="outline"
+              className="w-full font-mono text-xs border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none cursor-pointer hover:bg-neutral-50"
+            >
+              🏠 RETURN_TO_HOME.EXE
+            </Button>
+          </Link>
         </div>
 
         {/* Startup PRD Generator Overlay Modal */}

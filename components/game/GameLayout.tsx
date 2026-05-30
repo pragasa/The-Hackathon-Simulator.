@@ -10,6 +10,7 @@
 import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Terminal, Trophy, Volume2, VolumeX } from 'lucide-react';
+import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { useGameStore } from '@/store/gameStore';
 import GameTimer from './GameTimer';
@@ -52,14 +53,20 @@ export default function GameLayout({ children }: GameLayoutProps) {
       {/* ── Top Header Bar ─────────────────────────────────────────────── */}
       <header className="glass-card-strong relative z-20 flex items-center justify-between rounded-none border-x-0 border-t-0 px-4 py-2 sm:px-6">
         {/* Left — Logo */}
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 border border-neutral-200 text-neutral-800">
+        <Link 
+          href="/"
+          onClick={() => {
+            playMutedClick();
+          }}
+          className="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer group"
+        >
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 border border-neutral-200 text-neutral-800 group-hover:border-neutral-300 group-hover:bg-neutral-50 transition-all duration-150">
             <Terminal className="h-4 w-4" />
           </div>
-          <span className="hidden text-sm font-black tracking-tight text-neutral-900 sm:block">
+          <span className="hidden text-sm font-black tracking-tight text-neutral-900 sm:block group-hover:text-neutral-700 transition-colors duration-150">
             HACKATHON SIM
           </span>
-        </div>
+        </Link>
 
         {/* Center — Phase Stepper */}
         <nav className="hidden items-center gap-1 md:flex" aria-label="Game phase">
