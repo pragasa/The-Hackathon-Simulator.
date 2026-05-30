@@ -100,7 +100,7 @@ export interface TechItem {
   /** Lucide icon name for visual representation */
   icon: string;
   /** Technology layer/category */
-  category: 'frontend' | 'backend' | 'database' | 'devops' | 'ai';
+  category: string;
   /** Complexity rating from 1 (easy) to 5 (expert) */
   difficulty: number;
   /** IDs of other TechItems that create positive synergy when combined */

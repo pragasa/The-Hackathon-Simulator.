@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { PROBLEMS } from "@/data/problems";
 import { JUDGES } from "@/data/judges";
 import { TECH_POOL, TECH_WEIGHTS } from "@/data/techItems";
+import { TECH_REGISTRY, getSlotForCategory, toStoreId, toRegistryId, TechRegistryItem } from "@/data/techRegistry";
+import { getRecommendations } from "@/lib/recommendations";
+import { ARCHITECTURE_TEMPLATES } from "@/data/architectureTemplates";
 import { DraggableCard } from "@/components/drag-drop/DraggableCard";
 import { DropZone } from "@/components/drag-drop/DropZone";
 import {
@@ -422,22 +425,52 @@ function SolutionDirectionStage() {
 
 // --- Stage 4: Tech Stack Phase ----------------------------------------------
 
-const SLOT_CATEGORIES = [
-  { id: 'frontend', label: 'Frontend Slot' },
-  { id: 'backend', label: 'Backend Slot' },
-  { id: 'database', label: 'Database Slot' },
-  { id: 'devops', label: 'Hosting Slot' },
-  { id: 'ai', label: 'Special Tech Slot' },
-] as const;
-
 function TechStackStage() {
-  const { techStack, addTechItem, removeTechItem, updateScore } = useGameStore();
+  const { techStack, addTechItem, removeTechItem, updateScore, solutionDirection, usp, selectedProblem } = useGameStore();
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [activeTab, setActiveTab] = useState('all');
+  const [activeFilter, setActiveFilter] = useState('all'); // 'all' (compatible), 'all-bypass' (show all), 'recommended', 'synergic'
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
   const selectedIds = new Set(techStack.map((t) => t.id));
+
+  // Get active contextual template based on chosen solution direction
+  const activeTemplate = ARCHITECTURE_TEMPLATES[solutionDirection || 'web-app'] || ARCHITECTURE_TEMPLATES['web-app'];
+
+  // Initialize selected slot ID to first slot in the active template
+  useEffect(() => {
+    if (activeTemplate && activeTemplate.slots.length > 0) {
+      setSelectedSlotId(activeTemplate.slots[0].id);
+    }
+  }, [solutionDirection, activeTemplate]);
+
+  // Find active slot metadata
+  const activeSlotMeta = activeTemplate.slots.find(s => s.id === selectedSlotId);
+
+  // Get dynamic domain-aware recommendations
+  const recommendedStack = getRecommendations(solutionDirection, usp, selectedProblem?.category);
+
+  // Check if an item is synergic with currently slotted items
+  const isSynergic = useCallback((item: TechRegistryItem) => {
+    const currentSlottedIds = new Set(techStack.map((t) => toRegistryId(t.id)));
+    if (currentSlottedIds.has(item.id)) return false;
+
+    for (const selId of currentSlottedIds) {
+      const selRegItem = TECH_REGISTRY.find((x) => x.id === selId);
+      if (selRegItem && selRegItem.synergy.includes(item.id)) {
+        return true;
+      }
+      if (item.synergy.includes(selId)) {
+        return true;
+      }
+    }
+    return false;
+  }, [techStack]);
 
   // Dynamic live score compiler based on active tech stack and synergies
   const recalculateTechScores = useCallback((currentStack: TechItem[]) => {
@@ -447,180 +480,574 @@ function TechStackStage() {
     let pitchPotential = 50; // pitch base
     let bonus = 0;
 
-    // Apply individual tech weights
+    // Apply individual tech weights lookup from the expanded registry
     currentStack.forEach((tech) => {
-      const weights = TECH_WEIGHTS[tech.id];
-      if (weights) {
-        innovation += weights.innovation;
-        feasibility += weights.feasibility;
-        design += weights.design;
-        pitchPotential += weights.pitchPotential;
+      const regId = toRegistryId(tech.id);
+      const regItem = TECH_REGISTRY.find((item) => item.id === regId);
+      if (regItem) {
+        innovation += regItem.innovationWeight;
+        feasibility += regItem.executionWeight;
+        design += regItem.designWeight;
+        pitchPotential += regItem.pitchWeight;
       }
     });
 
-    // Check specific stack synergies
-    const ids = new Set(currentStack.map((t) => t.id));
+    // Check specific stack synergies using registry IDs
+    const ids = new Set(currentStack.map((t) => toRegistryId(t.id)));
     
     // Synergy A: Next.js + Vercel
-    if (ids.has("tech-next") && ids.has("tech-vercel")) {
-      feasibility += 10;
-      design += 10;
-      bonus += 5;
-    }
-    
-    // Synergy B: OpenAI/Gemini + Next.js
-    if ((ids.has("tech-openai") || ids.has("tech-gemini")) && ids.has("tech-next")) {
-      innovation += 15;
-      pitchPotential += 10;
-      bonus += 10;
-    }
-
-    // Synergy C: ESP32 + Arduino
-    if (ids.has("tech-esp32") && ids.has("tech-arduino")) {
-      innovation += 15;
-      feasibility += 10;
-      bonus += 10;
-    }
-
-    // Synergy D: Supabase + PostgreSQL
-    if (ids.has("tech-supabase") && ids.has("tech-postgres")) {
+    if (ids.has("reg-next") && ids.has("reg-vercel")) {
       feasibility += 12;
       bonus += 5;
     }
+    
+    // Synergy B: OpenAI + Pinecone
+    if (ids.has("reg-openai") && ids.has("reg-pinecone")) {
+      innovation += 14;
+      bonus += 5;
+    }
 
-    updateScore("innovation", Math.min(innovation, 100));
-    updateScore("execution", Math.min(feasibility, 100));
-    updateScore("design", Math.min(design, 100));
-    updateScore("pitch", Math.min(pitchPotential, 100));
+    // Synergy C: Prisma + Postgres
+    if (ids.has("reg-prisma") && ids.has("reg-postgres")) {
+      feasibility += 8;
+      bonus += 3;
+    }
+
+    // Synergy D: ESP32 + TensorFlow
+    if (ids.has("reg-esp32") && ids.has("reg-tensorflow")) {
+      innovation += 16;
+      bonus += 5;
+    }
+
+    // Conflicts
+    // Conflict 1: MongoDB + Prisma
+    if (ids.has("reg-mongodb") && ids.has("reg-prisma")) {
+      feasibility -= 10;
+    }
+
+    // Conflict 2: Arduino + Cloud/SaaS
+    const hasSaaS = ids.has("reg-vercel") || ids.has("reg-netlify") || ids.has("reg-clerk") || ids.has("reg-stripe");
+    if (ids.has("reg-arduino") && hasSaaS) {
+      feasibility -= 15;
+    }
+
+    // Overengineering: If selected stack has >= 4 items of difficulty >= 4
+    let difficultCount = 0;
+    currentStack.forEach((tech) => {
+      const regId = toRegistryId(tech.id);
+      const regItem = TECH_REGISTRY.find((item) => item.id === regId);
+      if (regItem && regItem.difficultyScore >= 4) {
+        difficultCount++;
+      }
+    });
+    if (difficultCount >= 4) {
+      feasibility -= 15;
+    }
+
+    // Dynamic slot priorities checking for penalties & bonuses
+    let missingRequiredCount = 0;
+    let populatedRecommendedCount = 0;
+
+    activeTemplate.slots.forEach((slot) => {
+      const isSlotted = currentStack.some((t) => t.category === slot.id);
+      if (slot.priority === 'required' && !isSlotted) {
+        missingRequiredCount++;
+      } else if (slot.priority === 'recommended' && isSlotted) {
+        populatedRecommendedCount++;
+      }
+    });
+
+    // Apply Required penalties: -15 per missing slot
+    feasibility -= (missingRequiredCount * 15);
+
+    // Apply Recommended bonuses: +5 per populated slot
+    innovation += (populatedRecommendedCount * 5);
+
+    updateScore("innovation", Math.max(0, Math.min(innovation, 100)));
+    updateScore("execution", Math.max(0, Math.min(feasibility, 100)));
+    updateScore("design", Math.max(0, Math.min(design, 100)));
+    updateScore("pitch", Math.max(0, Math.min(pitchPotential, 100)));
     updateScore("bonus", bonus);
-  }, [updateScore]);
+  }, [updateScore, activeTemplate]);
 
-  const handleToggleTech = (tech: TechItem) => {
-    if (selectedIds.has(tech.id)) {
-      const nextStack = techStack.filter((t) => t.id !== tech.id);
-      removeTechItem(tech.id);
+  const handleToggleTech = (regItem: TechRegistryItem) => {
+    const storeId = toStoreId(regItem.id);
+    if (selectedIds.has(storeId)) {
+      const nextStack = techStack.filter((t) => t.id !== storeId);
+      removeTechItem(storeId);
       recalculateTechScores(nextStack);
     } else {
-      const isSlotTaken = techStack.some((t) => t.category === tech.category);
-      if (isSlotTaken) {
-        const target = techStack.find((t) => t.category === tech.category);
-        if (target) {
-          removeTechItem(target.id);
+      // Find a suitable slot dynamically for this technology
+      let targetSlotId = selectedSlotId;
+      let targetSlotMeta = activeSlotMeta;
+      
+      const isSlotCompatible = (slot: typeof activeTemplate.slots[number]) => {
+        return slot.compatibleCategories.includes(regItem.category);
+      };
+
+      // If active slot is not compatible, search for a compatible slot in the template
+      if (!targetSlotId || !targetSlotMeta || !isSlotCompatible(targetSlotMeta)) {
+        // Find first empty compatible slot
+        const emptyCompatible = activeTemplate.slots.find(
+          (s) => isSlotCompatible(s) && !techStack.some((t) => t.category === s.id)
+        );
+        if (emptyCompatible) {
+          targetSlotId = emptyCompatible.id;
+          targetSlotMeta = emptyCompatible;
+        } else {
+          // Find first compatible slot (even if occupied)
+          const firstCompatible = activeTemplate.slots.find((s) => isSlotCompatible(s));
+          if (firstCompatible) {
+            targetSlotId = firstCompatible.id;
+            targetSlotMeta = firstCompatible;
+          }
         }
       }
-      
-      const nextStack = [...techStack.filter((t) => t.category !== tech.category), tech];
-      addTechItem(tech);
-      recalculateTechScores(nextStack);
+
+      if (targetSlotId && targetSlotMeta) {
+        // Eject duplicate if any
+        const duplicate = techStack.find((t) => t.category === targetSlotId);
+        if (duplicate) {
+          removeTechItem(duplicate.id);
+        }
+
+        const tech: TechItem = {
+          id: storeId,
+          name: regItem.name,
+          icon: 'layers',
+          category: targetSlotId,
+          difficulty: regItem.difficultyScore,
+          synergies: regItem.synergy.map(toStoreId),
+        };
+
+        const nextStack = [...techStack.filter((t) => t.category !== targetSlotId), tech];
+        addTechItem(tech);
+        recalculateTechScores(nextStack);
+      }
     }
+  };
+
+  const handleToggleSlottedItem = (slottedItem: TechItem) => {
+    const nextStack = techStack.filter((t) => t.id !== slottedItem.id);
+    removeTechItem(slottedItem.id);
+    recalculateTechScores(nextStack);
   };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (!over) return;
 
-    const item = TECH_POOL.find((t) => t.id === active.id);
-    if (!item) return;
+    const regItem = TECH_REGISTRY.find((t) => t.id === active.id);
+    if (!regItem) return;
 
-    const targetSlotId = over.id as string;
-    if (item.category === targetSlotId) {
-      if (!selectedIds.has(item.id)) {
-        const duplicate = techStack.find((t) => t.category === item.category);
-        if (duplicate) {
-          removeTechItem(duplicate.id);
-        }
-        
-        const nextStack = [...techStack.filter((t) => t.category !== item.category), item];
-        addTechItem(item);
-        recalculateTechScores(nextStack);
-        playSnapSound();
+    const targetSlotId = over.id as string; // The dynamic slot ID!
+    const storeId = toStoreId(regItem.id);
+
+    const item: TechItem = {
+      id: storeId,
+      name: regItem.name,
+      icon: 'layers',
+      category: targetSlotId, // Slotted category (can trigger validation warning if it violates resolved category)
+      difficulty: regItem.difficultyScore,
+      synergies: regItem.synergy.map(toStoreId),
+    };
+
+    if (!selectedIds.has(item.id)) {
+      const duplicate = techStack.find((t) => t.category === item.category);
+      if (duplicate) {
+        removeTechItem(duplicate.id);
       }
+      
+      const nextStack = [...techStack.filter((t) => t.category !== item.category), item];
+      addTechItem(item);
+      recalculateTechScores(nextStack);
+      playSnapSound();
     }
   };
+
+  // Tabs for Visual categorization
+  const tabs = [
+    { id: 'all', label: 'ALL_TECH.EXE' },
+    { id: 'frontend', label: 'FRONTEND.SYS' },
+    { id: 'backend', label: 'BACKEND.SYS' },
+    { id: 'database', label: 'DATABASE.SYS' },
+    { id: 'devops', label: 'INFRA_DEVOPS.SYS' },
+    { id: 'ai', label: 'AI_COPROCESSOR.SYS' },
+    { id: 'hardware', label: 'IoT_HARDWARE.SYS' },
+    { id: 'apis', label: 'APIs_SERVICES.SYS' },
+  ];
+
+  // Quick Filters
+  const quickFilters = [
+    { id: 'all', label: 'COMPATIBLE_ONLY' },
+    { id: 'all-bypass', label: 'SHOW_ALL_LIBRARY' },
+    { id: 'recommended', label: '★ RECOMMENDED' },
+    { id: 'synergic', label: '⚡ SYNERGIC_BOOST' },
+  ];
+
+  // Filter tech items based on Active Tab, Search Query, Quick Filters, and Selected Slot Compatibilities
+  const filteredTechRegistry = TECH_REGISTRY.filter((tech) => {
+    // 1. Solution-Aware Filtering: Show only compatible solutions
+    if (solutionDirection && !tech.compatibleSolutions.includes(solutionDirection as any)) {
+      return false;
+    }
+
+    // 2. Contextual Tech Filtering: Only show technologies matching current slot role
+    if (activeSlotMeta && activeFilter !== 'all-bypass') {
+      if (!activeSlotMeta.compatibleCategories.includes(tech.category)) {
+        return false;
+      }
+    }
+
+    // 3. Search query filter
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      const matchName = tech.name.toLowerCase().includes(q);
+      const matchTags = tech.tags.some(t => t.toLowerCase().includes(q));
+      if (!matchName && !matchTags) return false;
+    }
+
+    // 4. Category Tab filter
+    if (activeTab !== 'all') {
+      if (activeTab === 'frontend' && !['Frontend', 'Design / UI', 'AR / VR', 'Mobile'].includes(tech.category)) return false;
+      if (activeTab === 'backend' && !['Backend', 'Realtime / Messaging', 'Automation'].includes(tech.category)) return false;
+      if (activeTab === 'database' && !['Database', 'Blockchain / Web3'].includes(tech.category)) return false;
+      if (activeTab === 'devops' && !['Hosting / Infra', 'DevOps'].includes(tech.category)) return false;
+      if (activeTab === 'ai' && !['AI / ML'].includes(tech.category)) return false;
+      if (activeTab === 'hardware' && !['IoT / Hardware'].includes(tech.category)) return false;
+      if (activeTab === 'apis' && !['Authentication', 'Payments', 'Analytics', 'Productivity APIs'].includes(tech.category)) return false;
+    }
+
+    // 5. Quick filter
+    if (activeFilter === 'recommended') {
+      if (!recommendedStack.techIds.includes(tech.id)) return false;
+    }
+    if (activeFilter === 'synergic') {
+      if (!isSynergic(tech)) return false;
+    }
+
+    return true;
+  });
 
   return (
     <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
       <GameplayStageCard
         stageKey="techStack"
         title="Assemble Tech Stack"
-        subtitle="Drag technologies into designated category slots or click framework chips to lock components. Integrated stacks trigger synergy bonuses."
+        subtitle={`Configure the dynamic ${activeTemplate.solutionName} architecture. Select slots on the right to filter recommended tech, or drag chips into zones.`}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6 max-w-4xl mx-auto text-left font-mono text-[11px]">
-          <div className="lg:col-span-3 space-y-4">
-            <span className="text-neutral-400 block text-[9px] uppercase">TECHNOLOGY_POOL (CLICK_TO_TOGGLE):</span>
-            
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {TECH_POOL.map((tech) => {
-                const isSelected = selectedIds.has(tech.id);
-                return (
-                  <DraggableCard key={tech.id} id={tech.id} data={{ ...tech }}>
+        <div className="space-y-4 max-w-4xl mx-auto text-left font-mono text-[11px]">
+          
+          {/* Recommended Stack Box */}
+          {recommendedStack && (
+            <div className="p-3 bg-neutral-50 border border-neutral-200 rounded-md space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-neutral-900 font-bold text-[9px] uppercase tracking-widest flex items-center gap-1">
+                  ★ RECOMMENDED_ARCHITECTURAL_PRESET:
+                </span>
+                <span className="text-[8px] bg-neutral-900 text-white px-1.5 py-0.5 rounded font-mono">
+                  USP: {usp?.toUpperCase() || "N/A"}
+                </span>
+              </div>
+              <p className="text-[10px] text-neutral-600 font-sans italic leading-relaxed font-light">
+                "{recommendedStack.why}"
+              </p>
+              <div className="flex flex-wrap gap-1.5 pt-1">
+                <span className="text-neutral-400 text-[8px] uppercase self-center font-mono">SUGGESTED:</span>
+                {recommendedStack.techIds.map((techId) => {
+                  const regItem = TECH_REGISTRY.find((item) => item.id === techId);
+                  if (!regItem) return null;
+                  const isSlotted = selectedIds.has(toStoreId(techId));
+                  return (
                     <button
+                      key={techId}
                       onClick={() => {
                         playMutedClick();
-                        handleToggleTech(tech);
+                        handleToggleTech(regItem);
                       }}
                       onMouseEnter={playSubtleHover}
-                      className={`w-full text-left flex flex-col p-2.5 rounded-md border transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
-                        isSelected
-                          ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
-                          : "border-neutral-200 hover:border-neutral-300 bg-white"
+                      className={`px-2 py-0.5 rounded text-[8px] font-mono border transition-all duration-150 ${
+                        isSlotted
+                          ? "bg-neutral-900 text-white border-neutral-900 font-bold"
+                          : "bg-white text-neutral-700 border-neutral-300 hover:bg-neutral-50"
                       }`}
                     >
-                      <span className="font-bold text-neutral-900 block">{tech.name}</span>
-                      <span className="text-[8px] text-muted-foreground uppercase mt-0.5 tracking-wider font-light">
-                        {tech.category === 'devops' ? 'Hosting' : tech.category === 'ai' ? 'Special' : tech.category}
-                      </span>
+                      {regItem.name.toUpperCase()} {isSlotted ? "✓" : "+"}
                     </button>
-                  </DraggableCard>
-                );
-              })}
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Category Tabs */}
+          <div className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.id}
+                onClick={() => {
+                  playMutedClick();
+                  setActiveTab(tab.id);
+                }}
+                onMouseEnter={playSubtleHover}
+                className={`px-2 py-1 rounded text-[9px] border transition-all duration-150 ${
+                  activeTab === tab.id
+                    ? "bg-neutral-900 text-white border-neutral-900 font-bold"
+                    : "bg-white text-neutral-600 border-neutral-200 hover:border-neutral-300"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Search and Filters */}
+          <div className="flex flex-col sm:flex-row gap-2 items-center justify-between pb-1">
+            {/* Search Input */}
+            <div className="relative w-full sm:w-64">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="SEARCH_TECH_LIBRARY..."
+                className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-[10px] font-mono uppercase tracking-wider focus:outline-none focus:border-neutral-900 transition-colors"
+              />
+            </div>
+            
+            {/* Quick Filters */}
+            <div className="flex gap-1 self-start sm:self-auto">
+              {quickFilters.map((filter) => (
+                <button
+                  key={filter.id}
+                  onClick={() => {
+                    playMutedClick();
+                    setActiveFilter(filter.id);
+                  }}
+                  onMouseEnter={playSubtleHover}
+                  className={`px-2.5 py-1 rounded-full text-[9px] border transition-all duration-150 ${
+                    activeFilter === filter.id
+                      ? "bg-neutral-100 text-neutral-900 border-neutral-900 font-bold"
+                      : "bg-white text-neutral-500 border-neutral-200 hover:border-neutral-300"
+                  }`}
+                >
+                  {filter.label}
+                </button>
+              ))}
             </div>
           </div>
 
-          <div className="lg:col-span-2 space-y-3">
-            <span className="text-neutral-400 block text-[9px] uppercase">COMPILER_SLOTS (DRAG_HERE):</span>
+          {/* Main Drag-Drop Grid */}
+          <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            
+            {/* Available Tech (Left Panel) */}
+            <div className="lg:col-span-3 space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-neutral-400 block text-[9px] uppercase tracking-wider">
+                  LIBRARY: {activeSlotMeta ? `${activeSlotMeta.label.toUpperCase()} COMPATIBLE` : 'ALL'} ({filteredTechRegistry.length} ITEMS):
+                </span>
+                {activeSlotMeta && activeFilter !== 'all-bypass' && (
+                  <span className="text-[8px] text-neutral-500 font-normal">
+                    [FILTER_ACTIVE: CLICK SLOTS TO CHANGE TARGET]
+                  </span>
+                )}
+              </div>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-[380px] overflow-y-auto pr-1">
+                {filteredTechRegistry.map((tech) => {
+                  const storeId = toStoreId(tech.id);
+                  const isSelected = selectedIds.has(storeId);
+                  const isRecommended = recommendedStack?.techIds.includes(tech.id);
+                  const hasSynergy = isSynergic(tech);
 
-            <div className="space-y-2">
-              {SLOT_CATEGORIES.map((slot) => {
-                const slottedItem = techStack.find((t) => t.category === slot.id);
-                return (
-                  <DropZone
-                    key={slot.id}
-                    id={slot.id}
-                    label={slot.label}
-                    capacity={1}
-                    currentCount={slottedItem ? 1 : 0}
-                  >
-                    {slottedItem ? (
-                      <div className="p-3 bg-white border border-neutral-900 rounded-md flex items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.02)]">
-                        <div className="flex flex-col">
-                          <span className="font-bold text-neutral-900 text-xs">{slottedItem.name.toUpperCase()}</span>
-                          <span className="text-[8px] text-muted-foreground uppercase font-light">
-                            {slot.label} Connected
-                          </span>
+                  return (
+                    <DraggableCard key={tech.id} id={tech.id} data={{ ...tech }}>
+                      <button
+                        onClick={() => {
+                          playMutedClick();
+                          handleToggleTech(tech);
+                        }}
+                        onMouseEnter={playSubtleHover}
+                        className={`w-full text-left flex flex-col p-2.5 rounded-md border transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
+                          isSelected
+                            ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold animate-[pulse_3s_infinite]"
+                            : "border-neutral-200 hover:border-neutral-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between w-full gap-1">
+                          <span className="font-bold text-neutral-900 block truncate">{tech.name}</span>
+                          {isRecommended && (
+                            <span className="text-[8px] bg-neutral-900 text-white px-1 rounded font-bold uppercase shrink-0">
+                              ★ REC
+                            </span>
+                          )}
+                          {!isRecommended && hasSynergy && (
+                            <span className="text-[8px] bg-neutral-100 text-neutral-900 border border-neutral-300 px-1 rounded font-bold uppercase shrink-0">
+                              ⚡ SYNERGY
+                            </span>
+                          )}
                         </div>
-                        <Button
-                          size="xs"
-                          variant="destructive"
-                          onClick={() => {
-                            playMutedClick();
-                            handleToggleTech(slottedItem);
-                          }}
-                          onMouseEnter={playSubtleHover}
-                          className="h-6 w-12 font-mono text-[9px] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
-                        >
-                          EJECT
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="text-[10px] text-neutral-400 italic text-center py-1">
-                        [EMPTY_{slot.id.toUpperCase()}_SLOT]
-                      </div>
-                    )}
-                  </DropZone>
-                );
-              })}
+                        <span className="text-[8px] text-muted-foreground uppercase mt-0.5 tracking-wider font-light truncate">
+                          {tech.category} • DIF: {tech.difficultyScore}
+                        </span>
+                      </button>
+                    </DraggableCard>
+                  );
+                })}
+                {filteredTechRegistry.length === 0 && (
+                  <div className="col-span-full py-8 text-center text-neutral-400 italic text-[10px]">
+                    [NO_COMPATIBLE_TECHNOLOGY_FOUND]
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Dynamic Architecture Slots (Right Panel) */}
+            <div className="lg:col-span-2 space-y-3">
+              <span className="text-neutral-400 block text-[9px] uppercase tracking-wider">
+                {activeTemplate.solutionName.toUpperCase()}_SLOTS (DRAG_HERE):
+              </span>
+
+              <div className="space-y-2 max-h-[290px] overflow-y-auto pr-1">
+                {activeTemplate.slots.map((slot) => {
+                  const slottedItem = techStack.find((t) => t.category === slot.id);
+
+                  // Checking category warnings dynamically
+                  let warningMessage: string | null = null;
+                  if (slottedItem) {
+                    const regId = toRegistryId(slottedItem.id);
+                    const regItem = TECH_REGISTRY.find((item) => item.id === regId);
+                    if (regItem) {
+                      const isCompatible = slot.compatibleCategories.includes(regItem.category);
+                      if (!isCompatible) {
+                        warningMessage = `belongs in other roles!`;
+                      }
+                    }
+                  }
+
+                  const isSelected = selectedSlotId === slot.id;
+
+                  // Render priority badges beautifully
+                  const getPriorityBadge = (priority: typeof slot.priority) => {
+                    switch (priority) {
+                      case 'required':
+                        return (
+                          <span className="text-[8px] bg-red-100 text-red-700 border border-red-300 px-1 rounded font-bold uppercase shrink-0">
+                            REQUIRED
+                          </span>
+                        );
+                      case 'recommended':
+                        return (
+                          <span className="text-[8px] bg-neutral-100 text-neutral-800 border border-neutral-300 px-1 rounded font-bold uppercase shrink-0">
+                            RECOMMENDED
+                          </span>
+                        );
+                      case 'optional':
+                      default:
+                        return (
+                          <span className="text-[8px] text-neutral-400 font-light lowercase italic shrink-0">
+                            (optional)
+                          </span>
+                        );
+                    }
+                  };
+
+                  return (
+                    <div 
+                      key={slot.id} 
+                      onClick={() => {
+                        playMutedClick();
+                        setSelectedSlotId(slot.id);
+                      }}
+                      className={`cursor-pointer transition-all duration-150 rounded-md p-0.5 ${
+                        isSelected 
+                          ? "ring-1 ring-neutral-900 bg-neutral-50/40" 
+                          : "hover:bg-neutral-50/20"
+                      }`}
+                    >
+                      <DropZone
+                        id={slot.id}
+                        label={slot.label}
+                        capacity={1}
+                        currentCount={slottedItem ? 1 : 0}
+                      >
+                        {slottedItem ? (
+                          <div className={`p-2 bg-white border rounded-md flex items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${
+                            warningMessage ? "border-amber-600 bg-amber-50/20" : "border-neutral-900"
+                          } ${isSelected ? "ring-1 ring-offset-1 ring-neutral-900" : ""}`}>
+                            <div className="flex flex-col min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-bold text-neutral-900 text-[10px] truncate">
+                                  {slottedItem.name.toUpperCase()}
+                                </span>
+                                {getPriorityBadge(slot.priority)}
+                              </div>
+                              <span className="text-[7.5px] text-muted-foreground uppercase font-light">
+                                {slot.label} Connected
+                              </span>
+                              {warningMessage && (
+                                <span className="text-amber-700 font-bold block mt-0.5 text-[7.5px] tracking-wide animate-pulse">
+                                  ⚠ MISMATCH: {warningMessage.toUpperCase()}
+                                </span>
+                              )}
+                            </div>
+                            <Button
+                              size="xs"
+                              variant="destructive"
+                              onClick={(e) => {
+                                e.stopPropagation(); // prevent select slot trigger
+                                playMutedClick();
+                                handleToggleSlottedItem(slottedItem);
+                              }}
+                              onMouseEnter={playSubtleHover}
+                              className="h-5 w-10 font-mono text-[8px] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none shrink-0 ml-2"
+                            >
+                              EJECT
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className={`text-[9.5px] italic text-center py-2 border border-dashed rounded-md transition-all ${
+                            isSelected 
+                              ? "border-neutral-900 bg-neutral-50 text-neutral-800" 
+                              : "border-neutral-200 text-neutral-400 hover:border-neutral-300"
+                          }`}>
+                            <div className="flex items-center justify-between px-3 w-full">
+                              <span className="truncate">{slot.emptyGuidance}</span>
+                              {getPriorityBadge(slot.priority)}
+                            </div>
+                          </div>
+                        )}
+                      </DropZone>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Slot Details Explanation Box */}
+              {activeSlotMeta && (
+                <div className="p-2.5 bg-neutral-50 border border-neutral-200 rounded-md space-y-1 font-sans text-[10px]">
+                  <div className="flex items-center justify-between font-mono font-bold text-[9px] uppercase tracking-wider text-neutral-800">
+                    <span>⚙ ROLE_DETAILS: {activeSlotMeta.label.toUpperCase()}</span>
+                    <span className="text-neutral-400 font-light text-[8px]">
+                      ID: {activeSlotMeta.id.toUpperCase()}
+                    </span>
+                  </div>
+                  <p className="text-neutral-600 font-light leading-relaxed">
+                    {activeSlotMeta.description}
+                  </p>
+                  <div className="flex items-center gap-1.5 pt-1 text-[8.5px] font-mono text-neutral-500">
+                    <span className="uppercase text-[8px]">COMPATIBLE_LAYERS:</span>
+                    <div className="flex flex-wrap gap-1">
+                      {activeSlotMeta.compatibleCategories.map((cat) => (
+                        <span key={cat} className="px-1 border border-neutral-300 rounded text-neutral-700 bg-white">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </GameplayStageCard>
