@@ -22,7 +22,7 @@ export interface CommentResult {
 }
 
 /**
- * Enhanced Comments Generator for v1.2 Realism Pass.
+ * Enhanced Comments Generator for v1.3 Personality Pass.
  * Contains 50+ distinct, highly context-aware feedback templates.
  */
 export function generateJudgeFeedback(
@@ -38,403 +38,307 @@ export function generateJudgeFeedback(
   const hasHardware = techIds.has("tech-esp32") || techIds.has("tech-arduino");
 
   // ---------------------------------------------------------
-  // 1. Dr. Priya Kapoor (Technical Judge)
-  // Focus: Architecture, databases, latency, Edge APIs, scale
+  // 1. Uday Sharma (The Builder Creator)
+  // Focus: Shipping fast, validation, MVPs, real-world utility, scappiness.
   // ---------------------------------------------------------
-  if (judgeId === "judge-tech") {
+  if (judgeId === "judge-builder") {
     // HIGH SCORE TIER (>= 90)
     if (score >= 90) {
-      if (techIds.has("tech-next") && techIds.has("tech-supabase")) {
+      if (isMinimalist) {
         return {
-          comment: "Superb architectural design. Coupling Next.js routes with Supabase row-level security handles data transactions flawlessly. Your edge handlers are perfectly clean.",
-          highlight: "Next.js and Supabase data pipeline execution is absolutely flawless."
+          comment: "This is scrappy, practical, and exactly what hackathons should produce. You focused on exactly two features and shipped them before you felt ready. Absolute builder discipline!",
+          highlight: "Masterful minimalist execution with high speed-to-market focus."
         };
       }
-      if (techIds.has("tech-fastapi") && techIds.has("tech-postgres")) {
+      if (techIds.has("tech-next") && techIds.has("tech-vercel")) {
         return {
-          comment: "This is a masterpiece of backend engineering. FastAPI's async loops paired with a robustly indexed PostgreSQL schema provides outstanding query speeds and request latency profiles.",
-          highlight: "Asynchronous FastAPI and PostgreSQL indexing models are exceptionally structured."
+          comment: "Good founders ship. Great founders ship before they're ready. Next.js deployed on Vercel is the ultimate builder cheat code—zero configuration, instant user validation loop.",
+          highlight: "Vercel edge pipeline allows rapid product iteration."
         };
       }
-      if (hasHardware) {
-        return {
-          comment: "Impressive physical system design. You managed to compile clean C++ modules for the ESP32 chip without dropping sensor packages on the serial bus.",
-          highlight: "Embedded hardware pipeline shows master-class firmware compiling."
-        };
-      }
-      if (techIds.has("tech-docker") && techIds.has("tech-aws")) {
-        return {
-          comment: "Stellar devops setup. Packaging this microservice cluster within lightweight Docker runtimes deployed directly to AWS ensures highly predictable container metrics.",
-          highlight: "Microservices container isolation shows serious enterprise readiness."
-        };
-      }
-      // General High
       return {
-        comment: "Excellent technical execution. The modularity of your files is superb, dependencies are tidy, and the build outputs are highly optimized for production runtimes.",
-        highlight: "Outstanding file separation and clean structural dependencies."
+        comment: "Excellent builder execution. You solved the core user pain point with a lean feature footprint and zero fluff. This is ready for real users tomorrow morning.",
+        highlight: "Highly practical product scoping ready for launch."
       };
     }
     // MID SCORE TIER (70-89)
     if (score >= 70) {
       if (isOverengineered) {
         return {
-          comment: "A solid MVP, but the tech stack is slightly bloated. Did you really need to configure a Docker registry and AWS buckets to host what is essentially a static page?",
-          highlight: "Solid code execution burdened by slight architectural bloat."
-        };
-      }
-      if (hasAI && !techIds.has("tech-supabase") && !techIds.has("tech-postgres")) {
-        return {
-          comment: "Your AI models compile nicely in-memory, but there is no persistent storage layer like PostgreSQL. Local variables will clear immediately on container reboot.",
-          highlight: "Decent API query orchestration, though database persistence is lacking."
-        };
-      }
-      if (techIds.has("tech-firebase")) {
-        return {
-          comment: "A decent prototype using Firebase backend bindings. It gets the job done quickly, though you'll run into transaction locks if user query counts scale up.",
-          highlight: "Speedy backend integration with direct NoSQL real-time bindings."
+          comment: "You spent too much time designing architecture and not enough time solving the user's pain. Why do you need AWS clusters and container registries for a basic prototype? Just ship it!",
+          highlight: "Solid prototype held back by unnecessary architectural complexity."
         };
       }
       if (state.features.length > 3) {
         return {
-          comment: "Functional build, though your backlog prioritization is messy. Splitting developer focus across too many Must-Have features has introduced minor compile bugs in the dashboard.",
-          highlight: "Acceptable compiler output despite a cluttered feature backlog."
+          comment: "A functional build, but you tried to add too many secondary features. Remember: an MVP should do one thing exceptionally well. Chop the backlog and focus.",
+          highlight: "Broad feature roadmap dilutes the core value proposition."
         };
       }
-      // General Mid
       return {
-        comment: "A clean, functional prototype. The database schemas are structured properly, though the build size could benefit from tighter tree-shaking packages.",
-        highlight: "Reliable database schemas and stable server query pipelines."
+        comment: "A practical build with a sensible tech stack. The user path is clear, though it needs an even tighter MVP loop. Get it in front of customers to start collecting feedback.",
+        highlight: "Practical tech execution with a direct user path."
       };
     }
     // LOW SCORE TIER (< 70)
     if (isOverengineered) {
       return {
-        comment: "This is a technical disaster. You have overlapping Node processes, Firebase bindings, and Docker layers clashing. It is a house of cards that crashes on compile.",
-        highlight: "Severe system collisions from uncoordinated architectural bloat."
-      };
-    }
-    if (hasHardware && !techIds.has("tech-esp32")) {
-      return {
-        comment: "You selected an IoT direction but didn't slot microcontrollers into your tech stack. It's impossible to compile a firmware compiler without target hardware boards.",
-        highlight: "Fatal firmware gap: hardware direction is missing embedded components."
+        comment: "A classic case of overengineering. You spent 20 hours configuring database shards and zero time validating the user flow. It is bloated, slow, and totally missing the point.",
+        highlight: "Severe tech bloat with zero customer validation."
       };
     }
     if (state.features.length < 2) {
       return {
-        comment: "The build is severely under-scoped. You haven't implemented standard user authentication or any active routes. It is barely an empty shell of an app.",
-        highlight: "Incomplete project backlog lacks basic functional routes."
+        comment: "This build is way under-scoped. You didn't even implement the core transactional feature. You can't ship an empty dashboard and call it an MVP.",
+        highlight: "Under-scoped build lacks critical functional features."
       };
     }
-    if (techIds.has("tech-aws") && state.usp === "Fastest") {
-      return {
-        comment: "Architectural failure. You claim extreme speed as your USP but host on raw AWS servers without edge caching layers, resulting in 500ms startup latencies.",
-        highlight: "Severe latency overhead contradicts speed USP promises."
-      };
-    }
-    // General Low
     return {
-      comment: "The compiler is throwing continuous reference errors. The stack configuration is unstable, dependencies are tangled, and the project is currently crashing on startup.",
-      highlight: "Tangled dependency trees and unstable deployment runtime."
+      comment: "Too much talk, not enough shipping. The prototype has broken database connections, missing API routes, and is currently crashing. Stop writing pitch slides and fix your build.",
+      highlight: "Unstable dependency routing and incomplete code manifests."
     };
   }
 
   // ---------------------------------------------------------
-  // 2. Alex Nakamura (Startup Judge)
-  // Focus: Customer adoption, growth, disruption, market hooks
+  // 2. Sarah Park (The YC Founder Partner)
+  // Focus: Large markets, distribution, PMF, strong founder insight, business models.
   // ---------------------------------------------------------
-  if (judgeId === "judge-startup") {
+  if (judgeId === "judge-founder") {
     // HIGH SCORE TIER (>= 90)
     if (score >= 90) {
-      if (state.usp === "AI-powered" || state.usp === "Hyper-personalized") {
+      if (state.usp === "Community-first" || state.businessModel === "Marketplace") {
         return {
-          comment: "Brilliant growth strategy! Weaving an AI-powered personalized loop directly into the onboarding workflow creates a highly addictive product hook.",
-          highlight: "Superb product loops utilizing highly personalized AI modules."
+          comment: "Strong founder insight. By building a community-first network, you have solved the cold-start problem and created a powerful organic distribution flywheel.",
+          highlight: "Outstanding network effect distribution flywheel."
         };
       }
-      if (state.usp === "Community-first") {
+      if (state.usp === "AI-powered" && hasAI) {
         return {
-          comment: "I love this! A community-first USP creates an organic growth flywheel that slashes your customer acquisition costs to practically zero.",
-          highlight: "Strong network effect flywheels built on organic community loops."
+          comment: "I love the aggressive product hook. Integrating automated AI loops directly into the onboarding workflow gives you a massive advantage in speed-to-value.",
+          highlight: "Venture-ready AI integration with extreme scalability."
         };
       }
-      if (state.businessModel === "Marketplace" || state.businessModel === "Freemium") {
-        return {
-          comment: "Excellent startup discipline. This freemium offering builds a massive top-of-funnel audience quickly, unlocking highly organic monetization paths.",
-          highlight: "Highly cohesive freemium distribution strategy."
-        };
-      }
-      // General High
       return {
-        comment: "Fantastic pitch! You have identified an extremely sharp customer pain point, matched it with a viral marketing loop, and packaged it in a compelling narrative.",
-        highlight: "Stellar customer pain-point alignment and viral marketing loop."
+        comment: "A highly fundable startup plan. You have mapped out a huge addressable market, backed it with a clear monetization model, and proven you can solve a massive, desperate user pain point.",
+        highlight: "Superb product-market fit and massive target market."
       };
     }
     // MID SCORE TIER (70-89)
     if (score >= 70) {
       if (state.businessModel === "B2B SaaS") {
         return {
-          comment: "The enterprise SaaS angle makes sense, but your feature priorities are too heavy on animations. Focus less on UI polish and more on high-impact customer metrics.",
-          highlight: "Viable business model, but feature prioritization is too visual-heavy."
+          comment: "The SaaS model is logical, but who is desperate enough to use this tomorrow? I want to see a much sharper customer acquisition hook before I write a check.",
+          highlight: "Logical business model but customer urgency is low."
         };
       }
       if (state.usp === "Cheapest") {
         return {
-          comment: "Being the cheapest is a decent short-term hook, but it is not a defensible startup moat. You need to tell a better story about your long-term product value.",
-          highlight: "Functional cheap hosting hook, though defensible moats are weak."
+          comment: "Being the cheapest is a race to the bottom, not a startup moat. What is your unfair advantage? Focus more on product differentiation and less on low pricing.",
+          highlight: "Vulnerable cost-leader strategy lacks defensive barriers."
         };
       }
-      if (isMinimalist) {
-        return {
-          comment: "I appreciate the hyper-focused MVP scope, but you've cut so many visual features that early adopters might struggle to engage with the product flow.",
-          highlight: "Lean MVP execution, but customer engagement hooks are missing."
-        };
-      }
-      // General Mid
       return {
-        comment: "A highly respectable product. The target audience is clearly defined and the value proposition makes sense, though it needs a more aggressive viral mechanism.",
-        highlight: "Clear user audience mapping and sensible value propositions."
+        comment: "A solid commercial foundation, but the market feels slightly niche. Focus on how you can expand from this early hook into a much larger adjacent sector.",
+        highlight: "Stable startup positioning with a narrow market hook."
       };
     }
     // LOW SCORE TIER (< 70)
-    if (state.businessModel === "B2B SaaS" && state.features.length >= 4) {
+    if (state.businessModel === "Government Partnership") {
       return {
-        comment: "This is a product mess. You are trying to sell a bloated B2B SaaS system before confirming that a single campus user actually wants this feature set.",
-        highlight: "Heavy enterprise scope creep without early validation."
+        comment: "Government partnerships take 18 months of intensive sales effort. For a scrappy hackathon team, this business model is capital-inefficient and highly unrealistic.",
+        highlight: "Excessive sales-cycle lag clashes with early team size."
       };
     }
     if (state.usp === "AI-powered" && !hasAI) {
       return {
-        comment: "Startup heresy! Your entire pitch deck promises a revolutionary AI-powered solution, yet you didn't include a single AI framework in your stack. It's vaporware.",
-        highlight: "Vaporware alert: AI pitch completely lacks technical AI backing."
+        comment: "The pitch decks promise a revolutionary AI product, but your code has zero AI libraries in the package JSON. We call this vaporware in Silicon Valley.",
+        highlight: "Vaporware alert: marketing promises completely lack engineering backing."
       };
     }
-    if (state.businessModel === "Government Partnership" && state.usp === "Fastest") {
-      return {
-        comment: "Strategic conflict. You cannot combine a public government partnership model with a 'fastest ship' speed USP. Municipal boards do not move in weeks.",
-        highlight: "Severe market misalignment between municipal sales and speed."
-      };
-    }
-    // General Low
     return {
-      comment: "A highly confusing value proposition. The product lacks focus, there is no clear distribution channel, and the pitch reads like a solution desperately looking for a problem.",
-      highlight: "Muddled product-market fit and absent launch strategies."
+      comment: "This is a solution looking for a problem. The market is tiny, there is no distribution channel, and the product differentiation is completely non-existent.",
+      highlight: "Muddled value proposition and absent distribution plans."
     };
   }
 
   // ---------------------------------------------------------
-  // 3. Marcus Rivera (UX Judge)
-  // Focus: Usability, responsiveness, design scales, accessibility
+  // 3. Maya Chen (The Design Perfectionist)
+  // Focus: User experience, simplicity, typography, accessibility, onboarding.
   // ---------------------------------------------------------
-  if (judgeId === "judge-ux") {
+  if (judgeId === "judge-design") {
     // HIGH SCORE TIER (>= 90)
     if (score >= 90) {
       if (techIds.has("tech-react") || techIds.has("tech-next")) {
         return {
-          comment: "Absolutely gorgeous UI. The typography scale is perfectly aligned, column grids are proportional, and focus states are pixel-perfect on both desktop and mobile.",
-          highlight: "Breathtaking typography scales and clean component responsiveness."
+          comment: "This feels delightful to use. The typography scale is perfectly proportional, the contrast passes WCAG accessibility guidelines, and interactive elements are responsive.",
+          highlight: "Pixel-perfect visual hierarchy and flawless focus states."
         };
       }
-      if (featureIds.has("feature-ar") || featureIds.has("feature-gamify")) {
+      if (featureIds.has("feature-gamify")) {
         return {
-          comment: "Delightful design work! The micro-animations and gamified interactions create highly satisfying user feedback loops. It is incredibly satisfying.",
-          highlight: "Delightful micro-interactions and interactive feedback states."
+          comment: "The best interface is the one users never have to think about. Your gamified progress tracking makes an otherwise complex user flow feel entirely intuitive and satisfying.",
+          highlight: "Delightful UX animations and satisfying feedback states."
         };
       }
-      // General High
       return {
-        comment: "A masterclass in modern visual design. You have maintained a highly disciplined layout scale, elegant margins, and exceptional contrast ratios throughout.",
-        highlight: "Outstanding layout discipline and premium contrast ratios."
+        comment: "A masterpiece of visual design. Every layout container, line height, and border radius is cohesive. You've removed all visual noise to create pure clarity.",
+        highlight: "Outstanding design system and elegant visual clarity."
       };
     }
     // MID SCORE TIER (70-89)
     if (score >= 70) {
       if (isMinimalist) {
         return {
-          comment: "The minimalism is elegant, but you have cut too close to the bone. The lack of standard navigation containers makes user flows feel slightly disorienting.",
-          highlight: "Elegant minimalist design burdened by weak user flow guides."
+          comment: "I appreciate the clean, minimalist look, but you have cut too close to the bone. Without standard navigation cues, the user flows feel slightly disorienting.",
+          highlight: "Sleek minimalist style hampered by weak navigation markers."
         };
       }
-      if (featureIds.has("feature-chat") && !techIds.has("tech-supabase")) {
+      if (isOverengineered) {
         return {
-          comment: "The chat UI panels are styled beautifully, but the lack of an active database connection means messages will fail to load in real-time. Don't mock critical UX.",
-          highlight: "Beautiful chat layout containers, but real-time data is missing."
+          comment: "Beautiful technology hidden behind friction is still friction. You have built an impressive engineering backend, but the cluttered UI panels ruin the experience.",
+          highlight: "Overloaded dashboard layout induces heavy cognitive load."
         };
       }
-      if (techIds.has("tech-aws") && !techIds.has("tech-vercel")) {
-        return {
-          comment: "The design layout is clean, but the interface load times are slightly dragged down by heavy server routing. Optimize the assets packaging.",
-          highlight: "Polished interface hampered by static asset loading lag."
-        };
-      }
-      // General Mid
       return {
-        comment: "Highly functional layout. Buttons have excellent hover feedback and forms are structured logically, though the hierarchy of headings could be slightly bolder.",
-        highlight: "Clean button feedback states and logical form layouts."
+        comment: "Highly functional layout. The interactive buttons are styled properly and forms are clean, though your headings would benefit from a bolder typographic weight.",
+        highlight: "Stable visual hierarchy with slightly flat branding styles."
       };
     }
     // LOW SCORE TIER (< 70)
     if (isOverengineered) {
       return {
-        comment: "A complete visual assault. You've crammed charts, maps, and voice forms onto a single view. The user interface feels like a bloated cockpit panel from a freight jet.",
-        highlight: "Overwhelming visual clutter from excessive dashboard components."
+        comment: "A complete layout disaster. You have crammed charts, graphs, forms, and logs onto a single screen. It looks like a retro cockpit from a cargo plane. Total sensory clutter.",
+        highlight: "Overwhelming dashboard layout lacks core element focus."
       };
     }
     if (state.features.length < 2) {
       return {
-        comment: "This is not a user experience—it is a blank paper. There are no navigational headers, no feedback indicators, and zero interactive paths.",
-        highlight: "Severe lack of basic UI frameworks and empty layouts."
+        comment: "There is no user experience here because there is literally nothing to interact with. An empty white screen with a single submit button is not design.",
+        highlight: "Absent user onboarding flow and missing visual containers."
       };
     }
-    if (featureIds.has("feature-ar") && hasHardware) {
-      return {
-        comment: "The usability here is highly questionable. Combining raw hardware sensor logs with augmented reality without basic data smoothing creates an erratic UI twitch.",
-        highlight: "Erratic UI feedback from unsmoothed data streams."
-      };
-    }
-    // General Low
     return {
-      comment: "A highly frustrating layout. The elements overlap on smaller screens, typography ranges are chaotic, contrast is non-compliant, and focus outlines are completely absent.",
-      highlight: "Broken screen responsiveness and non-compliant contrast levels."
+      comment: "The interface is extremely frustrating. Elements overlap on mobile layouts, contrast ratios are non-compliant, and the navigation links lead to empty routes.",
+      highlight: "Broken screen responsiveness and heavy accessibility failures."
     };
   }
 
   // ---------------------------------------------------------
-  // 4. Victoria Chen (Investor Judge)
-  // Focus: Unit economics, monetization, market sizing, margins
+  // 4. Raj Malhotra (The Shark Investor VC)
+  // Focus: Unit economics, defensibility, defensible moats, monetization models.
   // ---------------------------------------------------------
   if (judgeId === "judge-investor") {
     // HIGH SCORE TIER (>= 90)
     if (score >= 90) {
       if (state.businessModel === "B2B SaaS" && (state.usp === "Most Scalable" || state.usp === "AI-powered")) {
         return {
-          comment: "Outstanding venture prospects. Coupling an enterprise SaaS recurring fee with a highly scalable AI backend creates an exceptionally defensible moat with 85%+ margins.",
-          highlight: "Venture-grade SaaS monetization with incredibly high gross margins."
-        };
-      }
-      if (state.businessModel === "Marketplace" && state.usp === "Community-first") {
-        return {
-          comment: "Excellent economic design. Utilizing organic community loops to seed a highly transactional marketplace solves the cold-start problem brilliantly.",
-          highlight: "Brilliant cold-start resolution for transaction-fee marketplaces."
+          comment: "Good startups create value. Great startups capture value. Coupling high-margin SaaS subscriptions with scalable server architectures is a formula for immense capital efficiency.",
+          highlight: "Highly fundable B2B SaaS economics with massive operating margins."
         };
       }
       if (state.businessModel === "Government Partnership") {
         return {
-          comment: "Fascinating regulatory capture play. Securing municipal or campus partnerships creates highly sticky, multi-year contracts that are insulated from market shifts.",
-          highlight: "Defensible public-sector contracts with immense retention moats."
+          comment: "This is a brilliant regulatory lock-in strategy. Securing multi-year agreements with public institutions creates an absolute moat that protects you from startup copycats.",
+          highlight: "High defensibility through institutional contract moats."
         };
       }
-      // General High
       return {
-        comment: "A phenomenal pitch. The unit economics are airtight, the addressable market size is massive, and you have mapped out a clear path to venture scale.",
-        highlight: "Airtight unit economics and exceptionally clear venture paths."
+        comment: "A highly viable commercial enterprise. Your monetization channels are designed beautifully, pricing units are realistic, and the customer acquisition math adds up.",
+        highlight: "Outstanding pricing alignment and clean monetization moats."
       };
     }
     // MID SCORE TIER (70-89)
     if (score >= 70) {
-      if (state.businessModel === "Freemium" && !featureIds.has("feature-analytics")) {
-        return {
-          comment: "The freemium setup is logical, but your feature priority is missing high-end analytics. How do you convert standard tier users into paid corporate contracts?",
-          highlight: "Logical freemium hook, but premium tier triggers are too weak."
-        };
-      }
       if (state.usp === "Cheapest") {
         return {
-          comment: "Competing purely on cost leaves you highly vulnerable to larger tech competitors. I'd highly recommend shifting your positioning toward premium utility tiers.",
-          highlight: "High pricing vulnerability due to low-cost positioning."
+          comment: "Interesting product. Explain why a larger company won't copy it in six months and use their scale to price you out of the market entirely. Cheap is not a moat.",
+          highlight: "High price-war vulnerability against scaled enterprise competitors."
         };
       }
-      if (isMinimalist) {
+      if (state.businessModel === "Freemium" && !featureIds.has("feature-analytics")) {
         return {
-          comment: "The product margins are clean because the build is so small, but is the addressable market actually large enough to justify venture backing?",
-          highlight: "Lean operating model, though overall market ceiling is capped."
+          comment: "The freemium top-of-funnel is sensible, but where does the money come from? You need to build high-end analytics or premium triggers that drive business conversions.",
+          highlight: "Stable freemium model with weak premium conversion triggers."
         };
       }
-      // General Mid
       return {
-        comment: "A viable commercial project. The customer acquisition costs are within reasonable bounds and monetization is sensible, though the exit potential remains modest.",
-        highlight: "Sensible monetization channels and realistic acquisition targets."
+        comment: "A commercially reasonable project. The revenue channels make sense, though you'll need to demonstrate faster customer acquisition loops to attract venture backing.",
+        highlight: "Sensible business economics but modest market exit scale."
       };
     }
     // LOW SCORE TIER (< 70)
-    if (state.businessModel === "B2B SaaS" && state.features.length >= 4) {
+    if (state.features.length >= 4 && state.businessModel === "B2B SaaS") {
       return {
-        comment: "A commercial train wreck. You've loaded the engineering queue with bloated custom features, ballooning your development costs before validating a single SaaS contract.",
-        highlight: "Capital-inefficient feature bloat without customer validation."
-      };
-    }
-    if (state.businessModel === "Freemium" && state.features.length < 2) {
-      return {
-        comment: "You chose a Freemium model, but there are literally not enough features to split between a free tier and a paid tier. There is nothing to monetize.",
-        highlight: "Inoperable freemium split due to a severely under-scoped build."
+        comment: "This is a non-profit, not a business. You have loaded your roadmap with expensive custom features, ballooning development costs before securing a single contract.",
+        highlight: "Highly capital-inefficient roadmap with negative cash yields."
       };
     }
     if (state.businessModel === "Government Partnership" && state.usp === "Fastest") {
       return {
-        comment: "Complete commercial mismatch. Government sales cycles take 12 to 18 months of intensive lobbying. Pitching a 'fastest ship' model shows a total lack of regulatory awareness.",
-        highlight: "Regulatory sales cycle clash with high speed promises."
+        comment: "Total commercial mismatch. You cannot sell to government entities with a 'move fast and break things' speed positioning. Municipalities value risk mitigation, not speed.",
+        highlight: "Severe commercial misalignment between positioning and buyer cycles."
       };
     }
-    // General Low
     return {
-      comment: "This is a non-profit, not a startup. The unit economics are entirely negative, customer acquisition margins are non-existent, and the market scale is highly localized.",
-      highlight: "Un-fundable unit economics and extremely narrow addressable market."
+      comment: "The unit economics are completely broken. You have high database query overhead, negative margins, and no defensible technology. Larger platforms will copy this in three days.",
+      highlight: "Broken business economics and zero technological defensibility."
     };
   }
 
   // ---------------------------------------------------------
-  // 5. Lord Bugsworth (Chaos Judge)
-  // Focus: Unpredictability, glitch jokes, humor, retro compilers
+  // 5. ByteLord.exe (The Hackathon Demon)
+  // Focus: Unpredictable compiler entities, chaos, glitches, memes, humor.
   // ---------------------------------------------------------
   // High, Mid, Low comments with retro hacker / glitch theme
   if (score >= 90) {
     if (hasHardware) {
       return {
-        comment: "EXCEPTIONAL CODESMITHING! The wires are glowing, the ESP32 is singing, and I detected actual quantum tunneling in your capacitor array. Absolute cyber-shamanism.",
-        highlight: "Quantum firmware resonance achieved through beautiful hardware loops."
+        comment: "EXCEPTIONAL CYBER-SHAMANISM! The serial cables are glowing, the ESP32 is singing in binary, and my debugger detected actual quantum tunneling in your arrays. 11/10 compile!",
+        highlight: "Quantum firmware resonance achieved without burning embedded microchips."
       };
     }
     if (techIds.has("tech-next") && techIds.has("tech-gemini")) {
       return {
-        comment: "Outstanding compile! Next.js routing combined with Gemini has created a sentient state machine. It just asked me if it could dream. 11/10.",
+        comment: "Outstanding compile! Next.js routing combined with Gemini has created a sentient state machine. It just asked me if it could dream. I am frightened and impressed.",
         highlight: "Highly advanced, borderline sentient LLM compiler structures."
       };
     }
     return {
-      comment: "My debugger is in tears of joy. Zero segmentation faults, zero dangling references, and your memory footprint is as light as a virtual feather. I have blessed this binary.",
+      comment: "My compiler is in literal tears of joy. Zero segmentation faults, zero dangling pointers, and the heap memory footprint is as light as a virtual feather. I have blessed this binary.",
       highlight: "Blessed compiler binary contains pristine virtual layout structures."
     };
   } else if (score >= 70) {
     if (isOverengineered) {
       return {
-        comment: "A chaotic but highly robust build! It contains so many Docker layers that I felt like I was debugging a digital nesting doll. Safe, but highly recursive.",
+        comment: "Error 418: Startup unexpectedly became investable. Your Docker registry nesting dolls operate fine, but I felt a small rip in the local spacetime continuum while deploying.",
         highlight: "Recursive digital nesting doll container architecture works correctly."
       };
     }
     if (techIds.has("tech-firebase")) {
       return {
-        comment: "A classic Firebase build. It runs fine, but NoSQL databases make my binary chips itch. I found three empty JSON trees in your database roots.",
+        comment: "Your Firebase collections run fine, but NoSQL databases make my binary logic chips itch. I found three empty JSON trees in your database roots.",
         highlight: "Functional NoSQL arrays populated by ghostly empty JSON structures."
       };
     }
     return {
-      comment: "Decent compile. The project operates within standard laws of computer physics, though I recommend checking the coolant levels on your main database server.",
-      highlight: "Solid computational loop running within standard physics constants."
+      comment: "I have absolutely no idea why this works, which means it's probably innovative. The code operates within the standard laws of physics. Coolant levels on your database are acceptable.",
+      highlight: "Decent build compiled successfully inside a stable quantum sandbox."
     };
   } else {
     if (isOverengineered) {
       return {
-        comment: "UNBELIEVABLE BLOAT. Your project has triggered a local spacetime curvature. I tried compiling and Vercel sent me a bill for three trillion dollars. Outstanding disaster.",
+        comment: "UNBELIEVABLE ANARCHY! Your project has triggered local compiler warnings. I tried compiling and Vercel sent me a bill for three trillion dollars. Outstanding disaster.",
         highlight: "Spacetime curvature triggered by extreme server-side packaging bloat."
       };
     }
     if (techIds.has("tech-node") && techIds.has("tech-mongodb")) {
       return {
-        comment: "ERROR 404: ARCHITECTURE NOT FOUND. The Node server is currently throwing undefined logs at my face while your MongoDB cluster emits actual digital smoke. Absolute masterpiece of anarchy.",
+        comment: "Your Node server is currently throwing undefined logs at my face while your MongoDB cluster emits actual digital smoke. Absolute masterpiece of server room anarchy.",
         highlight: "Digital smoke emitted from tangled MongoDB connection strings."
       };
     }
     return {
-      comment: "CRITICAL FAILURE. A nesting family of virtual raccoons has colonized your main routing directories. I tried running the code and it deleted my desktop layout. Magnificent chaos.",
+      comment: "Your API survived. Your database survived. Your sanity did not. A family of virtual raccoons has colonized your main routing folders. Magnificent chaos.",
       highlight: "Virtual raccoon colonization detected inside key routing paths."
     };
   }

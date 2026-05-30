@@ -197,7 +197,7 @@ export const useGameStore = create<GameState & GameActions>()(
               globalTimeRemaining: seconds,
               timeRemaining: seconds, // Legacy support
               totalTime: seconds,     // Legacy support
-              isTimerPaused: false,
+              isTimerPaused: true,
               stage: 'problemReveal',
               phase: mapStageToPhase('problemReveal'),
             },
@@ -239,7 +239,7 @@ export const useGameStore = create<GameState & GameActions>()(
                 stage: next,
                 phase: mapStageToPhase(next),
                 isGameOver: next === 'results',
-                isTimerPaused: next === 'results' ? true : get().isTimerPaused,
+                isTimerPaused: next === 'results' ? true : (stage === 'problemReveal' ? false : get().isTimerPaused),
               },
               false,
               'core/nextStage'

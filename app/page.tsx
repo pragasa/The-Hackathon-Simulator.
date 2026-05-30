@@ -112,10 +112,10 @@ export default function LandingPage() {
 
     // Pick a judge
     const mockJudge = JUDGES[0] || {
-      id: 'judge-tech',
-      name: 'Dr. Priya Kapoor',
-      avatar: '⚡',
-      title: 'CTO, NeuralScale Systems',
+      id: 'judge-builder',
+      name: 'Uday Sharma',
+      avatar: '🔥',
+      title: 'Indie Hacker & Product Builder',
       personality: 'technical',
     };
 

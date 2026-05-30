@@ -267,9 +267,14 @@ function ProblemRevealStage() {
     <GameplayStageCard
       stageKey="problemReveal"
       title="Problem Reveal"
-      subtitle="Review the assigned startup challenge statement. Shuffling is available to redraw alternative requirements grids."
+      subtitle="Review the assigned startup challenge statement. Shuffling is available to redraw alternative requirements grids. The timer will start after problem statement selection."
     >
       <div className="space-y-4 text-left max-w-md mx-auto font-mono text-[11px] leading-relaxed">
+        {/* Notice of timer start */}
+        <div className="p-3 rounded border border-neutral-900 bg-neutral-50/50 text-center font-mono text-[10px] text-neutral-800 tracking-wide select-none uppercase font-bold">
+          ⏱️ STATUS: COMPILER_STANDBY // THE TIMER WILL START AFTER PROBLEM STATEMENT SELECTION.
+        </div>
+
         <div className="flex justify-end">
           <Button
             size="xs"
@@ -1942,26 +1947,7 @@ function JudgingStage() {
       }
     });
 
-    let weightedScore =
-      finalInnovation * weights.innovation +
-      finalExecution * weights.execution +
-      finalDesign * weights.design +
-      finalPitch * weights.pitch;
-
-    if (currentJudge.id === "judge-chaos") {
-      const chaosOffset = Math.floor(Math.random() * 41) - 20; // -20 to +20
-      weightedScore += chaosOffset;
-    }
-
-    let finalScoreVal = weightedScore + finalBonus;
-
-    // Hardcore judging penalty (multiplier 0.85)
     const isHardcore = activeModifiers.includes("HARDCORE_JUDGE") || gameMode === "hardcore";
-    if (isHardcore) {
-      finalScoreVal = finalScoreVal * 0.85;
-    }
-
-    finalScoreVal = Math.max(0, Math.min(finalScoreVal, 100));
 
     const derivedStrengths: string[] = [];
     const derivedWeaknesses: string[] = [];
@@ -2020,8 +2006,64 @@ function JudgingStage() {
     }
 
     const finalStrengths = derivedStrengths.slice(0, 2);
+    const highlight = finalStrengths[0] || "Consistent architectural execution boundaries.";
 
-    // Call our new generated feedback comments database
+    // 1. Evaluate other panel judges first, saving them to the store
+    JUDGES.forEach(j => {
+      if (j.id !== currentJudge.id) {
+        let otherWeightedScore =
+          finalInnovation * j.scoringWeights.innovation +
+          finalExecution * j.scoringWeights.execution +
+          finalDesign * j.scoringWeights.design +
+          finalPitch * j.scoringWeights.pitch;
+
+        if (j.id === "judge-chaos") {
+          const chaosOffset = Math.floor(Math.random() * 21) - 10; // ±10 modifier
+          otherWeightedScore += chaosOffset;
+        }
+
+        let otherScoreVal = otherWeightedScore + finalBonus;
+        if (isHardcore) {
+          otherScoreVal = otherScoreVal * 0.85;
+        }
+        otherScoreVal = Math.max(0, Math.min(Math.round(otherScoreVal), 100));
+
+        const otherFeedbackResult = generateJudgeFeedback(j.id, otherScoreVal, {
+          techStack,
+          features,
+          usp,
+          businessModel,
+          problem: selectedProb,
+          solutionDirection,
+        });
+
+        addJudgeFeedback({
+          judgeId: j.id,
+          score: otherScoreVal,
+          comment: otherFeedbackResult.comment,
+          highlight: finalStrengths[0] || "Valid architectural execution.",
+        });
+      }
+    });
+
+    // 2. Evaluate selected lead judge last!
+    let leadWeightedScore =
+      finalInnovation * weights.innovation +
+      finalExecution * weights.execution +
+      finalDesign * weights.design +
+      finalPitch * weights.pitch;
+
+    if (currentJudge.id === "judge-chaos") {
+      const chaosOffset = Math.floor(Math.random() * 21) - 10; // ±10 modifier
+      leadWeightedScore += chaosOffset;
+    }
+
+    let finalScoreVal = leadWeightedScore + finalBonus;
+    if (isHardcore) {
+      finalScoreVal = finalScoreVal * 0.85;
+    }
+    finalScoreVal = Math.max(0, Math.min(Math.round(finalScoreVal), 100));
+
     const feedbackResult = generateJudgeFeedback(currentJudge.id, finalScoreVal, {
       techStack,
       features,
@@ -2031,8 +2073,6 @@ function JudgingStage() {
       solutionDirection,
     });
 
-    const highlight = finalStrengths[0];
-
     addJudgeFeedback({
       judgeId: currentJudge.id,
       score: finalScoreVal,
@@ -2040,7 +2080,7 @@ function JudgingStage() {
       highlight,
     });
 
-    // Record results and update stats
+    // Record results and update stats using the lead judge's score
     useGameStore.getState().updateStats(finalScoreVal);
     playScoreChord(); // trigger dynamic score chord!
     setEvaluationComplete(true);
@@ -2348,6 +2388,46 @@ function ResultsStage() {
     solutionDirection,
   });
 
+  const [aiRoast, setAiRoast] = useState<string>("");
+  const [loadingRoast, setLoadingRoast] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!selectedProblem || !currentJudge) return;
+
+    setLoadingRoast(true);
+    setAiRoast("");
+
+    fetch("/api/generate-roast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        problemStatement: selectedProblem.description,
+        solutionDirection: solutionDirection,
+        techStack: techStack.map(t => t.name),
+        usp: usp,
+        businessModel: businessModel,
+        mustHaveFeatures: features.map(f => f.name),
+        judge: currentJudge.name,
+        judgePersonality: currentJudge.personality,
+        archetype: archetype.name,
+        grade: grade,
+        score: finalScore100,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.roast) {
+          setAiRoast(data.roast);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch AI roast:", err);
+      })
+      .finally(() => {
+        setLoadingRoast(false);
+      });
+  }, [selectedProblem, currentJudge, solutionDirection, techStack, usp, businessModel, features, archetype.name, grade, finalScore100]);
+
   // Run achievement checks when results mount
   useEffect(() => {
     if (!feedback) return;
@@ -2602,7 +2682,11 @@ function ResultsStage() {
           </div>
 
           <p className="text-[11px] text-neutral-600 font-sans font-light leading-relaxed">
-            {archetype.description}
+            {loadingRoast ? (
+              <span className="animate-pulse text-neutral-400">⏱️ COMPILING_DYNAMIC_JURY_ROAST_MANIFEST.EXE...</span>
+            ) : (
+              aiRoast || archetype.description
+            )}
           </p>
 
           <div className="border-t border-dashed border-neutral-200 pt-3 space-y-2.5">
@@ -2723,7 +2807,7 @@ function ResultsStage() {
             </div>
 
             <p className="text-xs text-neutral-850 font-sans italic relative z-10 leading-relaxed pt-1 select-text">
-              "{feedback?.comment}"
+              "{loadingRoast ? "⏱️ COMPILING_DYNAMIC_JURY_ROAST_MANIFEST.EXE..." : (aiRoast || feedback?.comment)}"
             </p>
 
             <div className="flex items-center gap-2.5 pt-2 border-t border-dashed border-neutral-200">

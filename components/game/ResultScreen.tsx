@@ -16,6 +16,9 @@ import { Badge } from '@/components/ui/badge';
 import { useGameStore } from '@/store/gameStore';
 import { cn } from '@/lib/utils';
 import { generatePRD } from '@/lib/prdGenerator';
+import { JUDGES } from '@/data/judges';
+import { generateJudgeFeedback } from '@/data/judgeComments';
+import { classifyProjectArchetype } from '@/lib/archetypes';
 
 // ─── Score categories ───────────────────────────────────────────────────────────
 
@@ -24,35 +27,6 @@ const CATEGORIES: { key: 'innovation' | 'execution' | 'design' | 'pitch'; label:
   { key: 'execution', label: 'Execution', color: 'bg-neon-blue' },
   { key: 'design', label: 'Design', color: 'bg-neon-pink' },
   { key: 'pitch', label: 'Pitch', color: 'bg-neon-orange' },
-];
-
-// ─── Mock judge feedback (placeholder until game logic is implemented) ──────────
-
-const MOCK_FEEDBACK = [
-  {
-    judgeId: 'judge-shark',
-    name: 'Victoria Chen',
-    avatar: '🦈',
-    score: 82,
-    comment: 'Impressive market awareness. The unit economics need more thought, but the vision is compelling.',
-    highlight: 'Clear value proposition',
-  },
-  {
-    judgeId: 'judge-artist',
-    name: 'Marcus Rivera',
-    avatar: '🎨',
-    score: 90,
-    comment: 'Beautiful interface with thoughtful micro-interactions. Accessibility could use a pass.',
-    highlight: 'Outstanding visual design',
-  },
-  {
-    judgeId: 'judge-tech',
-    name: 'Dr. Priya Kapoor',
-    avatar: '⚡',
-    score: 75,
-    comment: 'Solid architecture choices. I would have liked to see better error-handling and test coverage.',
-    highlight: 'Clean code structure',
-  },
 ];
 
 // ─── Confetti dot generator ─────────────────────────────────────────────────────
@@ -268,7 +242,7 @@ export default function ResultScreen() {
     document.body.removeChild(link);
   };
 
-  const feedback = judgeFeedback[judgeFeedback.length - 1];
+  const feedback = judgeFeedback.find(fb => fb.judgeId === currentJudge?.id) || judgeFeedback[judgeFeedback.length - 1];
   const finalScore100 = feedback?.score || 0;
 
   const getGrade = (score: number) => {
@@ -280,6 +254,141 @@ export default function ResultScreen() {
     return "F";
   };
   const grade = getGrade(finalScore100);
+
+  const archetype = classifyProjectArchetype({
+    techStack,
+    features,
+    usp,
+    businessModel,
+    solutionDirection,
+  });
+
+  const [aiRoast, setAiRoast] = useState<string>("");
+  const [loadingRoast, setLoadingRoast] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!selectedProblem || !currentJudge) return;
+
+    setLoadingRoast(true);
+    setAiRoast("");
+
+    fetch("/api/generate-roast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        problemStatement: selectedProblem.description,
+        solutionDirection: solutionDirection,
+        techStack: techStack.map(t => t.name),
+        usp: usp,
+        businessModel: businessModel,
+        mustHaveFeatures: features.map(f => f.name),
+        judge: currentJudge.name,
+        judgePersonality: currentJudge.personality,
+        archetype: archetype.name,
+        grade: grade,
+        score: finalScore100,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.roast) {
+          setAiRoast(data.roast);
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch AI roast:", err);
+      })
+      .finally(() => {
+        setLoadingRoast(false);
+      });
+  }, [selectedProblem, currentJudge, solutionDirection, techStack, usp, businessModel, features, archetype.name, grade, finalScore100]);
+
+  // Resolve the 3-judge panel for display
+  const displayFeedbacks = (() => {
+    if (!judgeFeedback || judgeFeedback.length === 0) return [];
+    
+    // Find the lead feedback
+    const leadFb = judgeFeedback.find(fb => fb.judgeId === currentJudge?.id) || judgeFeedback[judgeFeedback.length - 1];
+    if (!leadFb) return [];
+
+    const leadJudgeProfile = JUDGES.find(j => j.id === leadFb.judgeId) || currentJudge || JUDGES[0];
+
+    const results = [{
+      judgeId: leadFb.judgeId,
+      name: leadJudgeProfile.name,
+      avatar: leadJudgeProfile.avatar,
+      score: leadFb.score,
+      comment: loadingRoast ? "⏱️ COMPILING_DYNAMIC_JURY_ROAST_MANIFEST.EXE..." : (aiRoast || leadFb.comment),
+      highlight: leadFb.highlight,
+      isLead: true,
+    }];
+    
+    // Get other feedbacks from the store
+    const othersInStore = judgeFeedback.filter(fb => fb.judgeId !== leadFb.judgeId);
+    
+    if (othersInStore.length >= 2) {
+      othersInStore.slice(0, 2).forEach(fb => {
+        const jProfile = JUDGES.find(j => j.id === fb.judgeId);
+        if (jProfile) {
+          results.push({
+            judgeId: fb.judgeId,
+            name: jProfile.name,
+            avatar: jProfile.avatar,
+            score: fb.score,
+            comment: fb.comment,
+            highlight: fb.highlight,
+            isLead: false,
+          });
+        }
+      });
+    } else {
+      // Fallback: Dynamically generate feedbacks for two other judges if missing
+      const usedIds = new Set(results.map(r => r.judgeId));
+      const remainingJudges = JUDGES.filter(j => !usedIds.has(j.id));
+      
+      remainingJudges.slice(0, 2).forEach(j => {
+        const finalInnovation = score.innovation || 20;
+        const finalExecution = score.execution || 20;
+        const finalDesign = score.design || 20;
+        const finalPitch = score.pitch || 20;
+        
+        let weightedScore =
+          finalInnovation * j.scoringWeights.innovation +
+          finalExecution * j.scoringWeights.execution +
+          finalDesign * j.scoringWeights.design +
+          finalPitch * j.scoringWeights.pitch;
+          
+        if (j.id === "judge-chaos") {
+          weightedScore += 5;
+        }
+        
+        const judgeScore = Math.max(0, Math.min(Math.round(weightedScore + (score.bonus || 0)), 100));
+        
+        const fbResult = generateJudgeFeedback(j.id, judgeScore, {
+          techStack,
+          features,
+          usp,
+          businessModel,
+          problem: selectedProblem,
+          solutionDirection,
+        });
+        
+        results.push({
+          judgeId: j.id,
+          name: j.name,
+          avatar: j.avatar,
+          score: judgeScore,
+          comment: fbResult.comment,
+          highlight: fbResult.highlight || "Valid architectural execution.",
+          isLead: false,
+        });
+      });
+    }
+    
+    return results;
+  })();
+
+
 
   const renderFormattedText = (text: string) => {
     if (!text) return "";
@@ -381,19 +490,29 @@ export default function ResultScreen() {
         </h2>
 
         <div className="grid gap-4 sm:grid-cols-3">
-          {MOCK_FEEDBACK.map((fb, i) => (
+          {displayFeedbacks.map((fb, i) => (
             <motion.div
               key={fb.judgeId}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.8 + i * 0.12, duration: 0.4 }}
-              className="glass-card flex flex-col gap-3 p-4"
+              className={cn(
+                "glass-card flex flex-col gap-3 p-4 relative transition-all duration-300",
+                fb.isLead && "glass-card-strong border-neon-purple ring-1 ring-neon-purple/20 glow-purple"
+              )}
             >
+              {/* Lead Judge Badge Indicator */}
+              {fb.isLead && (
+                <div className="absolute top-2 right-2 flex items-center gap-1 font-mono text-[8px] font-bold bg-neon-purple/20 text-neon-purple px-1 py-0.5 rounded uppercase tracking-wider select-none">
+                  👑 LEAD
+                </div>
+              )}
+
               {/* Judge header */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 pr-10">
                 <span className="text-2xl">{fb.avatar}</span>
                 <div>
-                  <p className="text-xs font-semibold text-foreground">{fb.name}</p>
+                  <p className="text-xs font-semibold text-foreground leading-tight">{fb.name}</p>
                   <p className="font-mono text-[10px] text-muted-foreground">
                     Score: {fb.score}
                   </p>
@@ -411,7 +530,7 @@ export default function ResultScreen() {
               {/* Highlight */}
               <Badge
                 variant="secondary"
-                className="w-fit text-[10px]"
+                className="w-fit text-[10px] mt-auto"
               >
                 ✨ {fb.highlight}
               </Badge>

@@ -51,7 +51,7 @@ export function classifyProjectArchetype(params: {
       id: "overengineer",
       name: "The Overengineer",
       subtitle: "System Architecture Maximizer",
-      description: "You spent the hackathon setting up Docker containers, PostgreSQL connection pools, and AWS auto-scaling lattices. The project's architecture is enterprise-ready and Dr. Priya Kapoor is weeping with joy, but the actual app is essentially a beautiful loading spinner and a single login button. Elegant, but highly impractical for a 24-hour sprint.",
+      description: "You spent the hackathon setting up Docker containers, PostgreSQL connection pools, and AWS auto-scaling lattices. The project's architecture is enterprise-ready, but Uday Sharma is shaking his head in absolute frustration at the unnecessary bloat, while your actual app is essentially a beautiful loading spinner and a single login button. Elegant, but highly impractical for a 24-hour sprint.",
       colorClass: "border-neutral-900 bg-neutral-100 text-neutral-900",
       radarStats: {
         techDepth: 95,
@@ -105,7 +105,7 @@ export function classifyProjectArchetype(params: {
       id: "hustler",
       name: "The Hustler",
       subtitle: "Unit Economics Monetizer",
-      description: "Margins, acquisition loops, and exit metrics are all you care about. Your project is designed as a cash-generating engine from Day 1, utilizing a highly transactional business model. Your pitch presentation is flawless, and Victoria Chen is taking notes on your CAC calculations, even if the database is currently running on a local JSON file.",
+      description: "Margins, acquisition loops, and exit metrics are all you care about. Your project is designed as a cash-generating engine from Day 1, utilizing a highly transactional business model. Your pitch presentation is flawless, and Raj Malhotra is taking notes on your CAC calculations, even if the database is currently running on a local JSON file.",
       colorClass: "border-emerald-900 bg-emerald-50 text-emerald-900",
       radarStats: {
         techDepth: 35,
@@ -123,7 +123,7 @@ export function classifyProjectArchetype(params: {
       id: "visionary",
       name: "The Visionary",
       subtitle: "Future Disruption Synthesizer",
-      description: "You are building the future, today. By selecting a highly disruptive USP (AI-powered, Sustainable, or Community-first) and matching it with creative problem vectors, you aim to reshape campus life. The project is highly creative, and Alex Nakamura is nodding along in agreement, even if the actual database backend is slightly unfinished.",
+      description: "You are building the future, today. By selecting a highly disruptive USP (AI-powered, Sustainable, or Community-first) and matching it with creative problem vectors, you aim to reshape campus life. The project is highly creative, and Sarah Park is nodding along in agreement, even if the actual database backend is slightly unfinished.",
       colorClass: "border-blue-900 bg-blue-50 text-blue-900",
       radarStats: {
         techDepth: 70,
