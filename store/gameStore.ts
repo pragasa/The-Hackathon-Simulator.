@@ -136,6 +136,7 @@ const initialGameState = {
   events: [],
   isGameStarted: false,
   isGameOver: false,
+  unlockedAchievements: [] as string[],
 };
 
 // ---------------------------------------------------------------------------
@@ -267,9 +268,10 @@ export const useGameStore = create<GameState & GameActions>()(
 
         resetGame: () =>
           set(
-            {
+            (state) => ({
               ...initialGameState,
-            },
+              unlockedAchievements: state.unlockedAchievements, // preserve across playthroughs
+            }),
             false,
             'core/resetGame'
           ),
@@ -364,6 +366,18 @@ export const useGameStore = create<GameState & GameActions>()(
         setJudgeSpinState: (spinState) =>
           set({ judgeSpinState: spinState }, false, 'judging/setJudgeSpinState'),
 
+        unlockAchievement: (id) =>
+          set(
+            (state) => {
+              if (state.unlockedAchievements.includes(id)) return {};
+              return {
+                unlockedAchievements: [...state.unlockedAchievements, id],
+              };
+            },
+            false,
+            'core/unlockAchievement'
+          ),
+
         // ─── Core Game Terminate ───
 
         endGame: () =>
@@ -398,6 +412,7 @@ export const useGameStore = create<GameState & GameActions>()(
           judgeFeedback: state.judgeFeedback,
           isGameStarted: state.isGameStarted,
           isGameOver: state.isGameOver,
+          unlockedAchievements: state.unlockedAchievements,
         }),
       }
     ),

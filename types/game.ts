@@ -226,6 +226,8 @@ export interface GameState {
   isGameStarted: boolean;
   /** Whether the game has ended */
   isGameOver: boolean;
+  /** Persisted list of achievements unlocked */
+  unlockedAchievements: string[];
 }
 
 /** Actions the player (or system) can dispatch to mutate game state */
@@ -286,4 +288,6 @@ export interface GameActions {
   endGame: () => void;
   /** Reset all state for a fresh run */
   resetGame: () => void;
+  /** Unlock a persistent milestone achievement */
+  unlockAchievement: (id: string) => void;
 }

@@ -6,6 +6,7 @@ import { useGameStore, STAGE_ORDER } from "@/store/gameStore";
 import GameLayout from "@/components/game/GameLayout";
 import { Button } from "@/components/ui/button";
 import { PROBLEMS } from "@/data/problems";
+import { JUDGES } from "@/data/judges";
 import { TECH_POOL, TECH_WEIGHTS } from "@/data/techItems";
 import { DraggableCard } from "@/components/drag-drop/DraggableCard";
 import { DropZone } from "@/components/drag-drop/DropZone";
@@ -837,6 +838,7 @@ function MentorStage() {
     // Apply minor advisor reliance scoring penalty (representative of consult costs)
     updateScore("pitch", Math.max(0, useGameStore.getState().score.pitch - 3));
     updateScore("bonus", useGameStore.getState().score.bonus + 5);
+    useGameStore.setState({ mentorHintsUsed: 1 });
   };
 
   return (
@@ -959,15 +961,837 @@ function BusinessModelStage() {
   );
 }
 
-// ─── Placeholder Fallback views (Stages 9 to 12) ───────────────────────────
+// ─── Stage 9: Pitch Prep Phase ──────────────────────────────────────────────
 
-function FallbackStage({ stageKey }: { stageKey: GameStage }) {
+function PitchPrepStage() {
+  const {
+    selectedProblem,
+    solutionDirection,
+    usp,
+    techStack,
+    features,
+    businessModel,
+    pitchText,
+    setPitchText,
+  } = useGameStore();
+
+  const techNames = techStack.map((t) => t.name).join(", ");
+  const featureNames = features.map((f) => f.name).join(", ");
+
+  const defaultPitch = `Hello, we are tackling the "${
+    selectedProblem?.title || "assigned"
+  }" challenge. Our solution is a ${
+    solutionDirection || "digital product"
+  } engineered to be ${
+    usp ? `the "${usp}"` : "highly optimized"
+  } version in the market. Powered by a robust stack of ${
+    techNames || "modern frameworks"
+  }, we deliver value using a ${
+    businessModel || "tailored"
+  } revenue strategy. This directly solves constraints like "${
+    selectedProblem?.constraints?.[0] || "core system complexity"
+  }" while leveraging our must-have features: ${
+    featureNames || "optimized workflow"
+  }.`;
+
+  const talkingPoints = [
+    `Engineered using ${techNames || "highly specialized components"} for maximum compiler throughput and scalability.`,
+    `Focused competitive advantage centered on the "${usp || "optimized value"}" unique selling proposition.`,
+    `Sustainable unit economics backed by a robust ${businessModel || "validated"} monetization loop.`,
+  ];
+
+  useEffect(() => {
+    if (!pitchText) {
+      setPitchText(defaultPitch);
+    }
+  }, [pitchText, defaultPitch, setPitchText]);
+
   return (
     <GameplayStageCard
-      stageKey={stageKey}
-      title={`${stageKey} Stage`}
-      subtitle="Operational templates compiled successfully. Stage transitions ready for gameplay integrations in Sprint 4."
-    />
+      stageKey="pitchPrep"
+      title="Compile Final Pitch"
+      subtitle="Synthesize your project choices into an elevator pitch. Customize your pitch statement below to prepare for the jury evaluation panel."
+    >
+      <div className="max-w-xl mx-auto text-left font-mono text-[11px] space-y-4">
+        {/* Dynamic Project Details Monospace summary */}
+        <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-md space-y-2">
+          <span className="text-neutral-400 block text-[9px] uppercase border-b border-neutral-200 pb-1 mb-2">PROJECT_MANIFEST.TXT</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-1.5 text-[10px]">
+            <div><span className="text-neutral-400">PROBLEM:</span> <span className="text-neutral-900 font-bold">{selectedProblem?.title.toUpperCase()}</span></div>
+            <div><span className="text-neutral-400">CATEGORY:</span> <span className="text-neutral-900 font-bold uppercase">{selectedProblem?.category}</span></div>
+            <div><span className="text-neutral-400">DIRECTION:</span> <span className="text-neutral-900 font-bold uppercase">{solutionDirection}</span></div>
+            <div><span className="text-neutral-400">USP:</span> <span className="text-neutral-900 font-bold uppercase">{usp}</span></div>
+            <div><span className="text-neutral-400">MODEL:</span> <span className="text-neutral-900 font-bold uppercase">{businessModel}</span></div>
+            <div><span className="text-neutral-400">FEATURES:</span> <span className="text-neutral-900 font-bold">{features.length} IN_BACKLOG</span></div>
+          </div>
+        </div>
+
+        {/* Dynamic Elevator Pitch Generator */}
+        <div className="space-y-1">
+          <span className="text-neutral-400 block text-[9px] uppercase">30_SECOND_ELEVATOR_PITCH.SH</span>
+          <textarea
+            value={pitchText}
+            onChange={(e) => setPitchText(e.target.value)}
+            rows={5}
+            className="w-full p-3 bg-white border border-neutral-900 rounded-md font-sans text-xs text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 leading-relaxed shadow-inner"
+            placeholder="Write your custom elevator pitch..."
+          />
+        </div>
+
+        {/* Key Talking Points */}
+        <div className="space-y-2 border-t border-dashed border-border pt-3">
+          <span className="text-neutral-400 block text-[9px] uppercase">KEY_DEMO_TALKING_POINTS.TXT</span>
+          <ul className="space-y-1.5">
+            {talkingPoints.map((pt, i) => (
+              <li key={i} className="flex items-start gap-2 text-neutral-700 font-sans font-light text-xs">
+                <span className="text-neutral-900 font-mono text-[10px] mt-0.5">[{i + 1}]</span>
+                <span>{pt}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </GameplayStageCard>
+  );
+}
+
+// ─── Stage 10: Judge Wheel ──────────────────────────────────────────────────
+
+function JudgeSpinStage() {
+  const { currentJudge, setCurrentJudge, judgeSpinState, setJudgeSpinState, nextStage } = useGameStore();
+  const [rotation, setRotation] = useState(0);
+  const [spinning, setSpinning] = useState(false);
+
+  useEffect(() => {
+    if (currentJudge && judgeSpinState === "done") {
+      const idx = JUDGES.findIndex((j) => j.id === currentJudge.id);
+      if (idx !== -1) {
+        const sliceAngle = 360 / JUDGES.length;
+        setRotation(360 - (idx * sliceAngle + sliceAngle / 2));
+      }
+    }
+  }, [currentJudge, judgeSpinState]);
+
+  const spinWheel = () => {
+    if (spinning) return;
+    setSpinning(true);
+    setJudgeSpinState("spinning");
+
+    const randomIndex = Math.floor(Math.random() * JUDGES.length);
+    const selected = JUDGES[randomIndex];
+
+    const sliceAngle = 360 / JUDGES.length;
+    const spins = 6;
+    const targetAngle = spins * 360 + (360 - (randomIndex * sliceAngle + sliceAngle / 2));
+    
+    setRotation(targetAngle);
+
+    setTimeout(() => {
+      setSpinning(false);
+      setJudgeSpinState("done");
+      setCurrentJudge(selected);
+    }, 2500);
+  };
+
+  return (
+    <GameplayStageCard
+      stageKey="judgeSpin"
+      title="Spin Judge Wheel"
+      subtitle="Engage the jury selector roulette. A randomized, expert judge profile will be selected to grade your project manifest."
+    >
+      <div className="max-w-md mx-auto flex flex-col items-center justify-center font-mono text-[11px] space-y-6">
+        {/* SVG Wheel Roulette Container */}
+        <div className="relative w-64 h-64 flex items-center justify-center">
+          {/* Top Pointer */}
+          <div className="absolute -top-2 z-10 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[15px] border-t-neutral-900 drop-shadow-sm" />
+
+          {/* SVG Circle Wheel */}
+          <div
+            className="w-full h-full rounded-full border-2 border-neutral-900 overflow-hidden shadow-md bg-white"
+            style={{
+              transform: `rotate(${rotation}deg)`,
+              transition: spinning ? "transform 2.5s cubic-bezier(0.15, 0.85, 0.35, 1)" : "none",
+            }}
+          >
+            <svg viewBox="0 0 200 200" className="w-full h-full">
+              {JUDGES.map((jg, idx) => {
+                const angle = 360 / JUDGES.length;
+                const startAngle = idx * angle;
+                const endAngle = (idx + 1) * angle;
+
+                const polarToCartesian = (centerX: number, centerY: number, radius: number, angleInDegrees: number) => {
+                  const angleInRadians = ((angleInDegrees - 90) * Math.PI) / 180.0;
+                  return {
+                    x: centerX + radius * Math.cos(angleInRadians),
+                    y: centerY + radius * Math.sin(angleInRadians),
+                  };
+                };
+
+                const start = polarToCartesian(100, 100, 96, startAngle);
+                const end = polarToCartesian(100, 100, 96, endAngle);
+                const largeArcFlag = angle <= 180 ? "0" : "1";
+
+                const d = [
+                  "M", 100, 100,
+                  "L", start.x, start.y,
+                  "A", 96, 96, 0, largeArcFlag, 1, end.x, end.y,
+                  "Z"
+                ].join(" ");
+
+                const fillColor = idx % 2 === 0 ? "#ffffff" : "#f4f4f5";
+                const textAngle = startAngle + angle / 2 - 90;
+                const textPos = polarToCartesian(100, 100, 60, startAngle + angle / 2);
+
+                return (
+                  <g key={jg.id} className="select-none">
+                    <path
+                      d={d}
+                      fill={fillColor}
+                      stroke="#171717"
+                      strokeWidth="1.5"
+                    />
+                    <text
+                      x={textPos.x}
+                      y={textPos.y}
+                      transform={`rotate(${textAngle + 90}, ${textPos.x}, ${textPos.y})`}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      className="font-mono text-[9px] font-bold fill-neutral-900"
+                    >
+                      {jg.avatar} {jg.name.split(" ")[0]}
+                    </text>
+                  </g>
+                );
+              })}
+              <circle cx="100" cy="100" r="16" fill="#171717" stroke="#ffffff" strokeWidth="2" />
+            </svg>
+          </div>
+        </div>
+
+        {/* Control Button / Selection Info */}
+        <div className="w-full text-center space-y-4">
+          {judgeSpinState === "idle" && (
+            <Button
+              onClick={spinWheel}
+              className="font-mono text-xs border border-neutral-900 w-full max-w-[200px]"
+            >
+              ⚡ SPIN_ROULETTE.EXE
+            </Button>
+          )}
+
+          {judgeSpinState === "spinning" && (
+            <div className="text-xs text-muted-foreground animate-pulse py-2">
+              🎲 SHUFFLING_JURY_CHANNELS...
+            </div>
+          )}
+
+          {judgeSpinState === "done" && currentJudge && (
+            <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-md w-full text-left space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">{currentJudge.avatar}</span>
+                <div>
+                  <span className="text-neutral-400 block text-[9px] uppercase">SELECTED_JUDGE:</span>
+                  <span className="font-bold text-neutral-900 text-sm uppercase">{currentJudge.name}</span>
+                  <span className="text-[10px] text-muted-foreground block font-sans font-light leading-none mt-0.5">{currentJudge.title}</span>
+                </div>
+              </div>
+              
+              <div className="border-t border-dashed border-border pt-2 text-[10px] text-neutral-600 font-sans font-light leading-relaxed">
+                Expertise: {currentJudge.expertise.join(", ")}
+              </div>
+              
+              <Button
+                onClick={nextStage}
+                className="font-mono text-xs border border-neutral-900 w-full mt-2"
+              >
+                SUBMIT_TO_JURY.SH
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
+    </GameplayStageCard>
+  );
+}
+
+// ─── Stage 11: Dynamic Judging Engine ────────────────────────────────────────
+
+function JudgingStage() {
+  const {
+    currentJudge,
+    score,
+    techStack,
+    usp,
+    solutionDirection,
+    businessModel,
+    features,
+    mentorHintsUsed,
+    addJudgeFeedback,
+    judgeFeedback,
+    nextStage,
+  } = useGameStore();
+
+  const [loadingStep, setLoadingStep] = useState(0);
+  const [evaluationComplete, setEvaluationComplete] = useState(false);
+
+  const loadingLogs = [
+    "INITIATING COMPILER PIPELINE...",
+    "EXTRACTING PROJECT MANIFEST...",
+    "PARSING CHOSEN USP & TECH STACK...",
+    "RUNNING FEASIBILITY AND VALUE MULTIPLIERS...",
+    "CALCULATING SYNERGIES & MENTOR CODES...",
+    "SYNTHESIZING CRITICAL JURY SCORE MATRIX...",
+    "COMPILING FINAL REPORT..."
+  ];
+
+  useEffect(() => {
+    if (evaluationComplete || !currentJudge) return;
+
+    let step = 0;
+    const interval = setInterval(() => {
+      if (step < loadingLogs.length - 1) {
+        step++;
+        setLoadingStep(step);
+      } else {
+        clearInterval(interval);
+        performEvaluation();
+      }
+    }, 400);
+
+    return () => clearInterval(interval);
+  }, [currentJudge]);
+
+  const performEvaluation = () => {
+    if (!currentJudge) return;
+
+    const weights = currentJudge.scoringWeights;
+    const baseInnovation = score.innovation;
+    const baseExecution = score.execution;
+    const baseDesign = score.design;
+    const basePitch = score.pitch;
+
+    let weightedScore =
+      baseInnovation * weights.innovation +
+      baseExecution * weights.execution +
+      baseDesign * weights.design +
+      basePitch * weights.pitch;
+
+    if (currentJudge.id === "judge-chaos") {
+      const chaosOffset = Math.floor(Math.random() * 41) - 20; // -20 to +20
+      weightedScore += chaosOffset;
+    }
+
+    let finalScoreVal = weightedScore + score.bonus;
+    finalScoreVal = Math.max(0, Math.min(finalScoreVal, 100));
+
+    const derivedStrengths: string[] = [];
+    const derivedWeaknesses: string[] = [];
+
+    const techIds = new Set(techStack.map((t) => t.id));
+    if (techIds.has("tech-next") && techIds.has("tech-vercel")) {
+      derivedStrengths.push("Excellent Next.js + Vercel deployment infrastructure synergy.");
+    }
+    if ((techIds.has("tech-openai") || techIds.has("tech-gemini")) && techIds.has("tech-next")) {
+      derivedStrengths.push("Cutting-edge integration of AI models with responsive frontend frameworks.");
+    }
+    if (techIds.has("tech-esp32") && techIds.has("tech-arduino")) {
+      derivedStrengths.push("High-fidelity matching of physical IoT boards with core IDE compilers.");
+    }
+    if (techIds.has("tech-supabase") && techIds.has("tech-postgres")) {
+      derivedStrengths.push("Robust scalable database architecture matching PostgreSQL latency speeds.");
+    }
+
+    if (features.length === 2 || features.length === 3) {
+      derivedStrengths.push("Extremely lean and disciplined product scoping boundary rules.");
+    } else if (features.length > 3) {
+      derivedWeaknesses.push("Severe product scope bloat. Team tried compiling too many Must-Have components.");
+    } else if (features.length < 2) {
+      derivedWeaknesses.push("Under-scoped roadmap. MVP fails to meet baseline hackathon requirements.");
+    }
+
+    const selectedProb = useGameStore.getState().selectedProblem;
+    if (businessModel === "Government Partnership" && (selectedProb?.category === "sustainability" || selectedProb?.category === "smart-campus")) {
+      derivedStrengths.push("Outstanding strategic fit matching public sponsorship with carbon offset problems.");
+    }
+    if (businessModel === "B2B SaaS" && (usp === "Most Scalable" || selectedProb?.id === "prob-learnflow")) {
+      derivedStrengths.push("Excellent monetization alignment combining high-scale hosting with corporate licensing.");
+    }
+
+    if (solutionDirection === "ai-solution" && !techIds.has("tech-openai") && !techIds.has("tech-gemini")) {
+      derivedWeaknesses.push("Critical stack gap: Selected AI Solution direction but failed to integrate large language models.");
+    }
+    if (solutionDirection === "iot-product" && !techIds.has("tech-esp32") && !techIds.has("tech-arduino")) {
+      derivedWeaknesses.push("Critical stack gap: Selected IoT Hardware direction but failed to allocate microcontrollers.");
+    }
+
+    if (usp === "Fastest" && techIds.has("tech-aws")) {
+      derivedWeaknesses.push("Deployment latency overhead: Chosen AWS servers contradict the extreme speed USP.");
+    }
+
+    if (mentorHintsUsed > 0) {
+      derivedWeaknesses.push("Mentor advisor reliance: Small penalty assessed for consultation reliance.");
+    }
+
+    if (derivedStrengths.length < 2) {
+      derivedStrengths.push("Consistent architectural execution boundaries.");
+      derivedStrengths.push("Clear strategic path outlining MVP focus areas.");
+    }
+    if (derivedWeaknesses.length < 2) {
+      derivedWeaknesses.push("Slight optimization room left in the core query pipeline.");
+      derivedWeaknesses.push("Monetization channels could benefit from extra community validation.");
+    }
+
+    const finalStrengths = derivedStrengths.slice(0, 2);
+
+    let comment = "";
+    if (finalScoreVal >= 90) {
+      comment = {
+        technical: "Brilliant engineering compile. Perfect database locks and stellar code modularity.",
+        creative: "Spectacular! This changes the narrative completely. The aesthetic flow is gorgeous.",
+        encouraging: "Outstanding work! I am incredibly proud of what you put together in such a short window.",
+        tough: "Impressive. I came in expecting code soup, but this is a exceptionally structured deployment.",
+      }[currentJudge.personality];
+    } else if (finalScoreVal >= 70) {
+      comment = {
+        technical: "Solid, viable architecture. Minor database indexing room remains, but highly functional.",
+        creative: "A strong pitch and polished style. The USP makes immediate sense for this category.",
+        encouraging: "A highly respectable submission! With a few extra hours, this could win outright.",
+        tough: "Passable. The core features compile correctly, though it lacks severe creative ambition.",
+      }[currentJudge.personality];
+    } else {
+      comment = {
+        technical: "Compile failed due to dependency gaps and scope bloat. Architecture lacks robustness.",
+        creative: "A highly confusing pitch. The features do not represent the selected business model well.",
+        encouraging: "A good attempt! Keep debugging and tweaking your frameworks. You will get there.",
+        tough: "Incomplete. Too many bloat items and a major lack of functional discipline.",
+      }[currentJudge.personality];
+    }
+
+    const highlight = finalStrengths[0];
+
+    addJudgeFeedback({
+      judgeId: currentJudge.id,
+      score: finalScoreVal,
+      comment,
+      highlight,
+    });
+
+    setEvaluationComplete(true);
+  };
+
+  return (
+    <GameplayStageCard
+      stageKey="judging"
+      title="Jury Evaluation"
+      subtitle="The selected judge is evaluating your project manifest under the compiler lens."
+    >
+      <div className="max-w-md mx-auto text-left font-mono text-[11px] space-y-4">
+        {!evaluationComplete ? (
+          <div className="p-5 bg-neutral-900 border border-neutral-800 rounded-md text-white shadow-xl space-y-4 leading-relaxed font-mono">
+            <div className="flex items-center justify-between border-b border-neutral-800 pb-2">
+              <span className="text-amber-400 font-bold animate-pulse">COMPILER_EVALUATION_IN_PROGRESS</span>
+              <span className="text-neutral-500 text-[9px]">[RUNNING]</span>
+            </div>
+
+            <div className="space-y-1 text-neutral-400 text-[10px]">
+              {loadingLogs.slice(0, loadingStep + 1).map((log, i) => (
+                <div key={i} className="flex gap-2">
+                  <span className="text-neutral-600">&gt;</span>
+                  <span className={i === loadingStep ? "text-neutral-100 font-bold animate-pulse" : ""}>{log}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="w-full bg-neutral-800 h-1.5 rounded-full overflow-hidden">
+              <div
+                className="bg-amber-400 h-full transition-all duration-300"
+                style={{ width: `${((loadingStep + 1) / loadingLogs.length) * 100}%` }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="p-5 bg-neutral-50 border border-neutral-900 rounded-md shadow-sm space-y-4 leading-relaxed">
+            <div className="flex items-center gap-3 border-b border-border pb-3">
+              <span className="text-3xl">{currentJudge?.avatar}</span>
+              <div>
+                <span className="text-neutral-400 block text-[9px] uppercase">EVALUATOR:</span>
+                <span className="font-bold text-neutral-900 text-sm uppercase">{currentJudge?.name}</span>
+                <span className="text-[9px] text-muted-foreground block font-sans font-light">{currentJudge?.title}</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <span className="text-neutral-400 block text-[9px] uppercase">JURY_FEEDBACK_COMMENT:</span>
+              <p className="text-xs text-neutral-800 font-sans italic bg-white p-3 border border-neutral-200 rounded leading-relaxed">
+                "{judgeFeedback[judgeFeedback.length - 1]?.comment}"
+              </p>
+            </div>
+
+            <div className="p-2.5 bg-neutral-900 border border-neutral-900 rounded text-center text-white">
+              <span className="text-[10px] text-neutral-400 block uppercase font-mono tracking-wider mb-0.5">COMPUTED_SCORE_INDEX</span>
+              <span className="text-2xl font-black">{judgeFeedback[judgeFeedback.length - 1]?.score}/100</span>
+            </div>
+
+            <Button
+              onClick={nextStage}
+              className="font-mono text-xs border border-neutral-900 w-full"
+            >
+              LOAD_RESULTS_DASHBOARD.SH
+            </Button>
+          </div>
+        )}
+      </div>
+    </GameplayStageCard>
+  );
+}
+
+// ─── Stage 12: Final Results & Achievements ──────────────────────────────────
+
+const ACHIEVEMENTS_LIST = [
+  { id: "scope-master", name: "Scope Master", desc: "Must-Have features count: 2 or 3" },
+  { id: "startup-brain", name: "Startup Brain", desc: "Monetization matches Problem type" },
+  { id: "technical-wizard", name: "Technical Wizard", desc: "Activate >= 2 stack synergies" },
+  { id: "judge-favorite", name: "Judge Favorite", desc: "Earn score of >= 90/100" },
+  { id: "speed-builder", name: "Speed Builder", desc: "Choose extreme Fastest USP" },
+  { id: "ai-pioneer", name: "AI Pioneer", desc: "Combine AI models with AI USP" },
+  { id: "chaos-survivor", name: "Chaos Survivor", desc: "Score >= 70 from Lord Bugsworth" },
+  { id: "frugal-founder", name: "Frugal Founder", desc: "Freemium plus Cheapest USP" },
+  { id: "lean-mean", name: "Lean & Mean", desc: "2 features, small stack (<= 3 items)" },
+  { id: "omniscient", name: "Omniscient", desc: "Used the mentor advisor audit" },
+];
+
+function ResultsStage() {
+  const {
+    judgeFeedback,
+    selectedProblem,
+    solutionDirection,
+    usp,
+    techStack,
+    features,
+    businessModel,
+    mentorHintsUsed,
+    currentJudge,
+    unlockedAchievements,
+    unlockAchievement,
+    resetGame,
+  } = useGameStore();
+
+  const [copied, setCopied] = useState(false);
+
+  const feedback = judgeFeedback[judgeFeedback.length - 1];
+  const finalScore100 = feedback?.score || 0;
+  const displayScore = (finalScore100 / 2).toFixed(1);
+
+  const getGrade = (score: number) => {
+    if (score >= 94) return "S";
+    if (score >= 84) return "A";
+    if (score >= 72) return "B";
+    if (score >= 60) return "C";
+    if (score >= 48) return "D";
+    return "F";
+  };
+  const grade = getGrade(finalScore100);
+
+  // Run achievement checks when results mount
+  useEffect(() => {
+    if (!feedback) return;
+
+    // 1. Scope Master
+    if (features.length === 2 || features.length === 3) {
+      unlockAchievement("scope-master");
+    }
+
+    // 2. Startup Brain
+    let startupBrainSynergy = false;
+    if (businessModel === "Government Partnership" && (selectedProblem?.category === "sustainability" || selectedProblem?.category === "smart-campus")) {
+      startupBrainSynergy = true;
+    }
+    if (businessModel === "B2B SaaS" && (usp === "Most Scalable" || selectedProblem?.id === "prob-learnflow")) {
+      startupBrainSynergy = true;
+    }
+    if (businessModel === "Freemium" && solutionDirection === "mobile-app") {
+      startupBrainSynergy = true;
+    }
+    if (startupBrainSynergy) {
+      unlockAchievement("startup-brain");
+    }
+
+    // 3. Technical Wizard
+    const ids = new Set(techStack.map((t) => t.id));
+    let synergiesCount = 0;
+    if (ids.has("tech-next") && ids.has("tech-vercel")) synergiesCount++;
+    if ((ids.has("tech-openai") || ids.has("tech-gemini")) && ids.has("tech-next")) synergiesCount++;
+    if (ids.has("tech-esp32") && ids.has("tech-arduino")) synergiesCount++;
+    if (ids.has("tech-supabase") && ids.has("tech-postgres")) synergiesCount++;
+    if (synergiesCount >= 2) {
+      unlockAchievement("technical-wizard");
+    }
+
+    // 4. Judge Favorite
+    if (finalScore100 >= 90) {
+      unlockAchievement("judge-favorite");
+    }
+
+    // 5. Speed Builder
+    if (usp === "Fastest") {
+      unlockAchievement("speed-builder");
+    }
+
+    // 6. AI Pioneer
+    if (usp === "AI-powered" && (ids.has("tech-openai") || ids.has("tech-gemini"))) {
+      unlockAchievement("ai-pioneer");
+    }
+
+    // 7. Chaos Survivor
+    if (currentJudge?.id === "judge-chaos" && finalScore100 >= 70) {
+      unlockAchievement("chaos-survivor");
+    }
+
+    // 8. Frugal Founder
+    if (usp === "Cheapest" && businessModel === "Freemium") {
+      unlockAchievement("frugal-founder");
+    }
+
+    // 9. Lean & Mean
+    if (features.length === 2 && techStack.length <= 3) {
+      unlockAchievement("lean-mean");
+    }
+
+    // 10. Omniscient
+    if (mentorHintsUsed > 0) {
+      unlockAchievement("omniscient");
+    }
+  }, [feedback, unlockAchievement]);
+
+  const getStrengthsAndWeaknesses = () => {
+    const derivedStrengths: string[] = [];
+    const derivedWeaknesses: string[] = [];
+
+    const techIds = new Set(techStack.map((t) => t.id));
+    if (techIds.has("tech-next") && techIds.has("tech-vercel")) {
+      derivedStrengths.push("Excellent Next.js + Vercel deployment infrastructure synergy.");
+    }
+    if ((techIds.has("tech-openai") || techIds.has("tech-gemini")) && techIds.has("tech-next")) {
+      derivedStrengths.push("Cutting-edge integration of AI models with Next.js frontend.");
+    }
+    if (techIds.has("tech-esp32") && techIds.has("tech-arduino")) {
+      derivedStrengths.push("High-fidelity matching of physical IoT boards with compilers.");
+    }
+    if (techIds.has("tech-supabase") && techIds.has("tech-postgres")) {
+      derivedStrengths.push("Robust database architecture matching PostgreSQL latency speeds.");
+    }
+
+    if (features.length === 2 || features.length === 3) {
+      derivedStrengths.push("Extremely lean and disciplined product scoping boundary rules.");
+    } else if (features.length > 3) {
+      derivedWeaknesses.push("Severe product scope bloat. Team tried compiling too many components.");
+    } else if (features.length < 2) {
+      derivedWeaknesses.push("Under-scoped roadmap. MVP fails to meet baseline requirements.");
+    }
+
+    if (businessModel === "Government Partnership" && (selectedProblem?.category === "sustainability" || selectedProblem?.category === "smart-campus")) {
+      derivedStrengths.push("Outstanding strategic fit matching public sponsorship with offsets problem.");
+    }
+    if (businessModel === "B2B SaaS" && (usp === "Most Scalable" || selectedProblem?.id === "prob-learnflow")) {
+      derivedStrengths.push("Excellent monetization alignment combining B2B SaaS licensing with scale.");
+    }
+
+    if (solutionDirection === "ai-solution" && !techIds.has("tech-openai") && !techIds.has("tech-gemini")) {
+      derivedWeaknesses.push("Critical stack gap: AI Solution direction without AI models.");
+    }
+    if (solutionDirection === "iot-product" && !techIds.has("tech-esp32") && !techIds.has("tech-arduino")) {
+      derivedWeaknesses.push("Critical stack gap: IoT Hardware direction without microcontrollers.");
+    }
+
+    if (usp === "Fastest" && techIds.has("tech-aws")) {
+      derivedWeaknesses.push("Deployment latency: AWS servers contradict Fastest USP.");
+    }
+
+    if (mentorHintsUsed > 0) {
+      derivedWeaknesses.push("Mentor advisor reliance: Assessment penalty for auditor reliance.");
+    }
+
+    if (derivedStrengths.length < 2) {
+      derivedStrengths.push("Consistent architectural execution boundaries.");
+      derivedStrengths.push("Clear strategic path outlining MVP focus areas.");
+    }
+    if (derivedWeaknesses.length < 2) {
+      derivedWeaknesses.push("Slight optimization room left in the core query pipeline.");
+      derivedWeaknesses.push("Monetization channels could benefit from extra validation.");
+    }
+
+    return {
+      strengths: derivedStrengths.slice(0, 2),
+      weaknesses: derivedWeaknesses.slice(0, 2),
+    };
+  };
+
+  const { strengths, weaknesses } = getStrengthsAndWeaknesses();
+
+  const generateAsciiCard = () => {
+    const divider = "├──────────────────────────────────────────┤";
+    const borderTop = "┌──────────────────────────────────────────┐";
+    const borderBottom = "└──────────────────────────────────────────┘";
+    
+    const formatLine = (label: string, value: string) => {
+      const lineContent = `│ ${label}: ${value}`;
+      const padding = 42 - lineContent.length;
+      return lineContent + " ".repeat(Math.max(0, padding)) + " │";
+    };
+
+    return [
+      borderTop,
+      formatLine("THE HACKATHON SIMULATOR", "v1.0"),
+      divider,
+      formatLine("PROBLEM", selectedProblem?.title.toUpperCase() || "N/A"),
+      formatLine("DIRECTION", (solutionDirection || "N/A").toUpperCase()),
+      formatLine("USP", (usp || "N/A").toUpperCase()),
+      formatLine("MODEL", (businessModel || "N/A").toUpperCase()),
+      divider,
+      formatLine("JUDGE", (currentJudge?.name || "N/A").toUpperCase()),
+      formatLine("FINAL SCORE", `${displayScore}/50 (GRADE ${grade})`),
+      divider,
+      formatLine("ACHIEVEMENTS", `${unlockedAchievements.length}/10 UNLOCKED`),
+      borderBottom
+    ].join("\n");
+  };
+
+  const copyToClipboard = () => {
+    const cardText = generateAsciiCard();
+    navigator.clipboard.writeText(cardText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    });
+  };
+
+  return (
+    <GameplayStageCard
+      stageKey="results"
+      title="Hackathon Results"
+      subtitle="Jury evaluation complete. Review your scores, unlocked achievements, and copy your social share card."
+    >
+      <div className="max-w-2xl mx-auto text-left font-mono text-[11px] space-y-6">
+        
+        {/* Results Main Banner Dashboard */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="p-4 bg-neutral-900 border border-neutral-900 rounded text-center text-white flex flex-col justify-center">
+            <span className="text-[9px] text-neutral-400 block uppercase tracking-wider mb-1 font-bold">FINAL_SCORE_INDEX</span>
+            <span className="text-3xl font-black">{displayScore} <span className="text-xs font-normal text-neutral-400">/ 50</span></span>
+          </div>
+
+          <div className="p-4 bg-neutral-50 border border-neutral-200 rounded text-center flex flex-col justify-center">
+            <span className="text-[9px] text-neutral-400 block uppercase tracking-wider mb-1">LETTER_GRADE</span>
+            <span className="text-3xl font-black text-neutral-900">{grade}</span>
+          </div>
+
+          <div className="p-4 bg-neutral-50 border border-neutral-200 rounded text-center flex flex-col justify-center">
+            <span className="text-[9px] text-neutral-400 block uppercase tracking-wider mb-1">JURY_VERDICT</span>
+            <span className="text-xs font-bold text-neutral-800 uppercase truncate">
+              {finalScore100 >= 70 ? "✅ PROJECT APPROVED" : "❌ COMPILE FAILED"}
+            </span>
+          </div>
+        </div>
+
+        {/* Strengths & Weaknesses */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-dashed border-border pt-4">
+          <div className="space-y-2">
+            <span className="text-emerald-600 block text-[9px] uppercase font-bold">+++ PROJECT_STRENGTHS:</span>
+            <ul className="space-y-1.5">
+              {strengths.map((str, idx) => (
+                <li key={idx} className="flex gap-2 text-neutral-850 font-sans font-light text-[11px]">
+                  <span className="text-emerald-600 font-mono text-[9px] mt-0.5">[+]</span>
+                  <span>{str}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="space-y-2">
+            <span className="text-rose-600 block text-[9px] uppercase font-bold">--- PROJECT_WEAKNESSES:</span>
+            <ul className="space-y-1.5">
+              {weaknesses.map((wk, idx) => (
+                <li key={idx} className="flex gap-2 text-neutral-850 font-sans font-light text-[11px]">
+                  <span className="text-rose-600 font-mono text-[9px] mt-0.5">[-]</span>
+                  <span>{wk}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+
+        {/* Judge Verdict Comment */}
+        {currentJudge && (
+          <div className="p-4 bg-neutral-50 border border-neutral-200 rounded-md space-y-2 border-l-4 border-l-neutral-900">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{currentJudge.avatar}</span>
+              <div>
+                <span className="text-neutral-500 text-[8px] block uppercase leading-none font-bold">JURY_REASONING_MEMO</span>
+                <span className="font-bold text-neutral-900 text-[10px] uppercase">{currentJudge.name}</span>
+              </div>
+            </div>
+            <p className="text-xs text-neutral-800 font-sans italic pt-1 leading-relaxed">
+              "{feedback?.comment}"
+            </p>
+          </div>
+        )}
+
+        {/* Achievements Grid */}
+        <div className="border-t border-dashed border-border pt-4">
+          <span className="text-neutral-400 block text-[9px] uppercase mb-3">GLOBAL_ACHIEVEMENTS_DECRYPTION:</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+            {ACHIEVEMENTS_LIST.map((ac) => {
+              const isUnlocked = unlockedAchievements.includes(ac.id);
+              return (
+                <div
+                  key={ac.id}
+                  className={`p-2.5 rounded border flex items-center justify-between transition-all ${
+                    isUnlocked
+                      ? "border-neutral-900 bg-neutral-900 text-white font-bold"
+                      : "border-neutral-200 bg-white text-neutral-400 border-dashed"
+                  }`}
+                >
+                  <div className="text-left">
+                    <span className="block uppercase tracking-tight">{ac.name}</span>
+                    <span className={`text-[8px] font-sans font-light block mt-0.5 leading-none ${isUnlocked ? 'text-neutral-300' : 'text-neutral-500'}`}>
+                      {ac.desc}
+                    </span>
+                  </div>
+                  <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-neutral-100/10">
+                    {isUnlocked ? "[UNLOCKED]" : "[LOCKED]"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Shareable Result Card */}
+        <div className="border-t border-dashed border-border pt-4 space-y-2">
+          <span className="text-neutral-400 block text-[9px] uppercase">SHAREABLE_SOCIAL_MANIFEST.ASCII</span>
+          <pre className="p-3 bg-neutral-900 text-neutral-100 rounded text-[9px] font-mono leading-tight text-left overflow-x-auto whitespace-pre">
+            {generateAsciiCard()}
+          </pre>
+          <Button
+            onClick={copyToClipboard}
+            variant="outline"
+            className="w-full font-mono text-xs border border-neutral-900 h-8"
+          >
+            {copied ? "COPIED_TO_CLIPBOARD.TXT" : "COPY_MANIFEST_ASCII.EXE"}
+          </Button>
+        </div>
+
+        {/* Action Controls */}
+        <div className="border-t border-border pt-4">
+          <Button
+            onClick={resetGame}
+            className="w-full font-mono text-xs border border-neutral-900"
+          >
+            🔄 REBOOT_SIMULATOR.EXE
+          </Button>
+        </div>
+
+      </div>
+    </GameplayStageCard>
   );
 }
 
@@ -1078,14 +1902,12 @@ function DevDebugPanel() {
 export default function GamePage() {
   const { stage, isGameStarted, startGame, tickTimer, isTimerPaused } = useGameStore();
 
-  // Auto-start global simulation when page mounts
   useEffect(() => {
     if (!isGameStarted) {
       startGame();
     }
   }, [isGameStarted, startGame]);
 
-  // Bind the global countdown interval system
   useEffect(() => {
     if (isTimerPaused) return;
     const interval = setInterval(() => {
@@ -1094,7 +1916,6 @@ export default function GamePage() {
     return () => clearInterval(interval);
   }, [isTimerPaused, tickTimer]);
 
-  /** Renders the correct stage component conditionally */
   const renderStageContent = () => {
     switch (stage) {
       case "difficulty":
@@ -1113,12 +1934,14 @@ export default function GamePage() {
         return <MentorStage key="mentor" />;
       case "businessModel":
         return <BusinessModelStage key="businessModel" />;
-      // Fallback placeholder stages wrapper
       case "pitchPrep":
+        return <PitchPrepStage key="pitchPrep" />;
       case "judgeSpin":
+        return <JudgeSpinStage key="judgeSpin" />;
       case "judging":
+        return <JudgingStage key="judging" />;
       case "results":
-        return <FallbackStage key={stage} stageKey={stage} />;
+        return <ResultsStage key="results" />;
       default:
         return (
           <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
