@@ -43,13 +43,15 @@ export interface Problem {
   /** Detailed description of the challenge */
   description: string;
   /** Domain category the problem belongs to */
-  category: 'fintech' | 'healthtech' | 'edtech' | 'sustainability' | 'social-impact';
+  category: 'edtech' | 'healthtech' | 'fintech' | 'sustainability' | 'ai' | 'smart-campus' | 'social-impact';
   /** Difficulty tier affecting scoring and complexity */
   difficulty: 'beginner' | 'intermediate' | 'advanced';
   /** Hard constraints the solution must respect */
   constraints: string[];
   /** Optional stretch goals for bonus points */
   bonusObjectives: string[];
+  /** Clue or target emphasis when pitching to judges */
+  judgingHint?: string;
 }
 
 /** A hackathon judge who evaluates the final project */

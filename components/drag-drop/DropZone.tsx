@@ -73,17 +73,17 @@ export function DropZone({
       layout
       className={cn(
         // Base styling — always visible as a drop target
-        'relative rounded-xl min-h-[200px] p-4 transition-all duration-300',
+        'relative rounded-lg min-h-[140px] p-4 transition-all duration-200',
         // Default dashed border
-        !isOver && !isFull && 'border-2 border-dashed border-white/15 bg-white/[0.02]',
-        // Drag-over: solid border + glow
+        !isOver && !isFull && 'border border-dashed border-neutral-300 bg-neutral-50/40',
+        // Drag-over: solid border + highlight
         isOver && !isFull && [
-          'border-2 border-solid border-neon-cyan/60 bg-neon-cyan/[0.06]',
-          'shadow-[0_0_24px_-4px] shadow-neon-cyan/30',
+          'border border-solid border-neutral-800 bg-neutral-100/60',
+          'shadow-[0_4px_12px_rgba(0,0,0,0.03)]',
           acceptClassName,
         ],
         // At capacity
-        isFull && 'border-2 border-solid border-white/10 bg-white/[0.03] opacity-80',
+        isFull && 'border border-solid border-neutral-200 bg-neutral-50/80 opacity-90',
         className,
       )}
     >
@@ -93,8 +93,8 @@ export function DropZone({
           {label && (
             <h3
               className={cn(
-                'text-sm font-semibold uppercase tracking-wider',
-                isOver ? 'text-neon-cyan text-glow-cyan' : 'text-white/60',
+                'text-xs font-mono font-bold uppercase tracking-wider',
+                isOver ? 'text-neutral-900' : 'text-neutral-500',
                 'transition-colors duration-200',
               )}
             >
@@ -106,8 +106,8 @@ export function DropZone({
             <div className="flex items-center gap-2">
               <span
                 className={cn(
-                  'text-xs font-mono tabular-nums',
-                  isFull ? 'text-neon-orange' : 'text-white/40',
+                  'text-[10px] font-mono tabular-nums',
+                  isFull ? 'text-amber-600 font-bold' : 'text-neutral-400',
                 )}
               >
                 {currentCount}/{capacity} slots
@@ -119,15 +119,15 @@ export function DropZone({
 
       {/* ── Capacity Progress Bar ────────────────────────────────────────── */}
       {capacity !== undefined && (
-        <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-white/10">
+        <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-neutral-100">
           <motion.div
             className={cn(
               'h-full rounded-full',
               isFull
-                ? 'bg-neon-orange'
+                ? 'bg-amber-500'
                 : capacityPercentage > 70
-                  ? 'bg-neon-purple'
-                  : 'bg-neon-cyan',
+                  ? 'bg-neutral-600'
+                  : 'bg-neutral-800',
             )}
             initial={false}
             animate={{ width: `${capacityPercentage}%` }}
@@ -148,10 +148,10 @@ export function DropZone({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-2"
+            className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5"
           >
-            <Inbox className="h-8 w-8 text-white/15" />
-            <p className="text-xs text-white/20">
+            <Inbox className="h-6 w-6 text-neutral-300" />
+            <p className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
               {isFull ? 'Zone is full' : 'Drag items here'}
             </p>
           </motion.div>
@@ -162,11 +162,11 @@ export function DropZone({
       <AnimatePresence>
         {isOver && !isFull && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="pointer-events-none absolute inset-0 rounded-xl ring-2 ring-neon-cyan/30 pulse-ring"
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.15 }}
+            className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-neutral-400/20 pulse-ring"
           />
         )}
       </AnimatePresence>
@@ -178,9 +178,9 @@ export function DropZone({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-red-500/10 backdrop-blur-sm"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-neutral-100/80 backdrop-blur-[1px]"
           >
-            <span className="text-sm font-medium text-red-400">
+            <span className="text-xs font-mono uppercase font-bold text-neutral-700">
               Zone is full
             </span>
           </motion.div>

@@ -25,6 +25,8 @@ const CATEGORY_COLORS: Record<Problem['category'], string> = {
   edtech: 'bg-neon-blue/15 text-neon-blue ring-neon-blue/30',
   sustainability: 'bg-emerald-500/15 text-emerald-400 ring-emerald-400/30',
   'social-impact': 'bg-neon-pink/15 text-neon-pink ring-neon-pink/30',
+  ai: 'bg-neon-pink/15 text-neon-pink ring-neon-pink/30',
+  'smart-campus': 'bg-neon-purple/15 text-neon-purple ring-neon-purple/30',
 };
 
 const DIFFICULTY_LEVELS: Record<Problem['difficulty'], number> = {

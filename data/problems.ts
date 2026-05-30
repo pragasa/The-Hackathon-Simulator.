@@ -1,104 +1,245 @@
 /**
- * @file Hackathon problem statement data
- * @description A curated pool of 5 hackathon challenges across different domains.
- * Each problem includes constraints the solution must satisfy and bonus
- * objectives for extra points.
+ * @file Curated Hackathon Problem Statement Database
+ *
+ * A highly balanced, detailed dataset of 22 hackathon problems across
+ * 6 primary categories: EdTech, HealthTech, FinTech, Sustainability, AI, and Smart Campus.
+ * Each problem includes targeted constraints, descriptions, and custom judging hints.
+ *
+ * @module data/problems
  */
 
 import type { Problem } from '@/types/game';
 
-/** All available hackathon problem statements */
 export const PROBLEMS: Problem[] = [
+  // ─── EdTech ───────────────────────────────────────────────────────────────
   {
-    id: 'prob-ecotrack',
-    title: 'EcoTrack',
-    description:
-      'Build a personal carbon footprint tracker that helps users understand and reduce their environmental impact. The app should gamify sustainable choices, visualize emissions data in an intuitive way, and suggest actionable steps users can take in their daily lives to lower their carbon output.',
-    category: 'sustainability',
+    id: 'prob-learnflow',
+    title: 'LearnFlow AI',
+    description: 'Build an adaptive cognitive study planner that customizes lecture reviews based on a student\'s baseline recall scores.',
+    category: 'edtech',
+    difficulty: 'beginner',
+    constraints: ['Must adapt difficulty dynamically', 'Must support localized study logs'],
+    bonusObjectives: ['Integrate spaced-repetition schedules'],
+    judgingHint: 'Highlight how customized review curves prevent cognitive overload.',
+  },
+  {
+    id: 'prob-quizwiz',
+    title: 'QuizWiz Games',
+    description: 'Design a gamified interactive multiplayer quiz engine that teaches foundational algorithms to absolute programming novices.',
+    category: 'edtech',
+    difficulty: 'beginner',
+    constraints: ['Real-time scoreboard tracking', 'Works completely in low-bandwidth settings'],
+    bonusObjectives: ['Include an open-source deck customizer'],
+    judgingHint: 'Focus on developer motivation metrics and retention curves.',
+  },
+  {
+    id: 'prob-eduscribe',
+    title: 'EduScribe Assistant',
+    description: 'Assemble an autonomous audio transcriber that converts lecture records into clean markdown notes and study sheets.',
+    category: 'edtech',
     difficulty: 'intermediate',
-    constraints: [
-      'Must calculate carbon footprint from at least 3 lifestyle categories (transport, food, energy)',
-      'Data visualizations must update in real-time as users log activities',
-      'Must work offline-first — users in areas with poor connectivity should still be able to log data',
-      'All carbon calculations must cite a verifiable data source or methodology',
-    ],
-    bonusObjectives: [
-      'Add a social leaderboard where friends can compare their sustainability scores',
-      'Integrate with a public API (e.g., electricity grid carbon intensity) for live data',
-      'Include an AI-powered "green coach" that gives personalized tips',
-    ],
+    constraints: ['Audio files compile under 10s', 'Output must render direct semantic summaries'],
+    bonusObjectives: ['Automatic diagrams generation from speaker inputs'],
+    judgingHint: 'Point out how structured semantic templates save hours of manual transcription.',
   },
   {
-    id: 'prob-mindbridge',
-    title: 'MindBridge',
-    description:
-      'Create a peer-to-peer mental health support platform that connects people experiencing similar challenges. The platform should facilitate safe, anonymous conversations, provide coping resources, and know when to escalate to professional help. Privacy and emotional safety are paramount.',
-    category: 'healthtech',
-    difficulty: 'advanced',
-    constraints: [
-      'All conversations must be end-to-end encrypted and fully anonymous',
-      'Must include a content moderation or safety-detection layer to flag crisis situations',
-      'Users must be matched based on shared experiences, not randomly',
-      'Must comply with basic accessibility guidelines (WCAG 2.1 AA)',
-    ],
-    bonusObjectives: [
-      'Add a mood-tracking journal with sentiment analysis to surface trends',
-      'Implement a "warm handoff" flow that connects users to licensed professionals',
-      'Build a resource library of coping techniques filterable by condition',
-    ],
-  },
-  {
-    id: 'prob-learnloop',
-    title: 'LearnLoop',
-    description:
-      "Design an adaptive learning platform powered by AI tutoring that adjusts difficulty and teaching style to each student's pace. The system should identify knowledge gaps, generate practice problems, and give encouraging, constructive feedback that keeps learners motivated.",
+    id: 'prob-codequest',
+    title: 'CodeQuest RPG',
+    description: 'A visual role-playing game where players solve coding challenges to navigate an abstract virtual compiler maze.',
     category: 'edtech',
     difficulty: 'advanced',
-    constraints: [
-      'Must support at least 2 distinct learning modes (visual, text-based, quiz, etc.)',
-      'The difficulty curve must adapt based on student performance within a session',
-      'Progress must persist across sessions with clear visualizations of improvement',
-    ],
-    bonusObjectives: [
-      'Add an AI tutor chatbot that explains concepts in multiple ways until the student understands',
-      'Include a "study streak" gamification system with badges and milestones',
-      'Support collaborative study rooms where peers can solve problems together',
-    ],
+    constraints: ['Fully secure code evaluation sandbox', 'Supports multiple programming languages'],
+    bonusObjectives: ['Collaborative team raid challenges'],
+    judgingHint: 'Emphasize the sandboxed code evaluator\'s high safety profiles.',
+  },
+
+  // ─── HealthTech ────────────────────────────────────────────────────────────
+  {
+    id: 'prob-mindfull',
+    title: 'MindFull Anonymous',
+    description: 'Assemble an anonymous peer emotional support platform that connects students facing stress marker alerts.',
+    category: 'healthtech',
+    difficulty: 'intermediate',
+    constraints: ['Conversations must be fully encrypted', 'Includes autonomous crisis escalation triggers'],
+    bonusObjectives: ['Mood journaling sentiment analytics'],
+    judgingHint: 'Demonstrate strict data privacy mechanisms and HIPAA-readiness.',
   },
   {
-    id: 'prob-payforward',
-    title: 'PayForward',
-    description:
-      'Build a micro-lending platform that connects lenders with borrowers in underserved communities. The platform should make small loans accessible, transparent, and fair — reducing friction for borrowers while giving lenders visibility into the social impact of their contributions.',
+    id: 'prob-vitalssync',
+    title: 'VitalsSync Monitor',
+    description: 'A unified patient tele-health dashboard that tracks vital telemetry metrics and sends immediate alerts to clinics.',
+    category: 'healthtech',
+    difficulty: 'advanced',
+    constraints: ['Real-time device sync within 50ms', 'Maintains telemetry logs under high network drops'],
+    bonusObjectives: ['Include fallback local Bluetooth alerts'],
+    judgingHint: 'Focus on execution speed and packet recovery metrics under low connectivity.',
+  },
+  {
+    id: 'prob-pillalert',
+    title: 'PillAlert Helper',
+    description: 'Design a high-readability schedule advisor for elderly patients to handle complex medication calendars.',
+    category: 'healthtech',
+    difficulty: 'beginner',
+    constraints: ['Dynamic audio schedules alerts', 'High-contrast large-typography screens'],
+    bonusObjectives: ['Add device shake emergency callbacks'],
+    judgingHint: 'Pitch its high accessibility profiles and simple, zero-friction interface.',
+  },
+  {
+    id: 'prob-curamap',
+    title: 'CuraMap Services',
+    description: 'A real-time coordination tool that assists emergency dispatchers to locate and reserve available hospital beds.',
+    category: 'healthtech',
+    difficulty: 'intermediate',
+    constraints: ['Telemetry must update within 1s', 'Maintains secure database locks on reservation'],
+    bonusObjectives: ['Integrate traffic routing APIs for ambulances'],
+    judgingHint: 'Emphasize bed utilization efficiency and safe transaction locking.',
+  },
+
+  // ─── FinTech ───────────────────────────────────────────────────────────────
+  {
+    id: 'prob-paysplit',
+    title: 'PaySplit Bills',
+    description: 'Build a collaborative billing engine that allows housemates to split shared expenses across multiple currencies.',
+    category: 'fintech',
+    difficulty: 'beginner',
+    constraints: ['Zero floating-point rounding errors', 'Plain-text auditable expense reports'],
+    bonusObjectives: ['Autonomous debt chain resolution'],
+    judgingHint: 'Highlight fair rounding logic and plain-text auditable logs.',
+  },
+  {
+    id: 'prob-ledgerchain',
+    title: 'LedgerChain Hub',
+    description: 'Create an open, verifiable investment ledger for grassroots neighborhood community projects.',
+    category: 'fintech',
+    difficulty: 'advanced',
+    constraints: ['Double-entry verification system', 'Fully auditable transaction histories'],
+    bonusObjectives: ['Encrypted vote staking controls'],
+    judgingHint: 'Focus on transparency safeguards and community verification logic.',
+  },
+  {
+    id: 'prob-microtrust',
+    title: 'MicroTrust Loans',
+    description: 'Implement a direct peer-to-peer micro-lending framework that facilitates interest-free financial trust cycles.',
     category: 'fintech',
     difficulty: 'intermediate',
-    constraints: [
-      'Loan terms must be displayed in plain language with no hidden fees',
-      'Must include a trust/reputation system for both lenders and borrowers',
-      'All financial calculations (interest, repayment schedules) must be transparent and auditable',
-      'Must handle multiple currency formats and locales',
-    ],
-    bonusObjectives: [
-      'Add an impact dashboard showing aggregate community metrics (jobs created, businesses funded)',
-      'Implement a "pay it forward" chain where repaid loans auto-fund the next borrower',
-    ],
+    constraints: ['Transparent loan terms in plain layout', 'Automated community reputation ratings'],
+    bonusObjectives: ['Add local language support'],
+    judgingHint: 'Highlight the reputation engine\'s fairness algorithms.',
   },
   {
-    id: 'prob-safehaven',
-    title: 'SafeHaven',
-    description:
-      'Create a disaster response coordination platform that helps affected communities, volunteers, and aid organizations communicate during emergencies. The tool should map needs to resources, coordinate volunteer deployment, and provide real-time situational awareness.',
-    category: 'social-impact',
+    id: 'prob-budgetbot',
+    title: 'BudgetBot CLI',
+    description: 'A monospace, command-line saving simulator that maps personal expenses and flags excessive expenditures.',
+    category: 'fintech',
     difficulty: 'beginner',
-    constraints: [
-      'Must display an interactive map showing reported needs and available resources',
-      'Should work on low-bandwidth connections and degrade gracefully',
-      'Must support at least 2 user roles (affected person, volunteer/responder)',
-    ],
-    bonusObjectives: [
-      "Add push-notification alerts for new emergencies or resource availability in a user's area",
-      'Integrate weather or seismic API data for proactive warnings',
-      'Include an offline mode that syncs when connectivity returns',
-    ],
+    constraints: ['Strict input parser validations', 'Compiles lightweight terminal sheets'],
+    bonusObjectives: ['Dynamic ascii visualizations'],
+    judgingHint: 'Pitch to judges who value retro CLI usability and zero bloat.',
+  },
+
+  // ─── Sustainability ────────────────────────────────────────────────────────
+  {
+    id: 'prob-gridshare',
+    title: 'GridShare Network',
+    description: 'Build a peer-to-peer localized energy marketplace where solar array owners can trade surplus kilowatt hours.',
+    category: 'sustainability',
+    difficulty: 'advanced',
+    constraints: ['Tracks electricity grid intensity', 'Transaction ledger logs sync within 100ms'],
+    bonusObjectives: ['Proactive trading based on weather forecasts'],
+    judgingHint: 'Focus on carbon offset efficiency and transaction speeds.',
+  },
+  {
+    id: 'prob-cycleloop',
+    title: 'CycleLoop Tracer',
+    description: 'A circular retail resource compiler that tracks product recycling metrics from origin to waste treatment.',
+    category: 'sustainability',
+    difficulty: 'intermediate',
+    constraints: ['Verifiable supply-chain checkpoints', 'Plain-text community carbon ratings'],
+    bonusObjectives: ['Automated QR generation'],
+    judgingHint: 'Highlight auditability metrics and consumer confidence gains.',
+  },
+  {
+    id: 'prob-greentrack',
+    title: 'GreenTrack Logistics',
+    description: 'Analyze and map freight delivery routes to prioritize low-emissions shipping options.',
+    category: 'sustainability',
+    difficulty: 'beginner',
+    constraints: ['Compare at least 3 delivery profiles', 'Updates carbon grids in real-time'],
+    bonusObjectives: ['Add multi-hop parcel packing guides'],
+    judgingHint: 'Point out fuel-consumption optimization algorithms.',
+  },
+  {
+    id: 'prob-harvestapi',
+    title: 'HarvestAPI Alerts',
+    description: 'A smart micro-agriculture tool that pulls soil telemetry readings and coordinates water pump cycles.',
+    category: 'sustainability',
+    difficulty: 'intermediate',
+    constraints: ['Low power receiver states', 'Handles variable sensor failures gracefully'],
+    bonusObjectives: ['Drought-warning prediction overlays'],
+    judgingHint: 'Pitch its high agricultural resilience and water conservation stats.',
+  },
+
+  // ─── AI ────────────────────────────────────────────────────────────────────
+  {
+    id: 'prob-agentscribe',
+    title: 'AgentScribe System',
+    description: 'Design an autonomous multi-agent coprocessor that handles complex corporate customer support logs.',
+    category: 'ai',
+    difficulty: 'advanced',
+    constraints: ['Guarantees context length safety', 'Auto-escalates non-deterministic loops'],
+    bonusObjectives: ['Dynamic vector storage indexing'],
+    judgingHint: 'Demonstrate hallucination mitigations and safety guardrails.',
+  },
+  {
+    id: 'prob-synthetix',
+    title: 'Synthetix Engine',
+    description: 'Create a localized cognitive audio generator that translates text into natural local dialects.',
+    category: 'ai',
+    difficulty: 'intermediate',
+    constraints: ['Low model loading latency under 200ms', 'High sound fidelity ratings'],
+    bonusObjectives: ['Include offline mobile model cache'],
+    judgingHint: 'Highlight inclusive natural dialect speech capabilities.',
+  },
+  {
+    id: 'prob-autoqa',
+    title: 'AutoQA Bot',
+    description: 'An autonomous pull-request debugger that intercepts git branches and detects structural race conditions.',
+    category: 'ai',
+    difficulty: 'advanced',
+    constraints: ['Parses large files in under 2s', 'Renders detailed error trace logs'],
+    bonusObjectives: ['Autonomous fix patches creation'],
+    judgingHint: 'Emphasize engineering hours saved through structural bug prevention.',
+  },
+
+  // ─── Smart Campus ──────────────────────────────────────────────────────────
+  {
+    id: 'prob-campuroute',
+    title: 'CampuRoute Hub',
+    description: 'Design a crowdsourced navigation tool that helps students locate indoor study spaces and classrooms.',
+    category: 'smart-campus',
+    difficulty: 'beginner',
+    constraints: ['Interactive coordinate grid map', 'Works offline within concrete dorm blocks'],
+    bonusObjectives: ['Real-time seat occupancy markers'],
+    judgingHint: 'Focus on offline availability and high campus usability profiles.',
+  },
+  {
+    id: 'prob-dormsync',
+    title: 'DormSync Energy',
+    description: 'Tracks laundry room wait times and energy footprints inside student residential blocks.',
+    category: 'smart-campus',
+    difficulty: 'intermediate',
+    constraints: ['Sync telemetry within 5s', 'Handles overlapping reservation claims'],
+    bonusObjectives: ['Solar intensity coordinates callbacks'],
+    judgingHint: 'Focus on peak-hours load reduction and grid footprint optimization.',
+  },
+  {
+    id: 'prob-classpass',
+    title: 'ClassPass Reserves',
+    description: 'A smart seat reservation compiler that dynamically reallocates library zones based on actual check-in data.',
+    category: 'smart-campus',
+    difficulty: 'beginner',
+    constraints: ['Enforces dynamic reservation timeouts', 'Lightweight checkout logs'],
+    bonusObjectives: ['Integrate ambient noise index markers'],
+    judgingHint: 'Highlight spatial utility ratios and simple student checking.',
   },
 ];
