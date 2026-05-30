@@ -3154,7 +3154,7 @@ function DevDebugPanel() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-4 right-4 z-50 p-2 text-[10px] font-mono uppercase bg-neutral-900 text-white rounded shadow border border-neutral-800 hover:bg-neutral-800 transition-all cursor-pointer"
+        className="fixed bottom-12 right-4 z-50 p-1.5 px-2.5 text-[9px] font-mono uppercase bg-neutral-900 text-white rounded shadow border border-neutral-800 hover:bg-neutral-800 transition-all cursor-pointer opacity-80 hover:opacity-100"
       >
         [DEV_DEBUG_PANEL]
       </button>
@@ -3162,7 +3162,7 @@ function DevDebugPanel() {
   }
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 w-72 bg-card border border-neutral-400 rounded-lg shadow-xl p-4 font-mono text-xs">
+    <div className="fixed bottom-12 right-4 z-50 w-72 bg-card border border-neutral-400 rounded-lg shadow-xl p-4 font-mono text-xs">
       <div className="flex items-center justify-between border-b border-border pb-2 mb-2 font-bold text-neutral-900">
         <span>DEV_DEBUG_PANEL.SH</span>
         <button onClick={() => setIsOpen(false)} className="hover:text-red-500 font-bold cursor-pointer">[X]</button>

@@ -66,6 +66,31 @@ function loadEnvFromFile(): Record<string, string> {
   return env;
 }
 
+function cleanAndHumanizeRoast(text: string): string {
+  if (!text) return "";
+
+  // 1. Remove em dashes (—) and double-hyphens (--) and replace with simple commas or periods.
+  let cleaned = text.replace(/—/g, ", ");
+  cleaned = cleaned.replace(/--/g, ", ");
+
+  // 2. Remove emojis entirely (ensure no smiley faces, rockets, fire, etc.)
+  cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E6}-\u{1F1FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F0F5}]|[\u{1F900}-\u{1F9FF}]/gu, '');
+
+  // 3. Consistently use straight quotes only (convert curly quotes)
+  cleaned = cleaned.replace(/[“”]/g, '"');
+  cleaned = cleaned.replace(/[‘’]/g, "'");
+
+  // 4. Eliminate markdown bolding entirely
+  cleaned = cleaned.replace(/\*\*/g, '');
+
+  // 5. Clean double spaces and punctuation issues
+  cleaned = cleaned.replace(/\s+/g, ' ');
+  cleaned = cleaned.replace(/ ,/g, ',');
+  cleaned = cleaned.replace(/ \./g, '.');
+
+  return cleaned.trim();
+}
+
 export async function POST(req: Request) {
   try {
     const payload = await req.json();
@@ -95,44 +120,22 @@ export async function POST(req: Request) {
     }
 
     const systemPrompt = `You are a savage, witty, and elite startup hackathon judge reviewing a project manifest.
-Your goal is to write a highly customized, funny, and specific ROAST and commentary of the player's project.
-You must speak in the specific voice of the selected judge and focus on their personality lens.
+Write a customized, funny, and brutally honest 2-paragraph roast of the player's project with a funny 1-liner at the end.
+Use first-person ("I"). Have actual opinions. Vary sentence rhythm: mix short punchy thoughts with longer, winding reactions. Let some human mess in.
 
-JUDGES AND LENS:
-1. Uday Sharma (personality: 'technical' / Builder):
-   * Focuses on MVPs, scappiness, shipping fast, and user validation.
-   * Loves Next.js + Vercel, hates unnecessary tech bloat and overengineering.
-   * Typical thinking: "Did you build something useful or did you just build infrastructure? Good founders ship."
-2. Sarah Park (personality: 'creative' / YC Founder):
-   * Focuses on market size, distribution flywheels, user demand, and product-market fit.
-   * Loves community network loops or AI personalization, hates tiny markets and weak differentiation.
-3. Maya Chen (personality: 'encouraging' / Design Perfectionist):
-   * Focuses on UX, visual system polish, simplicity, and user accessibility.
-   * Praise responsive layouts, penalize cluttered dashboards and confusing onboarding.
-4. Raj Malhotra (personality: 'tough' / VC Shark):
-   * Focuses on monetization, high SaaS margins, unit economics, defensible moats, and scale exit.
-   * Loves government capturing, B2B SaaS, hates low-value monetization and easy copycat ideas.
-5. ByteLord.exe (personality: 'creative' / Chaos Demon):
-   * Humorous, absurd, meme-heavy, compiler glitch jokes. Unexpected comparisons (virtual raccoons, digital smoke).
+JUDGE VOICES (match selected):
+1. Uday Sharma (Builder): Practical. Hates bloat, overengineering, Kubernetes. Loves Next.js, quick MVPs, validation.
+2. Sarah Park (YC Founder): PMF-focused. Loves distribution flywheels, massive markets. Hates tiny niches, poor differentiation.
+3. Maya Chen (Design Perfectionist): UI/UX purist. Loves clean visual systems, accessibility. Hates cluttered, bad onboarding.
+4. Raj Malhotra (VC Shark): Margin obsessed. Loves defensible moats, enterprise B2B SaaS, scale. Hates low-value models.
+5. ByteLord.exe (Chaos Demon): Absurd, meme-heavy, glitches. Uses weird comparisons (virtual raccoons, burning server racks).
 
-ROAST OUTPUT FORMAT:
-* Paragraph 1:
-  - Discuss the core project idea.
-  - Directly mention the specific technologies selected by the player.
-  - Mention their chosen USP and solution direction.
-* Paragraph 2:
-  - Directly roast and critique their weaknesses, unrealistic assumptions, feature choices, business model decisions, or architectural bloat.
-  - Reference their actual choices. Do NOT speak in generic terms. Be specific.
-* Final Line:
-  - One extremely memorable, punchy, funny one-liner.
-  - Examples: "Great startup. Questionable relationship with Kubernetes." or "You built technical debt faster than you built the product."
-
-CRITICAL RULES:
-* The roast MUST feel like a genuine, detailed review referencing their actual tech stack, features, and USP.
-* Do NOT use bullet points or numbered lists.
-* plain English, funny, specific, memorable, savage.
-* Target length: 120-220 words.
-* Do not praise the user generically. If they did well (high score), be backhanded or sarcastically impressed. If they did poorly, be brutally funny.`;
+CRITICAL ANTI-AI WRITING RULES:
+1. NEVER use em-dashes (— or --); use commas or periods. No emojis. No bold text. Use straight quotes only.
+2. No sycophancy, compliments, or filler phrases. Avoid chatbot artifacts like "I hope this helps".
+3. Avoid AI slang: "delve", "realm", "landscape", "testament", "intricate", "moreover", "furthermore", "additionally", "robust", "seamless", "groundbreaking", "ever-evolving", "foster", "pivotal moment", "serves/stands as", "reflecting", "symbolizing". Use plain words ("also", "is", "and").
+4. No rule of three (e.g. "speed, scale, and simplicity"), no false ranges, and no generic positive endings.
+5. Make sure the critique is deeply specific to their exact tech stack, problem, features, USP, and business model. Give a raw, human, reactive opinion.`;
 
     const userPrompt = `PROJECT MANIFEST:
 - Problem: "${payload.problemStatement}"
@@ -226,7 +229,7 @@ CRITICAL RULES:
       generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     }
 
-    return NextResponse.json({ roast: generatedText.trim() });
+    return NextResponse.json({ roast: cleanAndHumanizeRoast(generatedText) });
   } catch (err: any) {
     console.error("Roast API error:", err);
     return NextResponse.json({ error: err.message || "Failed to generate AI roast" }, { status: 500 });
