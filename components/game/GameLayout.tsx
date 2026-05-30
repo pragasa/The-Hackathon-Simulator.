@@ -9,11 +9,12 @@
 
 import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Trophy } from 'lucide-react';
+import { Terminal, Trophy, Volume2, VolumeX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useGameStore } from '@/store/gameStore';
 import GameTimer from './GameTimer';
 import type { GamePhase } from '@/types/game';
+import { playMutedClick } from '@/lib/sound';
 
 // ─── Phase metadata ─────────────────────────────────────────────────────────────
 
@@ -41,6 +42,8 @@ export default function GameLayout({ children }: GameLayoutProps) {
   const timeRemaining = useGameStore((s) => s.timeRemaining);
   const totalTime = useGameStore((s) => s.totalTime);
   const score = useGameStore((s) => s.score);
+  const soundEnabled = useGameStore((s) => s.soundEnabled);
+  const toggleSound = useGameStore((s) => s.toggleSound);
 
   const currentIndex = PHASES.findIndex((p) => p.key === phase);
 
@@ -50,10 +53,10 @@ export default function GameLayout({ children }: GameLayoutProps) {
       <header className="glass-card-strong relative z-20 flex items-center justify-between rounded-none border-x-0 border-t-0 px-4 py-2 sm:px-6">
         {/* Left — Logo */}
         <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neon-blue/10">
-            <Terminal className="h-4 w-4 text-neon-blue" />
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-neutral-100 border border-neutral-200 text-neutral-800">
+            <Terminal className="h-4 w-4" />
           </div>
-          <span className="text-glow-blue hidden text-sm font-bold tracking-wider sm:block">
+          <span className="hidden text-sm font-black tracking-tight text-neutral-900 sm:block">
             HACKATHON SIM
           </span>
         </div>
@@ -69,7 +72,7 @@ export default function GameLayout({ children }: GameLayoutProps) {
                 {i > 0 && (
                   <div
                     className={`mx-1 h-px w-4 transition-colors ${
-                      isCompleted ? 'bg-neon-green/60' : 'bg-white/10'
+                      isCompleted ? 'bg-neutral-800/40' : 'bg-neutral-200'
                     }`}
                   />
                 )}
@@ -78,10 +81,10 @@ export default function GameLayout({ children }: GameLayoutProps) {
                   variant={isCurrent ? 'default' : 'secondary'}
                   className={
                     isCurrent
-                      ? 'bg-neon-blue/20 text-neon-blue ring-1 ring-neon-blue/30'
+                      ? 'bg-neutral-900 text-neutral-100 border border-neutral-900 ring-1 ring-neutral-900 focus-visible:ring-2 focus-visible:ring-neutral-900'
                       : isCompleted
-                        ? 'bg-neon-green/10 text-neon-green/70'
-                        : 'opacity-50'
+                        ? 'bg-neutral-100 text-neutral-600 border border-neutral-200'
+                        : 'opacity-40 bg-transparent text-neutral-400 border border-transparent'
                   }
                 >
                   {p.label}
@@ -93,13 +96,28 @@ export default function GameLayout({ children }: GameLayoutProps) {
 
         {/* Center fallback for mobile — current phase only */}
         <div className="md:hidden">
-          <Badge className="bg-neon-blue/20 text-neon-blue ring-1 ring-neon-blue/30">
+          <Badge className="bg-neutral-900 text-neutral-100 border border-neutral-900 font-bold">
             {PHASES[currentIndex]?.label ?? phase}
           </Badge>
         </div>
 
-        {/* Right — Timer */}
-        <div className="flex items-center">
+        {/* Right — Timer & Volume */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => {
+              toggleSound();
+              playMutedClick();
+            }}
+            className="flex items-center justify-center p-1.5 rounded hover:bg-neutral-100 border border-transparent hover:border-neutral-200 transition-colors focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none"
+            aria-label={soundEnabled ? "Mute audio" : "Unmute audio"}
+            title={soundEnabled ? "Mute audio" : "Unmute audio"}
+          >
+            {soundEnabled ? (
+              <Volume2 className="h-4 w-4 text-neutral-800" />
+            ) : (
+              <VolumeX className="h-4 w-4 text-neutral-400 animate-pulse" />
+            )}
+          </button>
           {totalTime > 0 ? (
             <GameTimer
               timeRemaining={timeRemaining}
@@ -135,8 +153,8 @@ export default function GameLayout({ children }: GameLayoutProps) {
         </span>
 
         <div className="flex items-center gap-1.5">
-          <Trophy className="h-3.5 w-3.5 text-neon-orange" />
-          <span className="text-glow-cyan font-mono text-sm font-semibold text-neon-cyan">
+          <Trophy className="h-3.5 w-3.5 text-amber-600" />
+          <span className="font-mono text-sm font-black text-neutral-900">
             {score.total}
           </span>
           <span className="text-xs text-muted-foreground">pts</span>

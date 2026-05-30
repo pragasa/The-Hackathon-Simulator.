@@ -26,7 +26,9 @@ import type {
   Judge,
   JudgeFeedback,
   ScoreBreakdown,
+  ChaosEvent,
 } from '@/types/game';
+import { getRandomChaosEvent } from '@/data/chaosEvents';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -137,6 +139,9 @@ const initialGameState = {
   isGameStarted: false,
   isGameOver: false,
   unlockedAchievements: [] as string[],
+  soundEnabled: true,
+  activeChaosEvent: null as ChaosEvent | null,
+  chaosHistory: [] as string[],
 };
 
 // ---------------------------------------------------------------------------
@@ -186,6 +191,25 @@ export const useGameStore = create<GameState & GameActions>()(
           const currentIndex = STAGE_ORDER.indexOf(stage);
           if (currentIndex < STAGE_ORDER.length - 1) {
             const next = STAGE_ORDER[currentIndex + 1];
+            
+            // Chaos Event check at transition gates (after 'problemReveal', 'techStack', 'features', 'businessModel')
+            const gates: GameStage[] = ['problemReveal', 'techStack', 'features', 'businessModel'];
+            if (gates.includes(stage) && Math.random() <= 0.15) {
+              const event = getRandomChaosEvent(get().chaosHistory);
+              set(
+                {
+                  activeChaosEvent: event,
+                  isTimerPaused: true, // pause standard clock
+                  stage: next,
+                  phase: mapStageToPhase(next),
+                  isGameOver: next === 'results',
+                },
+                false,
+                'core/nextStageWithChaos'
+              );
+              return;
+            }
+
             set(
               {
                 stage: next,
@@ -271,6 +295,7 @@ export const useGameStore = create<GameState & GameActions>()(
             (state) => ({
               ...initialGameState,
               unlockedAchievements: state.unlockedAchievements, // preserve across playthroughs
+              soundEnabled: state.soundEnabled, // preserve sound preferences
             }),
             false,
             'core/resetGame'
@@ -378,6 +403,76 @@ export const useGameStore = create<GameState & GameActions>()(
             'core/unlockAchievement'
           ),
 
+        toggleSound: () =>
+          set(
+            (state) => ({
+              soundEnabled: !state.soundEnabled,
+            }),
+            false,
+            'core/toggleSound'
+          ),
+
+        resolveChaosEvent: (choiceIndex) => {
+          const { activeChaosEvent, score, globalTimeRemaining, chaosHistory } = get();
+          if (!activeChaosEvent) return;
+
+          const choice = activeChaosEvent.choices[choiceIndex];
+          if (!choice) return;
+
+          // Apply score modifiers
+          const mods = choice.modifiers;
+          
+          // Modify score categories immediately
+          const nextScore = { ...score };
+          if (mods.innovation !== undefined) nextScore.innovation = Math.max(0, Math.min(100, nextScore.innovation + mods.innovation));
+          if (mods.execution !== undefined) nextScore.execution = Math.max(0, Math.min(100, nextScore.execution + mods.execution));
+          if (mods.design !== undefined) nextScore.design = Math.max(0, Math.min(100, nextScore.design + mods.design));
+          if (mods.pitch !== undefined) nextScore.pitch = Math.max(0, Math.min(100, nextScore.pitch + mods.pitch));
+          if (mods.bonus !== undefined) nextScore.bonus = nextScore.bonus + mods.bonus;
+          
+          const total =
+            nextScore.innovation +
+            nextScore.execution +
+            nextScore.design +
+            nextScore.pitch +
+            nextScore.bonus;
+          nextScore.total = total;
+
+          // Adjust time remaining
+          const timeOffset = mods.timeOffset || 0;
+          const nextTime = Math.max(0, globalTimeRemaining + timeOffset);
+
+          // Pushing the event ID to chaosHistory
+          const nextHistory = [...chaosHistory, activeChaosEvent.id];
+          if (activeChaosEvent.id === 'team-pivot-idea' && choiceIndex === 0) {
+            nextHistory.push('team-pivot-executed');
+          }
+
+          // If nextTime <= 0, trigger results stage (game over)
+          if (nextTime <= 0) {
+            set({
+              score: nextScore,
+              globalTimeRemaining: 0,
+              timeRemaining: 0,
+              activeChaosEvent: null,
+              chaosHistory: nextHistory,
+              isTimerPaused: true,
+              isGameOver: true,
+              stage: 'results',
+              phase: mapStageToPhase('results'),
+            }, false, 'core/resolveChaosEventGameOver');
+          } else {
+            set({
+              score: nextScore,
+              globalTimeRemaining: nextTime,
+              timeRemaining: nextTime,
+              activeChaosEvent: null,
+              chaosHistory: nextHistory,
+              isTimerPaused: false, // resume timer
+            }, false, 'core/resolveChaosEvent');
+          }
+        },
+
         // ─── Core Game Terminate ───
 
         endGame: () =>
@@ -413,6 +508,9 @@ export const useGameStore = create<GameState & GameActions>()(
           isGameStarted: state.isGameStarted,
           isGameOver: state.isGameOver,
           unlockedAchievements: state.unlockedAchievements,
+          soundEnabled: state.soundEnabled,
+          activeChaosEvent: state.activeChaosEvent,
+          chaosHistory: state.chaosHistory,
         }),
       }
     ),

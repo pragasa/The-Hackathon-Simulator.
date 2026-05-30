@@ -35,6 +35,16 @@ import {
   Check,
 } from "lucide-react";
 import type { GameStage, Problem, TechItem, Feature } from "@/types/game";
+import { CHAOS_EVENTS } from "@/data/chaosEvents";
+import {
+  playMutedClick,
+  playSubtleHover,
+  playSnapSound,
+  playWarningTick,
+  playWheelSpinClick,
+  playScoreChord,
+  playUnlockArpeggio
+} from "@/lib/sound";
 
 // ─── Standard Reusable Stage Wrapper ───────────────────────────────────────
 
@@ -101,9 +111,13 @@ function GameplayStageCard({
           <Button
             variant="outline"
             size="sm"
-            onClick={previousStage}
+            onClick={() => {
+              playMutedClick();
+              previousStage();
+            }}
+            onMouseEnter={playSubtleHover}
             disabled={currentIndex === 0 || stageKey === 'results'}
-            className="font-mono text-xs h-8"
+            className="font-mono text-xs h-8 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none"
           >
             &lt; BACK
           </Button>
@@ -125,9 +139,13 @@ function GameplayStageCard({
 
           <Button
             size="sm"
-            onClick={nextStage}
+            onClick={() => {
+              playMutedClick();
+              nextStage();
+            }}
+            onMouseEnter={playSubtleHover}
             disabled={currentIndex === STAGE_ORDER.length - 1 || !difficulty}
-            className="font-mono text-xs h-8 border border-neutral-900"
+            className="font-mono text-xs h-8 border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none"
           >
             CONTINUE &gt;
           </Button>
@@ -159,10 +177,14 @@ function DifficultyStage() {
         {options.map((opt) => (
           <button
             key={opt.key}
-            onClick={() => setDifficulty(opt.key)}
-            className={`flex flex-col text-left p-4 rounded-md border transition-all ${
+            onClick={() => {
+              playMutedClick();
+              setDifficulty(opt.key);
+            }}
+            onMouseEnter={playSubtleHover}
+            className={`flex flex-col text-left p-4 rounded-md border transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
               difficulty === opt.key
-                ? "border-neutral-900 bg-neutral-50 shadow-sm"
+                ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
                 : "border-neutral-200 hover:border-neutral-400 bg-white"
             }`}
           >
@@ -191,6 +213,7 @@ function ProblemRevealStage() {
     const interval = setInterval(() => {
       index = Math.floor(Math.random() * PROBLEMS.length);
       selectProblem(PROBLEMS[index]);
+      playWheelSpinClick();
     }, 80);
 
     setTimeout(() => {
@@ -217,9 +240,13 @@ function ProblemRevealStage() {
           <Button
             size="xs"
             variant="outline"
-            onClick={rollRandomProblem}
+            onClick={() => {
+              playMutedClick();
+              rollRandomProblem();
+            }}
+            onMouseEnter={playSubtleHover}
             disabled={shuffling}
-            className="text-[10px] h-7"
+            className="text-[10px] h-7 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
           >
             <RotateCcw className={`w-3.5 h-3.5 mr-1 ${shuffling ? 'animate-spin' : ''}`} />
             SHUFFLE_STATEMENT.EXE
@@ -342,10 +369,14 @@ function SolutionDirectionStage() {
         {options.map((opt) => (
           <button
             key={opt.id}
-            onClick={() => handleSelect(opt.id)}
-            className={`p-4 rounded-md border flex flex-col transition-all ${
+            onClick={() => {
+              playMutedClick();
+              handleSelect(opt.id);
+            }}
+            onMouseEnter={playSubtleHover}
+            className={`p-4 rounded-md border flex flex-col transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
               solutionDirection === opt.id
-                ? "border-neutral-900 bg-neutral-50 shadow-sm"
+                ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
                 : "border-neutral-200 hover:border-neutral-400 bg-white"
             }`}
           >
@@ -473,6 +504,7 @@ function TechStackStage() {
         const nextStack = [...techStack.filter((t) => t.category !== item.category), item];
         addTechItem(item);
         recalculateTechScores(nextStack);
+        playSnapSound();
       }
     }
   };
@@ -494,10 +526,14 @@ function TechStackStage() {
                 return (
                   <DraggableCard key={tech.id} id={tech.id} data={{ ...tech }}>
                     <button
-                      onClick={() => handleToggleTech(tech)}
-                      className={`w-full text-left flex flex-col p-2.5 rounded-md border transition-all ${
+                      onClick={() => {
+                        playMutedClick();
+                        handleToggleTech(tech);
+                      }}
+                      onMouseEnter={playSubtleHover}
+                      className={`w-full text-left flex flex-col p-2.5 rounded-md border transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
                         isSelected
-                          ? "border-neutral-900 bg-neutral-50 shadow-sm"
+                          ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
                           : "border-neutral-200 hover:border-neutral-300 bg-white"
                       }`}
                     >
@@ -537,8 +573,12 @@ function TechStackStage() {
                         <Button
                           size="xs"
                           variant="destructive"
-                          onClick={() => handleToggleTech(slottedItem)}
-                          className="h-6 w-12 font-mono text-[9px]"
+                          onClick={() => {
+                            playMutedClick();
+                            handleToggleTech(slottedItem);
+                          }}
+                          onMouseEnter={playSubtleHover}
+                          className="h-6 w-12 font-mono text-[9px] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
                         >
                           EJECT
                         </Button>
@@ -610,8 +650,12 @@ function UspStage() {
         {options.map((opt) => (
           <button
             key={opt.key}
-            onClick={() => handleSelect(opt.key)}
-            className={`p-4 rounded-md border text-left flex flex-col justify-between transition-all ${
+            onClick={() => {
+              playMutedClick();
+              handleSelect(opt.key);
+            }}
+            onMouseEnter={playSubtleHover}
+            className={`p-4 rounded-md border text-left flex flex-col justify-between transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
               usp === opt.key
                 ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
                 : "border-neutral-200 hover:border-neutral-400 bg-white"
@@ -711,6 +755,7 @@ function FeaturesStage() {
     // Save flat array of must-have features in Zustand backlog features
     const mustList = MOCK_BACKLOG_POOL.filter(f => nextBuckets[f.id] === 'must');
     reorderFeatures(mustList);
+    playSnapSound();
   };
 
   // Drag and drop end trigger
@@ -726,6 +771,7 @@ function FeaturesStage() {
 
     const mustList = MOCK_BACKLOG_POOL.filter(f => nextBuckets[f.id] === 'must');
     reorderFeatures(mustList);
+    playSnapSound();
   };
 
   const sensors = useSensors(
@@ -750,7 +796,8 @@ function FeaturesStage() {
                   <DraggableCard key={feat.id} id={feat.id} data={{ ...feat }}>
                     <button
                       onClick={() => handleCycleBucket(feat.id)}
-                      className="w-full text-left p-2 bg-white border border-neutral-200 rounded flex flex-col justify-between hover:border-neutral-400 transition-all"
+                      onMouseEnter={playSubtleHover}
+                      className="w-full text-left p-2.5 bg-white border border-neutral-200 rounded flex flex-col justify-between hover:border-neutral-400 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_2px_6px_rgba(0,0,0,0.02)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
                     >
                       <span className="font-bold text-neutral-900 block truncate">{feat.name}</span>
                       <span className="text-[8px] text-muted-foreground mt-1 block uppercase">
@@ -839,6 +886,7 @@ function MentorStage() {
     updateScore("pitch", Math.max(0, useGameStore.getState().score.pitch - 3));
     updateScore("bonus", useGameStore.getState().score.bonus + 5);
     useGameStore.setState({ mentorHintsUsed: 1 });
+    playScoreChord();
   };
 
   return (
@@ -856,8 +904,12 @@ function MentorStage() {
               Click below to boot the cognitive evaluator. This will analyze your active stack and backlog pipelines.
             </p>
             <Button
-              onClick={handleConsult}
-              className="font-mono text-xs border border-neutral-900"
+              onClick={() => {
+                playMutedClick();
+                handleConsult();
+              }}
+              onMouseEnter={playSubtleHover}
+              className="font-mono text-xs border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
             >
               RUN_MENTOR_AUDIT.EXE
             </Button>
@@ -943,8 +995,12 @@ function BusinessModelStage() {
         {options.map((opt) => (
           <button
             key={opt.id}
-            onClick={() => handleSelect(opt.id)}
-            className={`p-4 rounded-md border text-left flex flex-col justify-between transition-all ${
+            onClick={() => {
+              playMutedClick();
+              handleSelect(opt.id);
+            }}
+            onMouseEnter={playSubtleHover}
+            className={`p-4 rounded-md border text-left flex flex-col justify-between transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
               businessModel === opt.id
                 ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
                 : "border-neutral-200 hover:border-neutral-400 bg-white"
@@ -1033,7 +1089,7 @@ function PitchPrepStage() {
             value={pitchText}
             onChange={(e) => setPitchText(e.target.value)}
             rows={5}
-            className="w-full p-3 bg-white border border-neutral-900 rounded-md font-sans text-xs text-neutral-800 focus:outline-none focus:ring-1 focus:ring-neutral-900 leading-relaxed shadow-inner"
+            className="w-full p-3 bg-white border border-neutral-900 rounded-md font-sans text-xs text-neutral-800 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none leading-relaxed shadow-inner"
             placeholder="Write your custom elevator pitch..."
           />
         </div>
@@ -1076,6 +1132,7 @@ function JudgeSpinStage() {
     if (spinning) return;
     setSpinning(true);
     setJudgeSpinState("spinning");
+    playMutedClick();
 
     const randomIndex = Math.floor(Math.random() * JUDGES.length);
     const selected = JUDGES[randomIndex];
@@ -1086,10 +1143,30 @@ function JudgeSpinStage() {
     
     setRotation(targetAngle);
 
+    // Dynamic, decelerating mechanical spin click ticks
+    let activeSpin = true;
+    const playSpinTicks = () => {
+      let tickDelay = 25; // fast start
+      const maxDelay = 300; // slow limit
+      
+      const tick = () => {
+        if (!activeSpin) return;
+        playWheelSpinClick();
+        tickDelay *= 1.14; // decelerate exponentially
+        if (tickDelay < maxDelay) {
+          setTimeout(tick, tickDelay);
+        }
+      };
+      setTimeout(tick, tickDelay);
+    };
+    playSpinTicks();
+
     setTimeout(() => {
+      activeSpin = false;
       setSpinning(false);
       setJudgeSpinState("done");
       setCurrentJudge(selected);
+      playSnapSound(); // tactile snap land!
     }, 2500);
   };
 
@@ -1173,7 +1250,8 @@ function JudgeSpinStage() {
           {judgeSpinState === "idle" && (
             <Button
               onClick={spinWheel}
-              className="font-mono text-xs border border-neutral-900 w-full max-w-[200px]"
+              onMouseEnter={playSubtleHover}
+              className="font-mono text-xs border border-neutral-900 w-full max-w-[200px] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
             >
               ⚡ SPIN_ROULETTE.EXE
             </Button>
@@ -1201,8 +1279,12 @@ function JudgeSpinStage() {
               </div>
               
               <Button
-                onClick={nextStage}
-                className="font-mono text-xs border border-neutral-900 w-full mt-2"
+                onClick={() => {
+                  playMutedClick();
+                  nextStage();
+                }}
+                onMouseEnter={playSubtleHover}
+                className="font-mono text-xs border border-neutral-900 w-full mt-2 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
               >
                 SUBMIT_TO_JURY.SH
               </Button>
@@ -1252,6 +1334,7 @@ function JudgingStage() {
       if (step < loadingLogs.length - 1) {
         step++;
         setLoadingStep(step);
+        playWheelSpinClick(); // play digital keyboard click
       } else {
         clearInterval(interval);
         performEvaluation();
@@ -1375,6 +1458,7 @@ function JudgingStage() {
       comment,
       highlight,
     });
+    playScoreChord(); // trigger dynamic score chord!
 
     setEvaluationComplete(true);
   };
@@ -1433,8 +1517,12 @@ function JudgingStage() {
             </div>
 
             <Button
-              onClick={nextStage}
-              className="font-mono text-xs border border-neutral-900 w-full"
+              onClick={() => {
+                playMutedClick();
+                nextStage();
+              }}
+              onMouseEnter={playSubtleHover}
+              className="font-mono text-xs border border-neutral-900 w-full focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
             >
               LOAD_RESULTS_DASHBOARD.SH
             </Button>
@@ -1454,10 +1542,13 @@ const ACHIEVEMENTS_LIST = [
   { id: "judge-favorite", name: "Judge Favorite", desc: "Earn score of >= 90/100" },
   { id: "speed-builder", name: "Speed Builder", desc: "Choose extreme Fastest USP" },
   { id: "ai-pioneer", name: "AI Pioneer", desc: "Combine AI models with AI USP" },
-  { id: "chaos-survivor", name: "Chaos Survivor", desc: "Score >= 70 from Lord Bugsworth" },
+  { id: "chaos-survivor", name: "Chaos Survivor", desc: "Faced >= 2 negative events & survived" },
   { id: "frugal-founder", name: "Frugal Founder", desc: "Freemium plus Cheapest USP" },
   { id: "lean-mean", name: "Lean & Mean", desc: "2 features, small stack (<= 3 items)" },
   { id: "omniscient", name: "Omniscient", desc: "Used the mentor advisor audit" },
+  { id: "crisis-manager", name: "Crisis Manager", desc: "Resolved >= 2 negative events & score >= 80" },
+  { id: "lucky-builder", name: "Lucky Builder", desc: "Faced >= 1 lucky break & score >= 85" },
+  { id: "pivot-master", name: "Pivot Master", desc: "Executed a last-minute project pivot" },
 ];
 
 function ResultsStage() {
@@ -1474,6 +1565,7 @@ function ResultsStage() {
     unlockedAchievements,
     unlockAchievement,
     resetGame,
+    chaosHistory,
   } = useGameStore();
 
   const [copied, setCopied] = useState(false);
@@ -1495,6 +1587,8 @@ function ResultsStage() {
   // Run achievement checks when results mount
   useEffect(() => {
     if (!feedback) return;
+
+    const countBefore = useGameStore.getState().unlockedAchievements.length;
 
     // 1. Scope Master
     if (features.length === 2 || features.length === 3) {
@@ -1543,7 +1637,11 @@ function ResultsStage() {
     }
 
     // 7. Chaos Survivor
-    if (currentJudge?.id === "judge-chaos" && finalScore100 >= 70) {
+    const triggeredEvents = CHAOS_EVENTS.filter(e => chaosHistory.includes(e.id));
+    const resolvedNegativeCount = triggeredEvents.filter(e => e.category === 'technical' || e.category === 'team').length;
+    const resolvedLuckyCount = triggeredEvents.filter(e => e.category === 'lucky').length;
+
+    if ((currentJudge?.id === "judge-chaos" && finalScore100 >= 70) || resolvedNegativeCount >= 2) {
       unlockAchievement("chaos-survivor");
     }
 
@@ -1561,7 +1659,30 @@ function ResultsStage() {
     if (mentorHintsUsed > 0) {
       unlockAchievement("omniscient");
     }
-  }, [feedback, unlockAchievement]);
+
+    // 11. Crisis Manager
+    if (resolvedNegativeCount >= 2 && finalScore100 >= 80) {
+      unlockAchievement("crisis-manager");
+    }
+
+    // 12. Lucky Builder
+    if (resolvedLuckyCount >= 1 && finalScore100 >= 85) {
+      unlockAchievement("lucky-builder");
+    }
+
+    // 13. Pivot Master
+    if (chaosHistory.includes("team-pivot-executed")) {
+      unlockAchievement("pivot-master");
+    }
+
+    // Compare count after evaluation to play sound!
+    setTimeout(() => {
+      const countAfter = useGameStore.getState().unlockedAchievements.length;
+      if (countAfter > countBefore) {
+        playUnlockArpeggio();
+      }
+    }, 80);
+  }, [feedback, unlockAchievement, chaosHistory, currentJudge, finalScore100]);
 
   const getStrengthsAndWeaknesses = () => {
     const derivedStrengths: string[] = [];
@@ -1660,6 +1781,7 @@ function ResultsStage() {
     const cardText = generateAsciiCard();
     navigator.clipboard.writeText(cardText).then(() => {
       setCopied(true);
+      playSnapSound();
       setTimeout(() => setCopied(false), 1500);
     });
   };
@@ -1674,17 +1796,24 @@ function ResultsStage() {
         
         {/* Results Main Banner Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="p-4 bg-neutral-900 border border-neutral-900 rounded text-center text-white flex flex-col justify-center">
+          <div className="p-4 bg-neutral-900 border border-neutral-900 rounded text-center text-white flex flex-col justify-center shadow-sm">
             <span className="text-[9px] text-neutral-400 block uppercase tracking-wider mb-1 font-bold">FINAL_SCORE_INDEX</span>
             <span className="text-3xl font-black">{displayScore} <span className="text-xs font-normal text-neutral-400">/ 50</span></span>
           </div>
 
-          <div className="p-4 bg-neutral-50 border border-neutral-200 rounded text-center flex flex-col justify-center">
-            <span className="text-[9px] text-neutral-400 block uppercase tracking-wider mb-1">LETTER_GRADE</span>
-            <span className="text-3xl font-black text-neutral-900">{grade}</span>
+          <div className="p-4 bg-neutral-50 border border-neutral-200 rounded text-center flex flex-col items-center justify-center relative overflow-hidden shadow-sm">
+            <span className="text-[9px] text-neutral-400 block uppercase tracking-wider mb-2">LETTER_GRADE</span>
+            <motion.div
+              initial={{ scale: 3.5, rotate: -35, opacity: 0 }}
+              animate={{ scale: 1, rotate: -8, opacity: 1 }}
+              transition={{ type: "spring", stiffness: 150, damping: 10, delay: 0.3 }}
+              className="px-4 py-1.5 border-2 border-double border-neutral-900 text-neutral-900 font-mono text-2xl font-black uppercase tracking-wider rounded select-none shadow-[2px_2px_0px_#1e1e1e]"
+            >
+              {grade}
+            </motion.div>
           </div>
 
-          <div className="p-4 bg-neutral-50 border border-neutral-200 rounded text-center flex flex-col justify-center">
+          <div className="p-4 bg-neutral-50 border border-neutral-200 rounded text-center flex flex-col justify-center shadow-sm">
             <span className="text-[9px] text-neutral-400 block uppercase tracking-wider mb-1">JURY_VERDICT</span>
             <span className="text-xs font-bold text-neutral-800 uppercase truncate">
               {finalScore100 >= 70 ? "✅ PROJECT APPROVED" : "❌ COMPILE FAILED"}
@@ -1738,13 +1867,30 @@ function ResultsStage() {
         {/* Achievements Grid */}
         <div className="border-t border-dashed border-border pt-4">
           <span className="text-neutral-400 block text-[9px] uppercase mb-3">GLOBAL_ACHIEVEMENTS_DECRYPTION:</span>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]">
+          <motion.div
+            variants={{
+              hidden: { opacity: 0 },
+              show: {
+                opacity: 1,
+                transition: {
+                  staggerChildren: 0.05
+                }
+              }
+            }}
+            initial="hidden"
+            animate="show"
+            className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]"
+          >
             {ACHIEVEMENTS_LIST.map((ac) => {
               const isUnlocked = unlockedAchievements.includes(ac.id);
               return (
-                <div
+                <motion.div
                   key={ac.id}
-                  className={`p-2.5 rounded border flex items-center justify-between transition-all ${
+                  variants={{
+                    hidden: { opacity: 0, y: 10 },
+                    show: { opacity: 1, y: 0, transition: { type: "spring", stiffness: 100 } }
+                  }}
+                  className={`p-2.5 rounded border flex items-center justify-between transition-all duration-300 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] ${
                     isUnlocked
                       ? "border-neutral-900 bg-neutral-900 text-white font-bold"
                       : "border-neutral-200 bg-white text-neutral-400 border-dashed"
@@ -1759,10 +1905,10 @@ function ResultsStage() {
                   <span className="font-mono text-[9px] uppercase px-1.5 py-0.5 rounded bg-neutral-100/10">
                     {isUnlocked ? "[UNLOCKED]" : "[LOCKED]"}
                   </span>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
         </div>
 
         {/* Shareable Result Card */}
@@ -1773,18 +1919,23 @@ function ResultsStage() {
           </pre>
           <Button
             onClick={copyToClipboard}
+            onMouseEnter={playSubtleHover}
             variant="outline"
-            className="w-full font-mono text-xs border border-neutral-900 h-8"
+            className="w-full font-mono text-xs border border-neutral-900 h-8 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
           >
-            {copied ? "COPIED_TO_CLIPBOARD.TXT" : "COPY_MANIFEST_ASCII.EXE"}
+            {copied ? "[MANIFEST_COPIED_TO_CLIPBOARD.TXT]" : "COPY_MANIFEST_ASCII.EXE"}
           </Button>
         </div>
 
         {/* Action Controls */}
         <div className="border-t border-border pt-4">
           <Button
-            onClick={resetGame}
-            className="w-full font-mono text-xs border border-neutral-900"
+            onClick={() => {
+              playMutedClick();
+              resetGame();
+            }}
+            onMouseEnter={playSubtleHover}
+            className="w-full font-mono text-xs border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
           >
             🔄 REBOOT_SIMULATOR.EXE
           </Button>
@@ -1850,28 +2001,54 @@ function DevDebugPanel() {
         </div>
       </div>
 
+      <div className="flex items-center justify-between mb-3 pt-2 border-t border-border/60 text-[10px]">
+        <span className="font-bold text-neutral-500 uppercase">SYNTH_SOUND:</span>
+        <button
+          onClick={() => {
+            playMutedClick();
+            useGameStore.getState().toggleSound();
+          }}
+          className={`px-2 py-0.5 rounded border font-mono text-[9px] font-bold cursor-pointer ${
+            useGameStore.getState().soundEnabled
+              ? "bg-neutral-900 text-white border-neutral-900"
+              : "bg-neutral-100 text-neutral-400 border-neutral-200"
+          }`}
+        >
+          {useGameStore.getState().soundEnabled ? "ON" : "MUTED"}
+        </button>
+      </div>
+
       <div className="grid grid-cols-2 gap-1.5 mb-3 pt-2 border-t border-border/60">
         <Button
           size="xs"
           variant="outline"
-          onClick={isTimerPaused ? resumeTimer : pauseTimer}
-          className="text-[10px] h-7"
+          onClick={() => {
+            playMutedClick();
+            if (isTimerPaused) resumeTimer(); else pauseTimer();
+          }}
+          className="text-[10px] h-7 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
         >
           {isTimerPaused ? "RESUME_TIME" : "PAUSE_TIME"}
         </Button>
         <Button
           size="xs"
           variant="outline"
-          onClick={nextStage}
-          className="text-[10px] h-7"
+          onClick={() => {
+            playMutedClick();
+            nextStage();
+          }}
+          className="text-[10px] h-7 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
         >
           SKIP_STAGE
         </Button>
         <Button
           size="xs"
           variant="destructive"
-          onClick={resetGame}
-          className="text-[10px] col-span-2 h-7"
+          onClick={() => {
+            playMutedClick();
+            resetGame();
+          }}
+          className="text-[10px] col-span-2 h-7 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
         >
           RESET_SIMULATOR
         </Button>
@@ -1897,10 +2074,137 @@ function DevDebugPanel() {
   );
 }
 
+// ─── Chaos Event Interruption Modal ──────────────────────────────────────────
+
+function ChaosEventOverlay() {
+  const { activeChaosEvent, resolveChaosEvent } = useGameStore();
+
+  useEffect(() => {
+    if (activeChaosEvent) {
+      // Play warning ticker sound when modal initiates
+      playWarningTick();
+    }
+  }, [activeChaosEvent]);
+
+  if (!activeChaosEvent) return null;
+
+  const getCategoryTag = (cat: string) => {
+    switch (cat) {
+      case "technical":
+        return "[TECHNICAL_FIRE]";
+      case "team":
+        return "[TEAM_CHAOS]";
+      case "lucky":
+        return "[LUCKY_BREAK]";
+      case "judge":
+        return "[JURY_SURPRISE]";
+      default:
+        return "[INCIDENT]";
+    }
+  };
+
+  const getCategoryColor = (cat: string) => {
+    switch (cat) {
+      case "technical":
+        return "text-rose-600 border-rose-250 bg-rose-50/60";
+      case "team":
+        return "text-amber-600 border-amber-250 bg-amber-50/60";
+      case "lucky":
+        return "text-emerald-600 border-emerald-250 bg-emerald-50/60";
+      case "judge":
+        return "text-indigo-600 border-indigo-250 bg-indigo-50/60";
+      default:
+        return "text-neutral-600 border-neutral-200 bg-neutral-50/50";
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-neutral-900/60 backdrop-blur-xs p-4 overflow-y-auto font-mono text-xs">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.95, y: 8 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: -8 }}
+        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+        className="w-full max-w-md bg-stone-50 border-2 border-neutral-900 rounded-lg shadow-2xl p-6 sm:p-8 text-left"
+      >
+        {/* Terminal warning banner */}
+        <div className="text-center mb-6 select-none font-bold text-neutral-900 leading-tight">
+          <div>=============================================</div>
+          <div className="text-neutral-900 tracking-wider flex items-center justify-center gap-1.5 py-1">
+            <AlertTriangle className="w-4 h-4 animate-pulse text-amber-600" />
+            <span>⚠ CRITICAL HACKATHON INCIDENT DETECTED</span>
+          </div>
+          <div>=============================================</div>
+        </div>
+
+        {/* Event Header Info */}
+        <div className="flex items-center justify-between mb-4 pb-2 border-b border-dashed border-border/80">
+          <span className="text-[10px] text-muted-foreground">
+            EVENT_ID: {activeChaosEvent.id.toUpperCase()}
+          </span>
+          <span
+            className={`px-2 py-0.5 rounded border text-[9px] uppercase font-bold tracking-wider ${getCategoryColor(
+              activeChaosEvent.category
+            )}`}
+          >
+            {getCategoryTag(activeChaosEvent.category)}
+          </span>
+        </div>
+
+        <h3 className="text-sm font-black uppercase tracking-tight text-neutral-900 mb-3 border-b border-dashed border-border/80 pb-2">
+          {activeChaosEvent.title}
+        </h3>
+
+        <p className="text-[10px] text-neutral-700 leading-relaxed mb-6 bg-white p-3.5 border border-neutral-250 rounded shadow-[inset_0_1px_2px_rgba(0,0,0,0.015)]">
+          {activeChaosEvent.description}
+        </p>
+
+        {/* Choice buttons */}
+        <div className="space-y-3">
+          <span className="text-neutral-400 block text-[9px] uppercase tracking-wider">
+            CHOOSE_TACTICAL_ACTION.EXE:
+          </span>
+          {activeChaosEvent.choices.map((choice, index) => (
+            <button
+              key={index}
+              onClick={() => {
+                playMutedClick();
+                resolveChaosEvent(index);
+              }}
+              onMouseEnter={playSubtleHover}
+              className="w-full text-left p-3.5 bg-white border border-neutral-250 rounded hover:border-neutral-900 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none flex flex-col cursor-pointer"
+            >
+              <div className="flex items-start justify-between w-full">
+                <span className="font-bold text-neutral-900 tracking-tight text-[11px] uppercase">
+                  &gt; {choice.label}
+                </span>
+                <span className="text-[8px] px-1.5 py-0.5 bg-neutral-100 text-neutral-500 rounded border border-neutral-200 font-mono tracking-wider">
+                  ACTION_0{index + 1}
+                </span>
+              </div>
+
+              <p className="text-[10px] text-muted-foreground mt-2 font-sans font-light leading-relaxed">
+                {choice.description}
+              </p>
+
+              {choice.effectText && (
+                <div className="mt-3 text-[9px] text-neutral-900 font-mono flex items-center gap-1 bg-neutral-50 px-2 py-0.5 rounded border border-neutral-250 w-fit">
+                  <Zap className="w-3 h-3 text-amber-500 animate-pulse" />
+                  <span className="font-bold">EFFECTS:</span> {choice.effectText}
+                </div>
+              )}
+            </button>
+          ))}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 // ─── Main Conditional Stage Orchestrator / GamePage ───────────────────────────
 
 export default function GamePage() {
-  const { stage, isGameStarted, startGame, tickTimer, isTimerPaused } = useGameStore();
+  const { stage, isGameStarted, startGame, tickTimer, isTimerPaused, activeChaosEvent } = useGameStore();
 
   useEffect(() => {
     if (!isGameStarted) {
@@ -1912,6 +2216,14 @@ export default function GamePage() {
     if (isTimerPaused) return;
     const interval = setInterval(() => {
       tickTimer();
+      const remaining = useGameStore.getState().globalTimeRemaining;
+      if (remaining > 0 && remaining <= 60) {
+        if (remaining <= 10) {
+          playWarningTick(); // tick every second in final 10 seconds
+        } else if (remaining % 10 === 0) {
+          playWarningTick(); // tick every 10 seconds in final minute
+        }
+      }
     }, 1000);
     return () => clearInterval(interval);
   }, [isTimerPaused, tickTimer]);
@@ -1957,6 +2269,9 @@ export default function GamePage() {
     <GameLayout>
       <div className="relative w-full h-full min-h-screen">
         <AnimatePresence mode="wait">{renderStageContent()}</AnimatePresence>
+        <AnimatePresence>
+          {activeChaosEvent && <ChaosEventOverlay />}
+        </AnimatePresence>
         <DevDebugPanel />
       </div>
     </GameLayout>

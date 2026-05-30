@@ -65,9 +65,9 @@ function formatTime(seconds: number): string {
 
 /** Determine the accent color based on remaining-time percentage */
 function getTimerColor(pct: number): string {
-  if (pct > 0.5) return '#10b981'; // neon green
-  if (pct > 0.25) return '#f59e0b'; // amber / warning
-  return '#ef4444'; // red / urgent
+  if (pct > 0.5) return '#1e1e1e'; // Ink black
+  if (pct > 0.25) return '#d97706'; // Muted warning ochre
+  return '#ef4444'; // Editorial red
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────────
@@ -101,24 +101,13 @@ export default function GameTimer({
           className="-rotate-90"
           viewBox={`0 0 ${diameter} ${diameter}`}
         >
-          {/* Glow filter */}
-          <defs>
-            <filter id={filterId} x="-50%" y="-50%" width="200%" height="200%">
-              <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
-          </defs>
-
           {/* Background track */}
           <circle
             cx={diameter / 2}
             cy={diameter / 2}
             r={radius}
             fill="none"
-            stroke="rgba(255,255,255,0.06)"
+            stroke="rgba(0, 0, 0, 0.05)"
             strokeWidth={stroke}
           />
 
@@ -134,7 +123,6 @@ export default function GameTimer({
             strokeDasharray={circumference}
             animate={{ strokeDashoffset: dashOffset }}
             transition={{ duration: 0.6, ease: 'easeInOut' }}
-            filter={`url(#${filterId})`}
           />
         </svg>
 

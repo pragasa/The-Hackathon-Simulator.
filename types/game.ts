@@ -228,6 +228,12 @@ export interface GameState {
   isGameOver: boolean;
   /** Persisted list of achievements unlocked */
   unlockedAchievements: string[];
+  /** Whether game sound is currently enabled */
+  soundEnabled: boolean;
+  /** Currently active chaos event overlay, or null */
+  activeChaosEvent: ChaosEvent | null;
+  /** History list of event IDs triggered this run */
+  chaosHistory: string[];
 }
 
 /** Actions the player (or system) can dispatch to mutate game state */
@@ -290,4 +296,33 @@ export interface GameActions {
   resetGame: () => void;
   /** Unlock a persistent milestone achievement */
   unlockAchievement: (id: string) => void;
+  /** Toggle the global sound status */
+  toggleSound: () => void;
+  /** Resolve the active chaos event with selected choice */
+  resolveChaosEvent: (choiceIndex: number) => void;
+}
+
+// ─── Chaos Events Update v1.1 ───────────────────────────────────────────
+
+export interface ChaosEventChoice {
+  label: string;
+  description: string;
+  effectText: string;
+  modifiers: {
+    innovation?: number;
+    execution?: number;
+    design?: number;
+    pitch?: number;
+    bonus?: number;
+    timeOffset?: number; // adjusts global time remaining
+  };
+}
+
+export interface ChaosEvent {
+  id: string;
+  title: string;
+  description: string;
+  category: 'technical' | 'team' | 'lucky' | 'judge';
+  weight: number; // for weighted random selections
+  choices: ChaosEventChoice[];
 }
