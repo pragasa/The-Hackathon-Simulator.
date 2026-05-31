@@ -1315,7 +1315,7 @@ function UspStage() {
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
           <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neutral-800"></div>
           <span className="font-mono text-[10px] text-muted-foreground animate-pulse uppercase tracking-wider">
-            Consulting OpenAI GPT-4o-mini...
+            Generating dynamic advantages...
           </span>
         </div>
       </GameplayStageCard>
@@ -2838,6 +2838,8 @@ function JudgingStage() {
     activeModifiers,
     gameMode,
     deckNarrativeQuality,
+    roastText,
+    setRoastText,
   } = useGameStore();
 
   const [loadingStep, setLoadingStep] = useState(0);
@@ -2872,32 +2874,48 @@ function JudgingStage() {
       getLog: () => {
         return `Reviewing pitch deck structure. Narrative quality: "${deckNarrativeQuality || "Unstructured"}".`;
       }
+    },
+    {
+      key: "roast",
+      label: "Compling dyanmic roast",
+      getLog: () => {
+        return roastText ? "Dynamic jury roast commentary compiled successfully." : `Connecting to lead judge cognitive core to compile brutal commentary...`;
+      }
     }
   ];
 
+  // Run evaluation immediately on mount
   useEffect(() => {
-    if (evaluationComplete || !currentJudge) return;
+    if (currentJudge) {
+      performEvaluation();
+    }
+  }, [currentJudge]);
+
+  // Terminal visual animation ticker sequence
+  useEffect(() => {
+    if (!currentJudge) return;
 
     let step = 0;
     playRevealTension(); // Initial suspense tick
     const interval = setInterval(() => {
-      if (step < 3) {
+      if (step < 4) {
         setCompletedSteps(prev => [...prev, stagedSteps[step].key]);
         playRevealSuccess(); // Checkmark reveal sound
         step++;
         setLoadingStep(step);
         setTimeout(() => {
-          if (step < 4) {
+          if (step < 5) {
             playRevealTension(); // Next category suspense sound
           }
         }, 150);
       } else {
-        setCompletedSteps(["innovation", "execution", "business", "pitch"]);
-        playRevealSuccess(); // Last category checkmark sound
-        clearInterval(interval);
-        setTimeout(() => {
-          performEvaluation();
-        }, 300);
+        // Step 4 is "roast". Wait until roastText is pre-fetched and non-empty!
+        if (useGameStore.getState().roastText !== "") {
+          setCompletedSteps(["innovation", "execution", "business", "pitch", "roast"]);
+          playRevealSuccess(); // Last category checkmark sound
+          clearInterval(interval);
+          setEvaluationComplete(true);
+        }
       }
     }, 1500);
 
@@ -3130,6 +3148,15 @@ function JudgingStage() {
     }
     finalScoreVal = Math.max(0, Math.min(Math.round(finalScoreVal), 100));
 
+    const getGrade = (score: number) => {
+      if (score >= 94) return "S";
+      if (score >= 84) return "A";
+      if (score >= 72) return "B";
+      if (score >= 60) return "C";
+      if (score >= 48) return "D";
+      return "F";
+    };
+
     const feedbackResult = generateJudgeFeedback(currentJudge.id, finalScoreVal, {
       techStack,
       features,
@@ -3152,10 +3179,49 @@ function JudgingStage() {
       highlight,
     });
 
+    const archetype = classifyProjectArchetype({
+      techStack,
+      features,
+      usp,
+      businessModel,
+      solutionDirection,
+    });
+
+    // Pre-fetch dynamic roast in background during terminal judging phase
+    setRoastText("");
+    fetch("/api/generate-roast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        problemStatement: selectedProb?.description,
+        solutionDirection: solutionDirection,
+        techStack: techStack.map(t => t.name),
+        usp: usp,
+        businessModel: businessModel,
+        mustHaveFeatures: features.map(f => f.name),
+        judge: currentJudge.name,
+        judgePersonality: currentJudge.personality,
+        archetype: archetype.name,
+        grade: getGrade(finalScoreVal),
+        score: finalScoreVal,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.roast) {
+          setRoastText(data.roast);
+        } else {
+          setRoastText("An interesting prototype with solid groundwork, but the lead judge decided to pass on roasting this submission.");
+        }
+      })
+      .catch((err) => {
+        console.error("Failed to fetch AI roast:", err);
+        setRoastText("The evaluation server went offline, but the jury was impressed by your execution strategy.");
+      });
+
     // Record results and update stats using the lead judge's score
     useGameStore.getState().updateStats(finalScoreVal);
     playScoreChord(); // trigger dynamic score chord!
-    setEvaluationComplete(true);
   };
 
   return (
@@ -3293,6 +3359,7 @@ function ResultsStage() {
     pitchDeckScore,
     deckNarrativeQuality,
     deckArchetype,
+    roastText,
   } = useGameStore();
 
   const [copied, setCopied] = useState(false);
@@ -3476,45 +3543,7 @@ function ResultsStage() {
     solutionDirection,
   });
 
-  const [aiRoast, setAiRoast] = useState<string>("");
-  const [loadingRoast, setLoadingRoast] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!selectedProblem || !currentJudge) return;
-
-    setLoadingRoast(true);
-    setAiRoast("");
-
-    fetch("/api/generate-roast", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        problemStatement: selectedProblem.description,
-        solutionDirection: solutionDirection,
-        techStack: techStack.map(t => t.name),
-        usp: usp,
-        businessModel: businessModel,
-        mustHaveFeatures: features.map(f => f.name),
-        judge: currentJudge.name,
-        judgePersonality: currentJudge.personality,
-        archetype: archetype.name,
-        grade: grade,
-        score: finalScore100,
-      }),
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.roast) {
-          setAiRoast(data.roast);
-        }
-      })
-      .catch((err) => {
-        console.error("Failed to fetch AI roast:", err);
-      })
-      .finally(() => {
-        setLoadingRoast(false);
-      });
-  }, [selectedProblem, currentJudge, solutionDirection, techStack, usp, businessModel, features, archetype.name, grade, finalScore100]);
+  // AI Roast is pre-compiled and fetched during the judging terminal phase, so we use roastText directly!
 
   // Run achievement checks when results mount
   useEffect(() => {
@@ -3770,11 +3799,7 @@ function ResultsStage() {
           </div>
 
           <p className="text-[11px] text-neutral-600 font-sans font-light leading-relaxed">
-            {loadingRoast ? (
-              <span className="animate-pulse text-neutral-400">⏱️ DRAWING DYNAMIC JURY FEEDBACK CRITIQUE...</span>
-            ) : (
-              aiRoast || archetype.description
-            )}
+            {roastText || archetype.description}
           </p>
 
           <div className="border-t border-dashed border-neutral-200 pt-3 space-y-2.5">
@@ -4036,7 +4061,7 @@ function ResultsStage() {
             </div>
 
             <p className="text-xs text-neutral-850 font-sans italic relative z-10 leading-relaxed pt-1 select-text">
-              "{loadingRoast ? "⏱️ DRAWING DYNAMIC JURY FEEDBACK CRITIQUE..." : (aiRoast || feedback?.comment)}"
+              "{roastText || feedback?.comment || "No critique available."}"
             </p>
 
             <div className="flex items-center gap-2.5 pt-2 border-t border-dashed border-neutral-200">

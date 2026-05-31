@@ -199,6 +199,7 @@ const initialGameState = {
 
   // Update v1.8: Hidden Scoring + Project Health Dashboard variables
   judgeDecisionMemory: null as JudgeDecisionMemory | null,
+  roastText: "",
 };
 
 // ---------------------------------------------------------------------------
@@ -333,6 +334,7 @@ export const useGameStore = create<GameState & GameActions>()(
             generatedAdvisorAdvice: [],
             businessModel: null,
             pitchText: "",
+            roastText: "",
           }, false, 'core/selectProblem'),
 
         setSolutionDirection: (direction) =>
@@ -348,6 +350,7 @@ export const useGameStore = create<GameState & GameActions>()(
             generatedAdvisorAdvice: [],
             businessModel: null,
             pitchText: "",
+            roastText: "",
           }, false, 'core/setSolutionDirection'),
 
         addTechItem: (item) =>
@@ -424,6 +427,7 @@ export const useGameStore = create<GameState & GameActions>()(
         setGeneratedBacklog: (backlog) => set({ generatedBacklog: backlog }, false, 'core/setGeneratedBacklog'),
         setGeneratedBusinessModels: (models) => set({ generatedBusinessModels: models }, false, 'core/setGeneratedBusinessModels'),
         setGeneratedAdvisorAdvice: (advice) => set({ generatedAdvisorAdvice: advice }, false, 'core/setGeneratedAdvisorAdvice'),
+        setRoastText: (roastText) => set({ roastText }, false, 'core/setRoastText'),
 
         applyAdvisorAdvice: (adviceId) => {
           const state = get();
@@ -954,6 +958,7 @@ export const useGameStore = create<GameState & GameActions>()(
           generatedBacklog: state.generatedBacklog,
           generatedBusinessModels: state.generatedBusinessModels,
           generatedAdvisorAdvice: state.generatedAdvisorAdvice,
+          roastText: state.roastText,
         }),
       }
     ),

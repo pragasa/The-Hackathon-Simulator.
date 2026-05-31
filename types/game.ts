@@ -330,6 +330,8 @@ export interface GameState {
   // Update v1.8: Hidden Scoring + Project Health Dashboard variables
   /** Persistent decision tracking logs for the Judge Memory System */
   judgeDecisionMemory: JudgeDecisionMemory | null;
+  /** The dynamic roast text compiled for the Results screen */
+  roastText: string;
 }
 
 /** Actions the player (or system) can dispatch to mutate game state */
@@ -386,6 +388,8 @@ export interface GameActions {
   setGeneratedBusinessModels: (models: GeneratedBusinessModel[]) => void;
   /** Set generated Advisor recommendations */
   setGeneratedAdvisorAdvice: (advice: AdvisorAdvice[]) => void;
+  /** Set compiled roast text */
+  setRoastText: (text: string) => void;
   /** Apply advisor advice */
   applyAdvisorAdvice: (adviceId: string) => void;
   /** Reject advisor advice */
