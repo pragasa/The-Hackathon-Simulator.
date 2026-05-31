@@ -26,6 +26,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  DragOverlay,
 } from "@dnd-kit/core";
 import {
   Terminal,
@@ -1442,6 +1443,7 @@ function FeaturesStage() {
   } = useGameStore();
 
   const [buckets, setBuckets] = useState<Record<string, 'must' | 'nice' | 'overkill' | 'backlog'>>({});
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   // Find selected USP object
   const selectedUspObj = generatedUSPs.find(u => u.name === primaryUsp) || null;
@@ -1596,8 +1598,30 @@ function FeaturesStage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
   );
 
+  const handleDragStart = (event: any) => {
+    playSubtleHover();
+    setActiveId(event.active.id as string);
+  };
+
+  const handleDragCancel = () => {
+    setActiveId(null);
+  };
+
+  const handleDragEndWithActive = (event: DragEndEvent) => {
+    handleDragEnd(event);
+    setActiveId(null);
+  };
+
+  const activeFeat = activeId ? generatedBacklog.find(f => f.id === activeId) : null;
+
   return (
-    <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
+    <DndContext
+      collisionDetection={closestCenter}
+      sensors={sensors}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEndWithActive}
+      onDragCancel={handleDragCancel}
+    >
       <GameplayStageCard
         stageKey="features"
         title="Round 5: Prioritize Your Features"
@@ -1622,9 +1646,9 @@ function FeaturesStage() {
                   currentCount={items.length}
                   hideDefaultEmpty={false}
                   emptyLabel={col.empty}
-                  className="bg-neutral-50/20 rounded-lg p-2 min-h-[340px]"
+                  className="bg-neutral-50/20 rounded-lg p-2 h-[460px] overflow-y-auto pr-1.5 border border-transparent hover:border-neutral-200/40 transition-colors"
                 >
-                  <div className="space-y-1.5 min-h-[300px] py-1 select-none">
+                  <div className="space-y-1.5 py-1 select-none">
                     {items.map((feat) => (
                       <DraggableCard key={feat.id} id={feat.id} data={{ ...feat }} className="p-2.5">
                         <button
@@ -1665,6 +1689,33 @@ function FeaturesStage() {
           })}
         </div>
       </GameplayStageCard>
+      <DragOverlay>
+        {activeFeat ? (
+          <div className="glass-card-strong rounded-xl p-2.5 shadow-xl shadow-neutral-400/25 ring-1 ring-neutral-300/80 text-left flex flex-col select-none max-w-[240px] bg-white border border-neutral-200">
+            <span className="font-bold text-neutral-900 text-[10px] leading-tight block">
+              {activeFeat.name.toUpperCase()}
+            </span>
+            <span className="text-[7.5px] font-sans text-muted-foreground mt-1.5 block font-light leading-normal line-clamp-2">
+              {activeFeat.description}
+            </span>
+            <div className="flex items-center gap-1.5 mt-2.5 text-[7px] tracking-wide font-mono uppercase">
+              <span className="text-neutral-400">COMPLEXITY:</span>
+              <span className={cn(
+                activeFeat.effort === 'low' ? 'text-emerald-600 font-bold' :
+                activeFeat.effort === 'medium' ? 'text-amber-600 font-bold' :
+                'text-rose-600 font-bold'
+              )}>
+                {activeFeat.effort === 'low' ? 'EASY BUILD' :
+                 activeFeat.effort === 'medium' ? 'MODERATE BUILD' :
+                 'AMBITIOUS BUILD'}
+              </span>
+              <span className="text-neutral-350">|</span>
+              <span className="text-neutral-400">IMPACT:</span>
+              <span className="text-neutral-900 font-bold">{activeFeat.impact}</span>
+            </div>
+          </div>
+        ) : null}
+      </DragOverlay>
     </DndContext>
   );
 }
