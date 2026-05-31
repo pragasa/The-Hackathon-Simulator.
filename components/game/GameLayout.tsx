@@ -9,7 +9,7 @@
 
 import type { ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Terminal, Trophy, Volume2, VolumeX } from 'lucide-react';
+import { Terminal, Volume2, VolumeX } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { useGameStore } from '@/store/gameStore';
@@ -158,14 +158,6 @@ export default function GameLayout({ children }: GameLayoutProps) {
         <span className="text-xs text-muted-foreground">
           Phase {currentIndex + 1} / {PHASES.length}
         </span>
-
-        <div className="flex items-center gap-1.5">
-          <Trophy className="h-3.5 w-3.5 text-amber-600" />
-          <span className="font-mono text-sm font-black text-neutral-900">
-            {score.total}
-          </span>
-          <span className="text-xs text-muted-foreground">pts</span>
-        </div>
       </footer>
     </div>
   );
