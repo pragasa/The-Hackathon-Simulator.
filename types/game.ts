@@ -310,6 +310,10 @@ export interface GameState {
   deckArchetype: string;
 
   // Update v1.6: AI Generated Project Design System variables
+  /** Primary unique selling proposition chosen */
+  primaryUsp: string | null;
+  /** Secondary unique selling proposition chosen */
+  secondaryUsp: string | null;
   /** AI generated USP options */
   generatedUSPs: any[];
   /** AI generated features backlog */
@@ -359,7 +363,11 @@ export interface GameActions {
   /** Remove a technology from the tech stack by ID */
   removeTechItem: (itemId: string) => void;
   /** Set unique selling proposition */
-  setUsp: (usp: string) => void;
+  setUsp: (usp: string | null) => void;
+  /** Set primary unique selling proposition */
+  setPrimaryUsp: (usp: string | null) => void;
+  /** Set secondary unique selling proposition */
+  setSecondaryUsp: (usp: string | null) => void;
   /** Reorder the feature priority list */
   reorderFeatures: (features: Feature[]) => void;
   /** Choose a mentor */

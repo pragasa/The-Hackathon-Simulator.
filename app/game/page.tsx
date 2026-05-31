@@ -535,7 +535,7 @@ function SolutionDirectionStage() {
 // --- Stage 4: Tech Stack Phase ----------------------------------------------
 
 function TechStackStage() {
-  const { techStack, addTechItem, removeTechItem, updateScore, solutionDirection, usp, selectedProblem } = useGameStore();
+  const { techStack, addTechItem, removeTechItem, updateScore, solutionDirection, usp, primaryUsp, generatedUSPs, selectedProblem } = useGameStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
@@ -598,8 +598,12 @@ function TechStackStage() {
   // Find active slot metadata
   const activeSlotMeta = activeTemplate.slots.find(s => s.id === selectedSlotId);
 
+  // Find primary USP key for tech recommendation synergies
+  const primaryUspObj = generatedUSPs.find(u => u.name === primaryUsp);
+  const uspKey = primaryUspObj ? primaryUspObj.key : (usp || 'Fastest');
+
   // Get dynamic domain-aware recommendations
-  const recommendedStack = getRecommendations(solutionDirection, usp, selectedProblem?.category);
+  const recommendedStack = getRecommendations(solutionDirection, uspKey, selectedProblem?.category);
 
   // Check if an item is synergic with currently slotted items
   const isSynergic = useCallback((item: TechRegistryItem) => {
@@ -1211,64 +1215,211 @@ function TechStackStage() {
 // --- Stage 5: USP Phase -----------------------------------------------------
 
 function UspStage() {
-  const { usp, setUsp, updateScore, generatedUSPs, setGeneratedUSPs, selectedProblem, solutionDirection, techStack, gameMode } = useGameStore();
+  const { 
+    primaryUsp, 
+    secondaryUsp, 
+    setPrimaryUsp, 
+    setSecondaryUsp, 
+    updateScore, 
+    generatedUSPs, 
+    setGeneratedUSPs, 
+    selectedProblem, 
+    solutionDirection, 
+    techStack, 
+    gameMode 
+  } = useGameStore();
+
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (generatedUSPs.length === 0 && selectedProblem) {
+      setLoading(true);
       const seed = gameMode === 'daily' ? getDailySeed().toString() : undefined;
-      const generated = generateUSPOptions(selectedProblem, solutionDirection, techStack, gameMode, seed);
-      setGeneratedUSPs(generated);
+      
+      fetch("/api/generate-usps", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          selectedProblem,
+          solutionDirection,
+          techStack,
+          gameMode,
+          seed
+        })
+      })
+      .then(res => {
+        if (!res.ok) throw new Error("USP API call failed");
+        return res.json();
+      })
+      .then(data => {
+        if (data.usps && data.usps.length > 0) {
+          setGeneratedUSPs(data.usps);
+        } else {
+          const fallback = generateUSPOptions(selectedProblem, solutionDirection, techStack, gameMode, seed);
+          setGeneratedUSPs(fallback);
+        }
+      })
+      .catch(err => {
+        console.error("API error for USPs, using offline fallback", err);
+        const fallback = generateUSPOptions(selectedProblem, solutionDirection, techStack, gameMode, seed);
+        setGeneratedUSPs(fallback);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
     }
   }, [generatedUSPs, selectedProblem, solutionDirection, techStack, gameMode, setGeneratedUSPs]);
 
-  const handleSelect = (selectedUsp: any) => {
-    setUsp(selectedUsp.name);
-    
-    updateScore("innovation", selectedUsp.innovation);
-    updateScore("execution", selectedUsp.execution);
-    updateScore("design", selectedUsp.design);
-    updateScore("pitch", selectedUsp.pitch);
+  const handleSelectPrimary = (opt: any) => {
+    if (secondaryUsp === opt.name) {
+      setSecondaryUsp(null);
+    }
+    setPrimaryUsp(opt.name);
+  };
+
+  const handleSelectSecondary = (opt: any) => {
+    if (primaryUsp === opt.name) {
+      setPrimaryUsp(null);
+    }
+    setSecondaryUsp(opt.name);
   };
 
   useEffect(() => {
-    if (!usp && generatedUSPs.length > 0) {
-      handleSelect(generatedUSPs[0]);
+    const primaryObj = generatedUSPs.find(u => u.name === primaryUsp);
+    const secondaryObj = generatedUSPs.find(u => u.name === secondaryUsp);
+
+    if (primaryObj) {
+      const innovation = Math.min(100, primaryObj.innovation + Math.floor((secondaryObj?.innovation || 0) * 0.5));
+      const execution = Math.min(100, primaryObj.execution + Math.floor((secondaryObj?.execution || 0) * 0.5));
+      const design = Math.min(100, primaryObj.design + Math.floor((secondaryObj?.design || 0) * 0.5));
+      const pitch = Math.min(100, primaryObj.pitch + Math.floor((secondaryObj?.pitch || 0) * 0.5));
+
+      updateScore("innovation", innovation);
+      updateScore("execution", execution);
+      updateScore("design", design);
+      updateScore("pitch", pitch);
+    } else {
+      if (generatedUSPs.length > 0 && !primaryUsp) {
+        setPrimaryUsp(generatedUSPs[0].name);
+      }
     }
-  }, [usp, generatedUSPs]);
+  }, [primaryUsp, secondaryUsp, generatedUSPs, updateScore, setPrimaryUsp]);
+
+  if (loading) {
+    return (
+      <GameplayStageCard
+        stageKey="usp"
+        title="Round 4: Choose Your Unique Advantage"
+        subtitle="Generating custom startup advantages tailored strictly to your problem statement and tech stack..."
+      >
+        <div className="flex flex-col items-center justify-center py-20 space-y-4">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-neutral-800"></div>
+          <span className="font-mono text-[10px] text-muted-foreground animate-pulse uppercase tracking-wider">
+            Consulting OpenAI GPT-4o-mini...
+          </span>
+        </div>
+      </GameplayStageCard>
+    );
+  }
 
   return (
     <GameplayStageCard
       stageKey="usp"
       title="Round 4: Choose Your Unique Advantage"
-      subtitle="What makes your project stand out from the competition? Choose a Unique Selling Proposition (USP) that highlights your innovation, speed, or feasibility."
+      subtitle="Select a primary advantage and optionally a secondary advantage. Your startup points will blend according to your combined advantages!"
     >
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-2xl mx-auto text-left font-mono text-[11px]">
-        {generatedUSPs.map((opt) => (
-          <button
-            key={opt.key}
-            onClick={() => {
-              playMutedClick();
-              handleSelect(opt);
-            }}
-            onMouseEnter={playSubtleHover}
-            className={`p-4 rounded-md border text-left flex flex-col justify-between transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
-              usp === opt.name
-                ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
-                : "border-neutral-200 hover:border-neutral-400 bg-white"
-            }`}
-          >
-            <span className="font-bold text-neutral-900 block">{opt.name.toUpperCase()}</span>
-            <span className="text-[9px] text-muted-foreground mt-2 block font-sans font-light leading-relaxed">
-              {opt.desc}
-              <span className="block mt-2.5 font-mono text-[8px] text-emerald-600 select-none leading-normal">
-                ▲ ADVANTAGE: {opt.advantages}
-              </span>
-              <span className="block mt-1 font-mono text-[8px] text-rose-500 select-none leading-normal">
-                ▼ CHALLENGE: {opt.challenges}
-              </span>
-            </span>
-          </button>
-        ))}
+      {/* Dynamic HUD showing current selections */}
+      <div className="max-w-2xl mx-auto mb-6 p-4 rounded-lg bg-neutral-50 border border-neutral-200 font-mono text-[10px] grid grid-cols-1 sm:grid-cols-2 gap-3 text-left">
+        <div>
+          <span className="font-bold text-neutral-500 block uppercase">★ PRIMARY ADVANTAGE:</span>
+          <span className="font-black text-neutral-900 text-[12px] mt-1 block">
+            {primaryUsp ? primaryUsp.toUpperCase() : "NONE SELECTED (REQUIRED)"}
+          </span>
+        </div>
+        <div>
+          <span className="font-bold text-amber-600 block uppercase">☆ SECONDARY ADVANTAGE (BONUS):</span>
+          <span className="font-black text-amber-700 text-[12px] mt-1 block">
+            {secondaryUsp ? secondaryUsp.toUpperCase() : "NONE SELECTED"}
+          </span>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 max-w-4xl mx-auto text-left font-mono text-[11px]">
+        {generatedUSPs.map((opt) => {
+          const isPrimary = primaryUsp === opt.name;
+          const isSecondary = secondaryUsp === opt.name;
+
+          return (
+            <div
+              key={opt.key}
+              onMouseEnter={playSubtleHover}
+              className={`relative p-5 rounded-lg border text-left flex flex-col justify-between transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_6px_20px_rgba(0,0,0,0.04)] ${
+                isPrimary
+                  ? "border-neutral-900 bg-neutral-50/80 shadow-md ring-1 ring-neutral-900"
+                  : isSecondary
+                    ? "border-amber-600/50 bg-amber-50/20 shadow-sm"
+                    : "border-neutral-200 hover:border-neutral-400 bg-white"
+              }`}
+            >
+              {isPrimary && (
+                <span className="absolute top-2 right-2 px-1.5 py-0.5 text-[8px] font-bold font-mono tracking-tight bg-neutral-900 text-neutral-100 rounded select-none">
+                  ★ PRIMARY
+                </span>
+              )}
+              {isSecondary && (
+                <span className="absolute top-2 right-2 px-1.5 py-0.5 text-[8px] font-bold font-mono tracking-tight bg-amber-600 text-white rounded select-none">
+                  ☆ SECONDARY
+                </span>
+              )}
+
+              <div>
+                <span className="font-bold text-neutral-900 block text-[12px] pr-12 leading-tight">
+                  {opt.name}
+                </span>
+                <span className="text-[10px] text-muted-foreground mt-2 block font-sans font-light leading-relaxed">
+                  {opt.desc}
+                  <span className="block mt-3 font-mono text-[8px] text-emerald-600 select-none leading-normal">
+                    ▲ ADVANTAGE: {opt.advantages}
+                  </span>
+                  <span className="block mt-1.5 font-mono text-[8px] text-rose-500 select-none leading-normal">
+                    ▼ CHALLENGE: {opt.challenges}
+                  </span>
+                </span>
+              </div>
+
+              <div className="flex gap-2 mt-4 pt-3 border-t border-dashed border-neutral-100">
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playMutedClick();
+                    handleSelectPrimary(opt);
+                  }}
+                  className={`flex-1 py-1.5 rounded text-[9px] font-bold font-mono cursor-pointer transition-all duration-150 border text-center ${
+                    isPrimary
+                      ? "bg-neutral-900 text-white border-neutral-900"
+                      : "bg-white text-neutral-800 border-neutral-200 hover:bg-neutral-50"
+                  }`}
+                >
+                  PRIMARY
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    playMutedClick();
+                    handleSelectSecondary(opt);
+                  }}
+                  className={`flex-1 py-1.5 rounded text-[9px] font-bold font-mono cursor-pointer transition-all duration-150 border text-center ${
+                    isSecondary
+                      ? "bg-amber-600 text-white border-amber-600"
+                      : "bg-white text-neutral-800 border-neutral-200 hover:bg-neutral-50"
+                  }`}
+                >
+                  SECONDARY
+                </button>
+              </div>
+            </div>
+          );
+        })}
       </div>
     </GameplayStageCard>
   );
@@ -1283,7 +1434,7 @@ function FeaturesStage() {
     generatedBacklog, 
     setGeneratedBacklog, 
     generatedUSPs, 
-    usp, 
+    primaryUsp, 
     selectedProblem, 
     solutionDirection, 
     techStack,
@@ -1293,7 +1444,7 @@ function FeaturesStage() {
   const [buckets, setBuckets] = useState<Record<string, 'must' | 'nice' | 'overkill' | 'backlog'>>({});
 
   // Find selected USP object
-  const selectedUspObj = generatedUSPs.find(u => u.name === usp) || null;
+  const selectedUspObj = generatedUSPs.find(u => u.name === primaryUsp) || null;
 
   const recalculateFeatureScores = useCallback((nextBuckets: Record<string, 'must' | 'nice' | 'overkill' | 'backlog'>) => {
     let execution = 60;

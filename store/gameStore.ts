@@ -144,6 +144,8 @@ const initialGameState = {
   solutionDirection: null as string | null,
   techStack: [] as TechItem[],
   usp: null as string | null,
+  primaryUsp: null as string | null,
+  secondaryUsp: null as string | null,
   features: [] as Feature[],
   mentorName: null as string | null,
   businessModel: null as string | null,
@@ -322,6 +324,8 @@ export const useGameStore = create<GameState & GameActions>()(
           set({ 
             selectedProblem: problem,
             usp: null,
+            primaryUsp: null,
+            secondaryUsp: null,
             features: [],
             generatedUSPs: [],
             generatedBacklog: [],
@@ -335,6 +339,8 @@ export const useGameStore = create<GameState & GameActions>()(
           set({ 
             solutionDirection: direction,
             usp: null,
+            primaryUsp: null,
+            secondaryUsp: null,
             features: [],
             generatedUSPs: [],
             generatedBacklog: [],
@@ -363,6 +369,18 @@ export const useGameStore = create<GameState & GameActions>()(
           ),
 
         setUsp: (usp) => set({ usp }, false, 'core/setUsp'),
+
+        setPrimaryUsp: (primaryUsp) => set((state) => {
+          const secondary = state.secondaryUsp;
+          const blendedUsp = primaryUsp && secondary ? `Primary: ${primaryUsp} | Secondary: ${secondary}` : primaryUsp || secondary || null;
+          return { primaryUsp, usp: blendedUsp };
+        }, false, 'core/setPrimaryUsp'),
+
+        setSecondaryUsp: (secondaryUsp) => set((state) => {
+          const primary = state.primaryUsp;
+          const blendedUsp = primary && secondaryUsp ? `Primary: ${primary} | Secondary: ${secondaryUsp}` : primary || secondaryUsp || null;
+          return { secondaryUsp, usp: blendedUsp };
+        }, false, 'core/setSecondaryUsp'),
 
         reorderFeatures: (features) => set({ features }, false, 'core/reorderFeatures'),
 
@@ -911,6 +929,8 @@ export const useGameStore = create<GameState & GameActions>()(
           solutionDirection: state.solutionDirection,
           techStack: state.techStack,
           usp: state.usp,
+          primaryUsp: state.primaryUsp,
+          secondaryUsp: state.secondaryUsp,
           features: state.features,
           mentorName: state.mentorName,
           businessModel: state.businessModel,
