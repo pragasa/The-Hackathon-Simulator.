@@ -2,6 +2,7 @@
  * @fileoverview Next.js API Route for live AI-powered Project Roast / Commentary.
  * Compiles a hilarious, context-aware 2-paragraph + punchline roast utilizing
  * the player's manifest selections and the selected judge's personality.
+ * Includes a premium, lightning-fast local procedural generator fallback.
  *
  * @module app/api/generate-roast/route
  */
@@ -91,6 +92,82 @@ function cleanAndHumanizeRoast(text: string): string {
   return cleaned.trim();
 }
 
+/**
+ * Generates an instant, highly-customized contextual roast per judge style.
+ */
+function generateLocalRoast(payload: any): string {
+  const judge = payload.judge || "Lead Judge";
+  const tech = payload.techStack?.join(", ") || "various library layers";
+  const model = payload.businessModel || "no monetization structure";
+  const usp = payload.usp || "offering standard functionality";
+  const arch = payload.archetype || "Prototype Build";
+  const score = payload.score || 72;
+
+  if (judge.includes("Uday")) {
+    return `So you decided to build a project classified as "${arch}" using a stack of ${tech}. I mean, sure, the concept of addressing "${payload.solutionDirection || "this problem"}" has some utility, but let's be real: putting together a business model of "${model}" and calling "${usp}" your unique advantage feels like a classic hackathon hallucination. Did you build a product for real users, or just an elaborate collection of config files?
+
+You skipped pruning your features and ended up with a scope bloat that could sink a venture-backed startup. The execution is interesting, but I highly doubt anyone outside this room will ever install it. Next time, focus less on stacking tech and more on showing actual value in the first 5 seconds.
+
+Punchline: It's an MVP, but the 'V' stands for barely Viable.`;
+  }
+  
+  if (judge.includes("Nishika")) {
+    return `Looking at this "${arch}" prototype, my eyes are slightly watering. You decided to implement features like ${payload.mustHaveFeatures?.slice(0, 2).join(" and ") || "complex dashboards"} with a stack of ${tech}. It is technically a functioning piece of software, but from a product design and user onboarding perspective, it's a labyrinth of friction. The UX flow feels less like a product and more like a logic puzzle designed to keep users out.
+
+Also, declaring "${usp}" as your primary USP while backing it with a business model of "${model}" is bold. It's a classic case of engineering-driven design where the interface is just an afterthought of database tables.
+
+Punchline: I've seen command-line utilities with more user-friendly onboarding paths.`;
+  }
+
+  if (judge.includes("Jitu")) {
+    return `From a strict software engineering standpoint, this project classified as "${arch}" has some structural integrity issues. Stacking ${tech} to solve "${payload.solutionDirection || "the problem"}" is like building a skyscraper with wooden toothpicks. The database schema boundaries feel highly speculative, and the integration of features like ${payload.mustHaveFeatures?.slice(0, 2).join(" and ") || "real-time logs"} seems more like copy-pasted boilerplate than solid engineering.
+
+Your business model of "${model}" is theoretically viable, but the technical feasibility of scaling this architecture with your chosen USP is highly suspect. We need robust systems, not fragile prototypes held together by hot-reloading scripts.
+
+Punchline: The codebase looks like a stack overflow search history brought to life.`;
+  }
+
+  if (judge.includes("Bart")) {
+    return `Let's talk customer discovery. You want to solve the problem of "${payload.problemStatement || "this market gap"}" with a business model of "${model}". Okay, but who is actually paying for this? You claim "${usp}" is your unique advantage, but I've interviewed hundreds of founders, and I can tell you that customers don't buy USPs, they buy solutions to hair-on-fire problems. Your product, a "${arch}" built on ${tech}, is a solution looking for a problem.
+
+The feature prioritization is a wishlist of developer fantasies rather than user pain points. You're building a spaceship when a bicycle would do. Go talk to ten real customers before you write another line of code.
+
+Punchline: A great engineering exercise, but a highly challenging business prospect.`;
+  }
+
+  if (judge.includes("Sejal")) {
+    return `Evaluating the financial viability of this "${arch}" reveals some classic startup economic fallacies. A business model of "${model}" with a USP of "${usp}" creates an extremely fragile path to profitability. Stacking high-overhead technologies like ${tech} means your operational expenses will outpace your customer lifetime value before you even finish onboarding.
+
+Your execution score of ${score}/100 shows some dev capabilities, but the unit economics just do not check out. Unless you have a secret pool of unlimited venture capital, this pricing and scoping strategy will bleed cash within a month.
+
+Punchline: Your burn rate will be the only thing scaling exponentially.`;
+  }
+
+  // Fallback generic roast
+  return `So you built a "${arch}" using ${tech} to address the problem of "${payload.problemStatement || "this sector"}". With a business model of "${model}" and a USP of "${usp}", the concept has some high-level ambition, but the execution quality suffers from significant scope bloat. The jury believes the implementation could benefit from a much tighter validation loop and more focused product design.
+
+Punchline: It works on my machine, but it might not work in the market.`;
+}
+
+/**
+ * Fetch wrapper with strict timeout support.
+ */
+async function fetchWithTimeout(url: string, options: any, timeoutMs = 2200): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(id);
+    return response;
+  } catch (err) {
+    clearTimeout(id);
+    throw err;
+  }
+}
+
 export async function POST(req: Request) {
   try {
     const payload = await req.json();
@@ -111,12 +188,13 @@ export async function POST(req: Request) {
     const geminiKey = process.env.GEMINI_API_KEY || fileEnv.GEMINI_API_KEY || 
                       process.env.NEXT_PUBLIC_GEMINI_API_KEY || fileEnv.NEXT_PUBLIC_GEMINI_API_KEY;
 
-    // Direct mock procedural fallback if no API keys are configured
-    if (!openaiKey && !openRouterKey && !geminiKey) {
-      return NextResponse.json({
-        roast: `[DEMO MODE: CONFIGURE AN OPENAI_API_KEY IN .env.local TO UNLOCK LIVE AI ROASTING]\n\nYour project classification is "${payload.archetype}". You attempted to solve this challenge using a stack of ${payload.techStack?.join(", ") || "raw code"} with a business model of "${payload.businessModel || "charity"}" and the USP "${payload.usp || "None"}". While the concept has ambition, the jury believes your implementation could benefit from tighter loop validations.`,
-        fallbackUsed: true
-      });
+    // Generate local fallback roast immediately as safety backup
+    const localRoastText = generateLocalRoast(payload);
+
+    // Skip external fetch if key is a known fake placeholder or entirely missing
+    const isMockOpenaiKey = openaiKey?.startsWith("sk-proj-Cj5z-w7Gu") || !openaiKey;
+    if ((isMockOpenaiKey || !openaiKey) && !openRouterKey && !geminiKey) {
+      return NextResponse.json({ roast: localRoastText, fallbackUsed: true });
     }
 
     const systemPrompt = `You are a savage, witty, and elite startup hackathon judge reviewing a project manifest.
@@ -152,86 +230,88 @@ CRITICAL ANTI-AI WRITING RULES:
 
     let generatedText = "";
 
-    if (openaiKey) {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openaiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.8,
-          max_tokens: 400
-        })
-      });
+    try {
+      if (openaiKey && !isMockOpenaiKey) {
+        const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${openaiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ],
+            temperature: 0.85,
+            max_tokens: 300
+          })
+        }, 2200);
 
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("OpenAI Roast API error:", errText);
-        throw new Error(`OpenAI Roast API responded with status ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`OpenAI responded with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        generatedText = data.choices?.[0]?.message?.content || "";
+      } else if (openRouterKey) {
+        const response = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${openRouterKey}`,
+            "HTTP-Referer": "http://localhost:3000",
+            "X-Title": "The Hackathon Simulator",
+          },
+          body: JSON.stringify({
+            model: "openai/gpt-4o-mini",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: userPrompt }
+            ],
+            temperature: 0.85,
+            max_tokens: 300
+          })
+        }, 2200);
+
+        if (!response.ok) {
+          throw new Error(`OpenRouter responded with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        generatedText = data.choices?.[0]?.message?.content || "";
+      } else if (geminiKey) {
+        const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [{ text: `${systemPrompt}\n\nHere is the manifest to review:\n${userPrompt}` }]
+            }],
+            generationConfig: { temperature: 0.85, maxOutputTokens: 300 }
+          })
+        }, 2200);
+
+        if (!response.ok) {
+          throw new Error(`Gemini responded with status ${response.status}`);
+        }
+
+        const data = await response.json();
+        generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
       }
 
-      const data = await response.json();
-      generatedText = data.choices?.[0]?.message?.content || "";
-    } else if (openRouterKey) {
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${openRouterKey}`,
-          "HTTP-Referer": "http://localhost:3000",
-          "X-Title": "The Hackathon Simulator",
-        },
-        body: JSON.stringify({
-          model: "openai/gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt }
-          ],
-          temperature: 0.8,
-          max_tokens: 400
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("OpenRouter Roast API error:", errText);
-        throw new Error(`OpenRouter Roast API responded with status ${response.status}`);
+      if (!generatedText) {
+        throw new Error("Empty content received from LLM API.");
       }
 
-      const data = await response.json();
-      generatedText = data.choices?.[0]?.message?.content || "";
-    } else if (geminiKey) {
-      // Direct call to Google Gemini API
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{
-            parts: [{ text: `${systemPrompt}\n\nHere is the manifest to review:\n${userPrompt}` }]
-          }],
-          generationConfig: { temperature: 0.8, maxOutputTokens: 400 }
-        })
-      });
-
-      if (!response.ok) {
-        const errText = await response.text();
-        console.error("Gemini Roast API error:", errText);
-        throw new Error(`Gemini Roast API responded with status ${response.status}`);
-      }
-
-      const data = await response.json();
-      generatedText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      return NextResponse.json({ roast: cleanAndHumanizeRoast(generatedText) });
+    } catch (apiErr) {
+      console.warn("External AI call failed or timed out. Falling back to local roast:", apiErr);
+      return NextResponse.json({ roast: localRoastText, fallbackUsed: true });
     }
-
-    return NextResponse.json({ roast: cleanAndHumanizeRoast(generatedText) });
   } catch (err: any) {
-    console.error("Roast API error:", err);
+    console.error("Critical Roast API error:", err);
     return NextResponse.json({ error: err.message || "Failed to generate AI roast" }, { status: 500 });
   }
 }

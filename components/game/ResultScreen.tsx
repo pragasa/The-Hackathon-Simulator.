@@ -119,6 +119,8 @@ export default function ResultScreen() {
     activeModifiers,
     score,
     resetGame,
+    roastText,
+    setRoastText,
   } = useGameStore();
 
   const [isPrdModalOpen, setIsPrdModalOpen] = useState(false);
@@ -283,12 +285,22 @@ export default function ResultScreen() {
   useEffect(() => {
     if (!selectedProblem || !currentJudge) return;
 
+    if (roastText) {
+      setAiRoast(roastText);
+      setLoadingRoast(false);
+      return;
+    }
+
     setLoadingRoast(true);
     setAiRoast("");
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2800); // Strict 2.8s client-side timeout!
 
     fetch("/api/generate-roast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         problemStatement: selectedProblem.description,
         solutionDirection: solutionDirection,
@@ -307,15 +319,20 @@ export default function ResultScreen() {
       .then((data) => {
         if (data.roast) {
           setAiRoast(data.roast);
+          setRoastText(data.roast);
+        } else {
+          setAiRoast(feedback?.comment || "An interesting prototype with solid groundwork.");
         }
       })
       .catch((err) => {
         console.error("Failed to fetch AI roast:", err);
+        setAiRoast(feedback?.comment || "An interesting prototype with solid groundwork.");
       })
       .finally(() => {
         setLoadingRoast(false);
+        clearTimeout(timeoutId);
       });
-  }, [selectedProblem, currentJudge, solutionDirection, techStack, usp, businessModel, features, archetype.name, grade, finalScore100]);
+  }, [selectedProblem, currentJudge, solutionDirection, techStack, usp, businessModel, features, archetype.name, grade, finalScore100, roastText, setRoastText, feedback]);
 
   // ─── Typed feedback entry ─────────────────────────────────────────────────────
   interface FeedbackEntry {

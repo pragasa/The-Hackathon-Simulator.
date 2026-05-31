@@ -3240,9 +3240,13 @@ function JudgingStage() {
 
     // Pre-fetch dynamic roast in background during terminal judging phase
     setRoastText("");
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2800); // Strict 2.8s client-side timeout!
+
     fetch("/api/generate-roast", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
+      signal: controller.signal,
       body: JSON.stringify({
         problemStatement: selectedProb?.description,
         solutionDirection: solutionDirection,
@@ -3262,12 +3266,16 @@ function JudgingStage() {
         if (data.roast) {
           setRoastText(data.roast);
         } else {
-          setRoastText("An interesting prototype with solid groundwork, but the lead judge decided to pass on roasting this submission.");
+          setRoastText(feedbackResult.comment || "An interesting prototype with solid groundwork, but the lead judge decided to pass on roasting this submission.");
         }
       })
       .catch((err) => {
         console.error("Failed to fetch AI roast:", err);
-        setRoastText("The evaluation server went offline, but the jury was impressed by your execution strategy.");
+        // Fall back directly to the rich contextual offline comment
+        setRoastText(feedbackResult.comment || "The evaluation server went offline, but the jury was impressed by your execution strategy.");
+      })
+      .finally(() => {
+        clearTimeout(timeoutId);
       });
 
     // Record results and update stats using the lead judge's score
