@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -14,8 +14,11 @@ import { TECH_POOL, TECH_WEIGHTS } from "@/data/techItems";
 import { TECH_REGISTRY, getSlotForCategory, toStoreId, toRegistryId, TechRegistryItem } from "@/data/techRegistry";
 import { getRecommendations } from "@/lib/recommendations";
 import { ARCHITECTURE_TEMPLATES } from "@/data/architectureTemplates";
+import { generateUSPOptions, generateFeatureBacklog } from "@/lib/projectStrategyGenerator";
+import { getDailySeed } from "@/lib/dailyChallenge";
 import { DraggableCard } from "@/components/drag-drop/DraggableCard";
 import { DropZone } from "@/components/drag-drop/DropZone";
+import { cn } from "@/lib/utils";
 import {
   DndContext,
   closestCenter,
@@ -41,6 +44,7 @@ import {
   Check,
 } from "lucide-react";
 import type { GameStage, Problem, TechItem, Feature } from "@/types/game";
+import { AVAILABLE_SLIDES, evaluatePitchDeck } from "@/lib/pitchDeckEvaluator";
 import { CHAOS_EVENTS } from "@/data/chaosEvents";
 import { MODIFIERS } from "@/data/modifiers";
 import { generateJudgeFeedback } from "@/data/judgeComments";
@@ -63,11 +67,13 @@ function GameplayStageCard({
   title,
   subtitle,
   children,
+  disableNext = false,
 }: {
   stageKey: GameStage;
   title: string;
   subtitle: string;
   children?: React.ReactNode;
+  disableNext?: boolean;
 }) {
   const router = useRouter();
   const { nextStage, previousStage, difficulty, globalTimeRemaining, activeModifiers, gameMode, resetGame } = useGameStore();
@@ -204,7 +210,7 @@ function GameplayStageCard({
               nextStage();
             }}
             onMouseEnter={playSubtleHover}
-            disabled={currentIndex === STAGE_ORDER.length - 1 || !difficulty}
+            disabled={currentIndex === STAGE_ORDER.length - 1 || !difficulty || disableNext}
             className="font-mono text-xs h-8 border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none cursor-pointer"
           >
             CONTINUE &gt;
@@ -1081,62 +1087,64 @@ function TechStackStage() {
                         playMutedClick();
                         setSelectedSlotId(slot.id);
                       }}
-                      className={`cursor-pointer transition-all duration-150 rounded-md p-0.5 ${
-                        isSelected 
-                          ? "ring-1 ring-neutral-900 bg-neutral-50/40" 
-                          : "hover:bg-neutral-50/20"
-                      }`}
+                      className="cursor-pointer"
                     >
                       <DropZone
                         id={slot.id}
                         label={slot.label}
                         capacity={1}
                         currentCount={slottedItem ? 1 : 0}
+                        hideDefaultEmpty={true}
+                        className={cn(
+                          isSelected && "ring-1 ring-neutral-900 bg-neutral-50/50"
+                        )}
                       >
                         {slottedItem ? (
-                          <div className={`p-2 bg-white border rounded-md flex items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.02)] ${
-                            warningMessage ? "border-amber-600 bg-amber-50/20" : "border-neutral-900"
-                          } ${isSelected ? "ring-1 ring-offset-1 ring-neutral-900" : ""}`}>
+                          <motion.div
+                            initial={{ scale: 0.97, opacity: 0.8 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className={cn(
+                              "p-2.5 rounded-md flex items-center justify-between shadow-md transition-all duration-300 select-none bg-neutral-900 border text-white",
+                              warningMessage ? "border-amber-600" : "border-neutral-950",
+                              isSelected ? "ring-1 ring-offset-1 ring-neutral-900" : ""
+                            )}
+                          >
                             <div className="flex flex-col min-w-0">
-                              <div className="flex items-center gap-1.5">
-                                <span className="font-bold text-neutral-900 text-[10px] truncate">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="font-bold text-white text-[10.5px] tracking-wide truncate">
                                   {slottedItem.name.toUpperCase()}
                                 </span>
                                 {getPriorityBadge(slot.priority)}
                               </div>
-                              <span className="text-[7.5px] text-muted-foreground uppercase font-light">
-                                {slot.label} Connected
-                              </span>
+                              <div className="flex items-center gap-1.5 mt-1 text-[7.5px] text-neutral-400 tracking-wide font-light uppercase">
+                                <span>● ACTIVE</span>
+                                <span className="text-neutral-700">|</span>
+                                <span>{slot.label} CONNECTED</span>
+                              </div>
                               {warningMessage && (
-                                <span className="text-amber-700 font-bold block mt-0.5 text-[7.5px] tracking-wide animate-pulse">
+                                <span className="text-amber-500 font-bold block mt-1 text-[7.5px] tracking-wide animate-pulse">
                                   ⚠ MISMATCH: {warningMessage.toUpperCase()}
                                 </span>
                               )}
                             </div>
-                            <Button
-                              size="xs"
-                              variant="destructive"
+                            <button
+                              type="button"
                               onClick={(e) => {
                                 e.stopPropagation(); // prevent select slot trigger
                                 playMutedClick();
                                 handleToggleSlottedItem(slottedItem);
                               }}
                               onMouseEnter={playSubtleHover}
-                              className="h-5 w-10 font-mono text-[8px] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none shrink-0 ml-2"
+                              className="px-2 py-0.5 font-mono text-[8px] bg-neutral-800 border border-neutral-700 hover:border-red-900 hover:text-red-400 rounded transition-all duration-200 shrink-0 ml-2 text-neutral-300 cursor-pointer uppercase font-bold"
                             >
                               EJECT
-                            </Button>
-                          </div>
+                            </button>
+                          </motion.div>
                         ) : (
-                          <div className={`text-[9.5px] italic text-center py-2 border border-dashed rounded-md transition-all ${
-                            isSelected 
-                              ? "border-neutral-900 bg-neutral-50 text-neutral-800" 
-                              : "border-neutral-200 text-neutral-400 hover:border-neutral-300"
-                          }`}>
-                            <div className="flex items-center justify-between px-3 w-full">
-                              <span className="truncate">{slot.emptyGuidance}</span>
-                              {getPriorityBadge(slot.priority)}
-                            </div>
+                          <div className="text-[9.5px] py-1.5 flex items-center justify-between px-2 w-full select-none text-neutral-450">
+                            <span className="truncate">{slot.emptyGuidance}</span>
+                            {getPriorityBadge(slot.priority)}
                           </div>
                         )}
                       </DropZone>
@@ -1181,43 +1189,30 @@ function TechStackStage() {
 // --- Stage 5: USP Phase -----------------------------------------------------
 
 function UspStage() {
-  const { usp, setUsp, updateScore } = useGameStore();
+  const { usp, setUsp, updateScore, generatedUSPs, setGeneratedUSPs, selectedProblem, solutionDirection, techStack, gameMode } = useGameStore();
 
-  const options = [
-    { key: "Fastest", name: "FASTEST_SPEED.EXE", desc: "Build quick compiling prototypes // +18 Feasibility/Execution, -5 Innovation" },
-    { key: "Cheapest", name: "CHEAPEST_COST.EXE", desc: "Minimize cloud costs completely // +15 Feasibility/Execution, -5 Design" },
-    { key: "Most Scalable", name: "MOST_SCALABLE.EXE", desc: "High baseline server throughput // +12 Feasibility/Execution, +10 PitchPotential" },
-    { key: "AI-powered", name: "AI_COPROCESSOR.EXE", desc: "Integrate cognitive search pipelines // +25 Innovation, -5 Design, -5 Execution" },
-    { key: "Sustainable", name: "SUSTAINABLE_OFFSET.EXE", desc: "High environmental offset footprint // +20 Innovation, +15 PitchPotential" },
-    { key: "Hyper-personalized", name: "HYPER_PERSONALIZED.EXE", desc: "Granular user experience panels // +20 Design, +10 PitchPotential, -5 Execution" },
-    { key: "Community-first", name: "COMMUNITY_FIRST.EXE", desc: "High focus on cooperative meshes // +20 PitchPotential, +12 Innovation, -5 Execution" },
-  ] as const;
+  useEffect(() => {
+    if (generatedUSPs.length === 0 && selectedProblem) {
+      const seed = gameMode === 'daily' ? getDailySeed().toString() : undefined;
+      const generated = generateUSPOptions(selectedProblem, solutionDirection, techStack, gameMode, seed);
+      setGeneratedUSPs(generated);
+    }
+  }, [generatedUSPs, selectedProblem, solutionDirection, techStack, gameMode, setGeneratedUSPs]);
 
-  const handleSelect = (key: typeof options[number]['key']) => {
-    setUsp(key);
+  const handleSelect = (selectedUsp: any) => {
+    setUsp(selectedUsp.name);
     
-    // Apply immediate hidden score modifier tradeoffs
-    const weights = {
-      'Fastest': { innovation: 50, execution: 75, design: 55, pitch: 50 },
-      'Cheapest': { innovation: 55, execution: 70, design: 50, pitch: 50 },
-      'Most Scalable': { innovation: 60, execution: 68, design: 55, pitch: 60 },
-      'AI-powered': { innovation: 80, execution: 55, design: 50, pitch: 65 },
-      'Sustainable': { innovation: 75, execution: 60, design: 55, pitch: 65 },
-      'Hyper-personalized': { innovation: 60, execution: 55, design: 75, pitch: 60 },
-      'Community-first': { innovation: 65, execution: 55, design: 60, pitch: 70 },
-    }[key];
-
-    updateScore("innovation", weights.innovation);
-    updateScore("execution", weights.execution);
-    updateScore("design", weights.design);
-    updateScore("pitch", weights.pitch);
+    updateScore("innovation", selectedUsp.innovation);
+    updateScore("execution", selectedUsp.execution);
+    updateScore("design", selectedUsp.design);
+    updateScore("pitch", selectedUsp.pitch);
   };
 
   useEffect(() => {
-    if (!usp) {
-      handleSelect("Cheapest");
+    if (!usp && generatedUSPs.length > 0) {
+      handleSelect(generatedUSPs[0]);
     }
-  }, [usp]);
+  }, [usp, generatedUSPs]);
 
   return (
     <GameplayStageCard
@@ -1226,23 +1221,26 @@ function UspStage() {
       subtitle="Define your project's competitive advantage. Card choices introduce hidden tradeoffs between Innovation, Execution, and Pitch Potential."
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-2xl mx-auto text-left font-mono text-[11px]">
-        {options.map((opt) => (
+        {generatedUSPs.map((opt) => (
           <button
             key={opt.key}
             onClick={() => {
               playMutedClick();
-              handleSelect(opt.key);
+              handleSelect(opt);
             }}
             onMouseEnter={playSubtleHover}
             className={`p-4 rounded-md border text-left flex flex-col justify-between transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
-              usp === opt.key
+              usp === opt.name
                 ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold"
                 : "border-neutral-200 hover:border-neutral-400 bg-white"
             }`}
           >
-            <span className="font-bold text-neutral-900 block">{opt.name}</span>
+            <span className="font-bold text-neutral-900 block">{opt.name.toUpperCase()}</span>
             <span className="text-[9px] text-muted-foreground mt-2 block font-sans font-light leading-relaxed">
               {opt.desc}
+              <span className="block mt-2.5 font-mono text-[7.5px] text-neutral-450 select-none">
+                {opt.tradeoffInfo}
+              </span>
             </span>
           </button>
         ))}
@@ -1253,86 +1251,142 @@ function UspStage() {
 
 // --- Stage 6: Feature Prioritization Phase ----------------------------------
 
-const MOCK_BACKLOG_POOL: Feature[] = [
-  { id: "feat-ai", name: "AI Assistant", description: "Secures search logs", effort: "medium", impact: "high" },
-  { id: "feat-chat", name: "Interactive Chat", description: "Peer messaging streams", effort: "low", impact: "high" },
-  { id: "feat-maps", name: "Campus Maps Grid", description: "Indoor study coordinates", effort: "medium", impact: "medium" },
-  { id: "feat-analytics", name: "Emissions Analytics", description: "Live telemetry dashboards", effort: "medium", impact: "high" },
-  { id: "feat-game", name: "Study Gamification", description: "Streaks and study locks", effort: "low", impact: "medium" },
-  { id: "feat-lead", name: "Emissions Leaderboard", description: "Direct community matches", effort: "low", impact: "medium" },
-  { id: "feat-pay", name: "Micro Loans Payments", description: "Secured transactions checkouts", effort: "high", impact: "high" },
-  { id: "feat-notif", name: "Urgent Notifications", description: "Offline push channels", effort: "low", impact: "medium" },
-  { id: "feat-voice", name: "Local Voice Assistant", description: " Dialect audio synthesizer", effort: "high", impact: "high" },
-  { id: "feat-ar", name: "AR Navigation View", description: "Virtual indoor coordinate overlays", effort: "high", impact: "high" },
-];
-
 function FeaturesStage() {
-  const { reorderFeatures, updateScore, score } = useGameStore();
+  const { 
+    reorderFeatures, 
+    updateScore, 
+    generatedBacklog, 
+    setGeneratedBacklog, 
+    generatedUSPs, 
+    usp, 
+    selectedProblem, 
+    solutionDirection, 
+    techStack,
+    gameMode
+  } = useGameStore();
 
-  const [buckets, setBuckets] = useState<Record<string, 'must' | 'nice' | 'overkill'>>({
-    'feat-ai': 'must',
-    'feat-chat': 'must',
-    'feat-maps': 'nice',
-    'feat-analytics': 'nice',
-    'feat-game': 'nice',
-    'feat-lead': 'overkill',
-    'feat-pay': 'overkill',
-    'feat-notif': 'nice',
-    'feat-voice': 'overkill',
-    'feat-ar': 'overkill',
-  });
+  const [buckets, setBuckets] = useState<Record<string, 'must' | 'nice' | 'overkill' | 'backlog'>>({});
 
-  const recalculateFeatureScores = useCallback((nextBuckets: Record<string, 'must' | 'nice' | 'overkill'>) => {
+  // Find selected USP object
+  const selectedUspObj = generatedUSPs.find(u => u.name === usp) || null;
+
+  const recalculateFeatureScores = useCallback((nextBuckets: Record<string, 'must' | 'nice' | 'overkill' | 'backlog'>) => {
     let execution = 60;
     let design = 55;
     let innovation = 50;
     let bonus = 0;
 
-    const items = Object.entries(nextBuckets);
-    const mustCount = items.filter(([_, b]) => b === 'must').length;
+    // Filter items into lists
+    const mustItems = generatedBacklog.filter(f => nextBuckets[f.id] === 'must');
+    const niceItems = generatedBacklog.filter(f => nextBuckets[f.id] === 'nice');
+    const overkillItems = generatedBacklog.filter(f => nextBuckets[f.id] === 'overkill');
 
-    // 1. Over-scoping penalty
-    if (mustCount > 3) {
+    const mustCount = mustItems.length;
+
+    // 1. Calculate build effort footprint
+    const totalMustEffort = mustItems.reduce((sum, f) => {
+      const eff = f.effort === 'high' ? 3 : f.effort === 'medium' ? 2 : 1;
+      return sum + eff;
+    }, 0);
+
+    // 2. Scoping evaluation
+    if (totalMustEffort > 6) {
+      // Scope bloat penalty!
       execution -= 18;
       design -= 5;
-    }
-    // 2. Balanced scoping bonus
-    if (mustCount === 2 || mustCount === 3) {
+    } else if (totalMustEffort >= 4 && totalMustEffort <= 6) {
+      // Balanced scope bonus!
       execution += 15;
       design += 10;
       bonus += 5;
-    }
-    // 3. Smart scoping bonus (placing heavy things in overkill)
-    if (nextBuckets['feat-ar'] === 'overkill') {
-      execution += 6;
-      bonus += 3;
-    }
-    if (nextBuckets['feat-voice'] === 'overkill') {
-      execution += 6;
-      bonus += 3;
-    }
-    // 4. Critical features in must-have
-    if (nextBuckets['feat-chat'] === 'must' || nextBuckets['feat-ai'] === 'must') {
-      design += 5;
+    } else if (mustCount > 0 && totalMustEffort < 4) {
+      // Under-scoped penalty!
+      innovation -= 10;
     }
 
-    updateScore("execution", Math.min(execution, 100));
-    updateScore("design", Math.min(design, 100));
-    updateScore("innovation", Math.min(innovation, 100));
+    // 3. Smart scoping bonus (placing high effort in Overkill/Nice to Have)
+    const overkillHighEffortCount = [...niceItems, ...overkillItems].filter(f => f.effort === 'high').length;
+    if (overkillHighEffortCount > 0) {
+      execution += Math.min(overkillHighEffortCount * 6, 12);
+      bonus += Math.min(overkillHighEffortCount * 3, 6);
+    }
+
+    // 4. Critical features design bonus (high impact + high innovation in Must-Have)
+    const highValueMustCount = mustItems.filter(f => f.impact === 'high' && f.innovationScore >= 50).length;
+    if (highValueMustCount > 0) {
+      design += highValueMustCount * 5;
+      innovation += highValueMustCount * 8;
+    }
+
+    // 5. Feature Dependency checking
+    mustItems.forEach(f => {
+      if (f.dependsOn && !mustItems.some(x => x.id === f.dependsOn)) {
+        // Missing dependency! Severe execution penalty!
+        execution -= 15;
+      }
+    });
+
+    updateScore("execution", Math.max(0, Math.min(execution, 100)));
+    updateScore("design", Math.max(0, Math.min(design, 100)));
+    updateScore("innovation", Math.max(0, Math.min(innovation, 100)));
     updateScore("bonus", bonus);
-  }, [updateScore]);
+  }, [generatedBacklog, updateScore]);
 
-  // Click trigger to cycle feature buckets
+  // 1. Dynamic Features Backlog Generation on stage load
+  useEffect(() => {
+    if (generatedBacklog.length === 0 && selectedProblem) {
+      const seed = gameMode === 'daily' ? getDailySeed().toString() : undefined;
+      const backlog = generateFeatureBacklog(selectedProblem, solutionDirection, selectedUspObj, techStack, seed);
+      setGeneratedBacklog(backlog);
+    }
+  }, [generatedBacklog, selectedProblem, solutionDirection, selectedUspObj, techStack, gameMode, setGeneratedBacklog]);
+
+  // 2. Initialize dynamic unassigned backlog buckets
+  useEffect(() => {
+    if (generatedBacklog.length > 0) {
+      const persistedMustIds = new Set(useGameStore.getState().features.map(f => f.id));
+      setBuckets(prev => {
+        const next = { ...prev };
+        let updated = false;
+        generatedBacklog.forEach(f => {
+          if (!next[f.id]) {
+            if (persistedMustIds.has(f.id)) {
+              next[f.id] = 'must';
+            } else {
+              next[f.id] = 'backlog';
+            }
+            updated = true;
+          }
+        });
+        if (updated) {
+          // Defer to avoid state update during render warning
+          setTimeout(() => {
+            recalculateFeatureScores(next);
+          }, 0);
+          return next;
+        }
+        return prev;
+      });
+    }
+  }, [generatedBacklog, recalculateFeatureScores]);
+
+  // Click trigger to cycle feature buckets (touch fallback)
   const handleCycleBucket = (id: string) => {
     const nextBuckets = { ...buckets };
-    const current = nextBuckets[id];
-    nextBuckets[id] = current === 'must' ? 'nice' : current === 'nice' ? 'overkill' : 'must';
+    const current = nextBuckets[id] || 'backlog';
+    
+    // Cycle: backlog -> must -> nice -> overkill -> backlog
+    nextBuckets[id] = 
+      current === 'backlog' ? 'must' : 
+      current === 'must' ? 'nice' : 
+      current === 'nice' ? 'overkill' : 
+      'backlog';
     
     setBuckets(nextBuckets);
     recalculateFeatureScores(nextBuckets);
     
     // Save flat array of must-have features in Zustand backlog features
-    const mustList = MOCK_BACKLOG_POOL.filter(f => nextBuckets[f.id] === 'must');
+    const mustList = generatedBacklog.filter(f => nextBuckets[f.id] === 'must');
     reorderFeatures(mustList);
     playSnapSound();
   };
@@ -1342,13 +1396,22 @@ function FeaturesStage() {
     const { active, over } = event;
     if (!over) return;
 
-    const targetBucket = over.id as 'must' | 'nice' | 'overkill';
+    let targetBucket: 'must' | 'nice' | 'overkill' | 'backlog';
+    const overIdStr = over.id as string;
+
+    if (overIdStr === 'backlog' || overIdStr === 'must' || overIdStr === 'nice' || overIdStr === 'overkill') {
+      targetBucket = overIdStr;
+    } else {
+      // Dropped on a card! Find which bucket that target card belongs to.
+      targetBucket = buckets[overIdStr] || 'backlog';
+    }
+
     const nextBuckets = { ...buckets, [active.id]: targetBucket };
 
     setBuckets(nextBuckets);
     recalculateFeatureScores(nextBuckets);
 
-    const mustList = MOCK_BACKLOG_POOL.filter(f => nextBuckets[f.id] === 'must');
+    const mustList = generatedBacklog.filter(f => nextBuckets[f.id] === 'must');
     reorderFeatures(mustList);
     playSnapSound();
   };
@@ -1361,59 +1424,508 @@ function FeaturesStage() {
     <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
       <GameplayStageCard
         stageKey="features"
-        title="Backlog Prioritization"
-        subtitle="Prioritize product backlogs. Drag cards into scoping buckets or click them to cycle columns. Scope bloat severely penalizes compile execution."
+        title="Backlog Prioritization Board"
+        subtitle="Prioritize product backlogs. Drag cards freely between Kanban columns or click them to cycle categories. Scope bloat severely penalizes compile execution."
       >
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 max-w-4xl mx-auto text-left font-mono text-[11px]">
-          {/* Backlog pool (1 col) */}
-          <div className="lg:col-span-1 space-y-3">
-            <span className="text-neutral-400 block text-[9px] uppercase">BACKLOG_POOL (CLICK_CYCLE):</span>
-            <div className="space-y-1.5 max-h-[400px] overflow-y-auto pr-1">
-              {MOCK_BACKLOG_POOL.map((feat) => {
-                const b = buckets[feat.id];
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 max-w-5xl mx-auto text-left font-mono text-[11px]">
+          {([
+            { id: 'backlog', label: 'Backlog Pool', empty: 'Empty Backlog' },
+            { id: 'must', label: 'Must Have', empty: 'Empty Slot' },
+            { id: 'nice', label: 'Nice to Have', empty: 'Empty Slot' },
+            { id: 'overkill', label: 'Overkill', empty: 'Empty Slot' },
+          ] as const).map((col) => {
+            const items = generatedBacklog.filter(f => buckets[f.id] === col.id);
+            return (
+              <div key={col.id} className="flex flex-col space-y-2">
+                <span className="text-neutral-400 block text-[9px] uppercase tracking-wider font-bold">
+                  {col.label.toUpperCase()}_ZONE ({items.length}):
+                </span>
+                
+                <DropZone
+                  id={col.id}
+                  currentCount={items.length}
+                  hideDefaultEmpty={false}
+                  emptyLabel={col.empty}
+                  className="bg-neutral-50/20 rounded-lg p-2 min-h-[340px]"
+                >
+                  <div className="space-y-1.5 min-h-[300px] py-1 select-none">
+                    {items.map((feat) => (
+                      <DraggableCard key={feat.id} id={feat.id} data={{ ...feat }} className="p-2.5">
+                        <button
+                          type="button"
+                          onClick={() => handleCycleBucket(feat.id)}
+                          onMouseEnter={playSubtleHover}
+                          className="w-full text-left flex flex-col focus:outline-none"
+                          aria-label={`Cycle column for ${feat.name}`}
+                        >
+                          <span className="font-bold text-neutral-900 text-[10px] leading-tight block">
+                            {feat.name.toUpperCase()}
+                          </span>
+                          <span className="text-[7.5px] font-sans text-muted-foreground mt-1.5 block font-light leading-normal line-clamp-2">
+                            {feat.description}
+                          </span>
+                          <div className="flex items-center gap-1.5 mt-2.5 text-[7px] tracking-wide font-mono uppercase">
+                            <span className="text-neutral-400">EFF:</span>
+                            <span className={cn(
+                              feat.effort === 'low' ? 'text-green-600 font-bold' :
+                              feat.effort === 'medium' ? 'text-amber-600 font-bold' :
+                              'text-rose-600 font-bold'
+                            )}>{feat.effort}</span>
+                            <span className="text-neutral-350">|</span>
+                            <span className="text-neutral-400">IMP:</span>
+                            <span className="text-neutral-900 font-bold">{feat.impact}</span>
+                          </div>
+                        </button>
+                      </DraggableCard>
+                    ))}
+                  </div>
+                </DropZone>
+              </div>
+            );
+          })}
+        </div>
+      </GameplayStageCard>
+    </DndContext>
+  );
+}
+
+// --- Update v1.5: Pitch Deck Builder Phase Stage
+function PitchDeckStage() {
+  const { pitchDeck, setPitchDeck, pitchDeckScore, deckNarrativeQuality, deckArchetype } = useGameStore();
+
+  const [activeLibraryTab, setActiveLibraryTab] = useState<'all' | 'intro' | 'problem-solution' | 'technology' | 'business' | 'closing'>('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [consoleMsg, setConsoleMsg] = useState<string>("SYSTEM_BOOSTER_READY: SLIDESHOW_PARSER_ACTIVE");
+
+  // Ensure deck is initialized as 8 slots
+  useEffect(() => {
+    if (pitchDeck.length !== 8) {
+      const initialized = Array(8).fill("");
+      // copy over any existing values up to 8
+      pitchDeck.forEach((val, idx) => {
+        if (idx < 8) initialized[idx] = val;
+      });
+      setPitchDeck(initialized);
+    }
+  }, [pitchDeck, setPitchDeck]);
+
+  const evaluation = evaluatePitchDeck(pitchDeck);
+
+  const handleToggleSlideLeftPanel = (slideId: string) => {
+    const nextDeck = [...pitchDeck];
+    const existingIdx = nextDeck.indexOf(slideId);
+    if (existingIdx !== -1) {
+      // Remove it
+      nextDeck[existingIdx] = "";
+      setPitchDeck(nextDeck);
+      playSnapSound();
+      setConsoleMsg(`SLIDE_REMOVED: ${AVAILABLE_SLIDES.find(s => s.id === slideId)?.name.toUpperCase()}`);
+    } else {
+      // Find first empty slot
+      const emptyIdx = nextDeck.indexOf("");
+      if (emptyIdx !== -1) {
+        nextDeck[emptyIdx] = slideId;
+        setPitchDeck(nextDeck);
+        playSnapSound();
+        setConsoleMsg(`SLIDE_ADDED: ${AVAILABLE_SLIDES.find(s => s.id === slideId)?.name.toUpperCase()} TO SLOT_${emptyIdx + 1}`);
+      } else {
+        playWarningTick();
+        setConsoleMsg("ERR: DECK_FULL_MAX_8_SLIDES. REMOVE A SLIDE BEFORE ADDING.");
+      }
+    }
+  };
+
+  const handleRemoveSlot = (slotIdx: number) => {
+    const nextDeck = [...pitchDeck];
+    const removedId = nextDeck[slotIdx];
+    nextDeck[slotIdx] = "";
+    setPitchDeck(nextDeck);
+    playSnapSound();
+    if (removedId) {
+      setConsoleMsg(`SLIDE_REMOVED: ${AVAILABLE_SLIDES.find(s => s.id === removedId)?.name.toUpperCase()} FROM POSITION_${slotIdx + 1}`);
+    }
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const nextDeck = [...pitchDeck];
+    const overIdStr = over.id as string;
+    const targetIdx = parseInt(overIdStr.replace("slot-", ""), 10);
+
+    if (isNaN(targetIdx)) return;
+
+    const activeIdStr = active.id as string;
+
+    if (activeIdStr.startsWith("slot-")) {
+      // Reordering between slots!
+      const sourceIdx = parseInt(activeIdStr.replace("slot-", ""), 10);
+      if (isNaN(sourceIdx)) return;
+
+      const temp = nextDeck[sourceIdx];
+      nextDeck[sourceIdx] = nextDeck[targetIdx];
+      nextDeck[targetIdx] = temp;
+
+      setPitchDeck(nextDeck);
+      playSnapSound();
+      setConsoleMsg(`SLIDE_SWAPPED: POSITION_${sourceIdx + 1} <-> POSITION_${targetIdx + 1}`);
+    } else {
+      // Dragging from available slides list
+      const slideId = activeIdStr;
+      
+      // If it is already in another slot, clear it there (move it)
+      const existingIdx = nextDeck.indexOf(slideId);
+      if (existingIdx !== -1) {
+        nextDeck[existingIdx] = "";
+      }
+
+      nextDeck[targetIdx] = slideId;
+      setPitchDeck(nextDeck);
+      playSnapSound();
+      setConsoleMsg(`SLIDE_DROPPED: ${AVAILABLE_SLIDES.find(s => s.id === slideId)?.name.toUpperCase()} ON POSITION_${targetIdx + 1}`);
+    }
+  };
+
+  // Filter components list
+  const filteredSlides = AVAILABLE_SLIDES.filter(s => {
+    if (activeLibraryTab !== 'all' && s.category !== activeLibraryTab) return false;
+    if (searchQuery.trim() !== "") {
+      const matchQuery = searchQuery.toLowerCase();
+      return s.name.toLowerCase().includes(matchQuery) || 
+             s.description.toLowerCase().includes(matchQuery);
+    }
+    return true;
+  });
+
+  const slottedCount = pitchDeck.filter(s => s !== "").length;
+  const remainingCount = 8 - slottedCount;
+
+  // Real-form story metrics checklist HUD (non-blocking)
+  const hasOpening = pitchDeck[0] !== "";
+  const hasProblemOrJourney = pitchDeck.includes('problem') || pitchDeck.includes('user-journey') || pitchDeck.includes('customer-persona');
+  const hasSolutionOrDemo = pitchDeck.includes('solution') || pitchDeck.includes('demo') || pitchDeck.includes('prototype-screens');
+  const hasTechDepth = pitchDeck.includes('tech-stack') || pitchDeck.includes('architecture');
+  const hasBizModel = pitchDeck.includes('business-model') || pitchDeck.includes('revenue') || pitchDeck.includes('gtm');
+  const hasClosingAtEnd = pitchDeck[7] !== "";
+
+  // Always enable continue navigation for free-form storytelling creative freedom
+  const disableNext = false;
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  // Storytelling Presentation Positions
+  const getSlotGuide = (idx: number) => {
+    switch (idx) {
+      case 0: return { label: "OPENING POSITION", type: "intro" };
+      case 7: return { label: "CLOSING POSITION", type: "closing" };
+      default: return { label: `STORYTELLING SECTION ${idx}`, type: "section" };
+    }
+  };
+
+  const tabs = [
+    { id: 'all', label: 'ALL_SLIDES.SYS' },
+    { id: 'intro', label: 'INTRO.SYS' },
+    { id: 'problem-solution', label: 'STORY.SYS' },
+    { id: 'technology', label: 'TECH.SYS' },
+    { id: 'business', label: 'BIZ.SYS' },
+    { id: 'closing', label: 'CLOSE.SYS' }
+  ] as const;
+
+  return (
+    <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
+      <GameplayStageCard
+        stageKey="pitchDeck"
+        title="Free-Form Storytelling Pitch Deck"
+        subtitle="Submit any narrative outline you construct. Drag slide components into storytelling positions, swap slots to reorder, or click items to toggle. Story flow, tech depth, and business metrics dictate narrative power."
+        disableNext={disableNext}
+      >
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-5xl mx-auto text-left font-mono text-[11px]">
+          
+          {/* Left Panel: Available Components with Search & Tabs (5 cols) */}
+          <div className="lg:col-span-5 space-y-3 flex flex-col">
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-400 block text-[9px] uppercase tracking-wider font-bold">SLIDE_LIBRARY:</span>
+              <span className="text-[8px] bg-neutral-100 border border-neutral-250 px-1 py-0.5 rounded text-neutral-600 font-bold uppercase tracking-tight select-none">
+                {slottedCount} / 8 SLIDES COMPILED
+              </span>
+            </div>
+
+            {/* Search Input bar */}
+            <input
+              type="text"
+              placeholder="SEARCH_SLIDE_CHIPS..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full bg-neutral-50 border border-neutral-250 text-neutral-800 text-[10px] p-2 rounded focus:outline-none focus:border-neutral-400 font-mono"
+            />
+
+            {/* Visual Tabs */}
+            <div className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2 select-none">
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveLibraryTab(tab.id)}
+                  onMouseEnter={playSubtleHover}
+                  className={`px-1.5 py-0.5 border text-[7.5px] uppercase rounded font-bold font-mono tracking-tight transition-colors cursor-pointer ${
+                    activeLibraryTab === tab.id
+                      ? "bg-neutral-900 border-neutral-900 text-white"
+                      : "bg-white border-neutral-200 text-neutral-550 hover:border-neutral-350"
+                  }`}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+            
+            <div className="space-y-1.5 overflow-y-auto pr-1 flex-1 max-h-[420px] border border-neutral-200 p-2 rounded bg-neutral-50/30">
+              {filteredSlides.length > 0 ? (
+                filteredSlides.map((slide) => {
+                  const isSlotted = pitchDeck.includes(slide.id);
+                  return (
+                    <DraggableCard key={slide.id} id={slide.id} data={{ ...slide }}>
+                      <button
+                        onClick={() => handleToggleSlideLeftPanel(slide.id)}
+                        onMouseEnter={playSubtleHover}
+                        className={`w-full text-left p-2.5 rounded border transition-all duration-150 transform hover:-translate-y-0.5 flex items-start gap-2.5 ${
+                          isSlotted
+                            ? "bg-neutral-900 border-neutral-900 text-white shadow-sm"
+                            : "bg-white border-neutral-200 text-neutral-800 hover:border-neutral-400"
+                        }`}
+                      >
+                        <div className={`mt-0.5 w-3.5 h-3.5 rounded flex items-center justify-center border font-bold text-[8px] uppercase ${
+                          isSlotted ? "bg-white border-white text-neutral-950" : "border-neutral-300 text-neutral-400"
+                        }`}>
+                          {isSlotted ? "✓" : "+"}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="font-bold text-[10px] truncate block uppercase text-neutral-900 tracking-tight leading-none">{slide.name}</span>
+                            <span className={`text-[7px] uppercase px-1 rounded font-bold font-mono tracking-tight shrink-0 ${
+                              isSlotted ? "bg-neutral-800 text-white border border-neutral-700" : "bg-neutral-100 text-neutral-500 border border-neutral-200"
+                            }`}>
+                              {slide.category}
+                            </span>
+                          </div>
+                          <p className={`text-[8.5px] font-sans mt-1.5 font-light leading-normal ${
+                            isSlotted ? "text-neutral-300" : "text-muted-foreground"
+                          }`}>
+                            {slide.description}
+                          </p>
+                        </div>
+                      </button>
+                    </DraggableCard>
+                  );
+                })
+              ) : (
+                <div className="text-center py-8 text-neutral-400 italic">
+                  [NO MATCHES FOUND FOR ACTIVE QUERY]
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Center Panel: Storytelling Positions Board (4 cols) */}
+          <div className="lg:col-span-4 space-y-3">
+            <span className="text-neutral-400 block text-[9px] uppercase tracking-wider font-bold">PRESENTATION_TIMELINE_POSITIONS:</span>
+            
+            <div className="grid grid-cols-1 gap-2 border border-neutral-200 p-2.5 rounded bg-white max-h-[480px] overflow-y-auto">
+              {Array(8).fill("").map((_, idx) => {
+                const slideId = pitchDeck[idx];
+                const slottedSlide = slideId ? AVAILABLE_SLIDES.find(s => s.id === slideId) : null;
+                const guide = getSlotGuide(idx);
+                
                 return (
-                  <DraggableCard key={feat.id} id={feat.id} data={{ ...feat }}>
-                    <button
-                      onClick={() => handleCycleBucket(feat.id)}
-                      onMouseEnter={playSubtleHover}
-                      className="w-full text-left p-2.5 bg-white border border-neutral-200 rounded flex flex-col justify-between hover:border-neutral-400 transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_2px_6px_rgba(0,0,0,0.02)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
+                  <React.Fragment key={`slot-container-${idx}`}>
+                    <DropZone
+                      id={`slot-${idx}`}
+                      label={guide.label}
+                      currentCount={slottedSlide ? 1 : 0}
+                      hideDefaultEmpty={true}
                     >
-                      <span className="font-bold text-neutral-900 block truncate">{feat.name}</span>
-                      <span className="text-[8px] text-muted-foreground mt-1 block uppercase">
-                        COL: {b === 'must' ? 'MUST_HAVE' : b === 'nice' ? 'NICE_TO_HAVE' : 'OVERKILL'}
-                      </span>
-                    </button>
-                  </DraggableCard>
+                      {slottedSlide ? (
+                        <DraggableCard id={`slot-${idx}`} data={{ index: idx, slideId }}>
+                          <div className="p-2.5 bg-neutral-900 border border-neutral-900 rounded flex items-start justify-between shadow-sm hover:border-neutral-800 transition-colors select-none text-white text-[10px]">
+                            <div className="flex items-start gap-2 flex-1 min-w-0">
+                              <span className="font-mono font-bold text-amber-400 text-[8.5px] uppercase shrink-0 mt-0.5">
+                                [{idx === 0 ? "OPENING" : idx === 7 ? "CLOSING" : `SEC ${idx}`}]
+                              </span>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-1.5">
+                                  <span className="font-bold uppercase tracking-wide truncate block">{slottedSlide.name}</span>
+                                  <span className="text-[7px] uppercase px-1 rounded bg-neutral-800 text-neutral-300 font-mono tracking-tight shrink-0 font-bold">
+                                    {slottedSlide.category}
+                                  </span>
+                                </div>
+                                <p className="text-[8px] text-neutral-400 font-sans mt-1 leading-normal font-light truncate">
+                                  {slottedSlide.description}
+                                </p>
+                              </div>
+                            </div>
+                            
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveSlot(idx);
+                              }}
+                              onMouseEnter={playSubtleHover}
+                              className="p-1 text-neutral-500 hover:text-red-400 hover:bg-neutral-800 rounded font-bold font-mono text-[9px] uppercase transition-colors shrink-0 leading-none cursor-pointer"
+                              title="Remove slide"
+                            >
+                              [×]
+                            </button>
+                          </div>
+                        </DraggableCard>
+                      ) : (
+                        <div className="p-2 border border-dashed border-neutral-200 rounded flex flex-col justify-center min-h-[44px] select-none text-[9px] hover:border-neutral-400 hover:bg-neutral-50/30 transition-all duration-300">
+                          <span className="font-mono text-neutral-450 uppercase tracking-tight font-bold text-[8px]">
+                            [{idx === 0 ? "OPENING" : idx === 7 ? "CLOSING" : `SECTION ${idx}`}] STORY_SPACE
+                          </span>
+                          <p className="text-[7.5px] text-muted-foreground font-sans mt-0.5 leading-none italic uppercase">
+                            + Add Slide
+                          </p>
+                        </div>
+                      )}
+                    </DropZone>
+                    {idx < 7 && (
+                      <div className="flex justify-center items-center py-0.5 select-none animate-pulse">
+                        <span className="text-neutral-300 font-bold text-[10px]">&darr;</span>
+                      </div>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </div>
           </div>
 
-          {/* 3 Columns Buckets (3 cols) */}
-          <div className="lg:col-span-3 grid grid-cols-3 gap-3">
-            {(['must', 'nice', 'overkill'] as const).map((col) => {
-              const items = MOCK_BACKLOG_POOL.filter(f => buckets[f.id] === col);
-              return (
-                <DropZone
-                  key={col}
-                  id={col}
-                  label={col === 'must' ? 'Must Have' : col === 'nice' ? 'Nice to Have' : 'Overkill'}
-                  currentCount={items.length}
-                >
-                  <div className="space-y-1.5 min-h-[250px] py-1">
-                    {items.map((it) => (
-                      <div
-                        key={it.id}
-                        className="p-2.5 bg-white border border-neutral-300 rounded flex items-center justify-between shadow-[0_1px_2px_rgba(0,0,0,0.01)]"
-                      >
-                        <span className="font-bold text-neutral-800 text-[10px] truncate">{it.name.toUpperCase()}</span>
-                      </div>
-                    ))}
-                  </div>
-                </DropZone>
-              );
-            })}
+          {/* Right Status Panel: Storytelling HUD & Real-Time Terminal (3 cols) */}
+          <div className="lg:col-span-3 space-y-4 flex flex-col">
+            
+            {/* Checklist HUD (Non-blocking visual aids) */}
+            <div className="p-3 border border-neutral-300 rounded bg-white space-y-2.5 shadow-sm">
+              <span className="text-[8px] text-neutral-400 font-bold uppercase tracking-wider border-b border-neutral-200 pb-1 block">
+                STORYTELLING_COMPILER_HUD
+              </span>
+              
+              <div className="space-y-1.5 font-mono text-[9.5px]">
+                <div className="flex items-center gap-1.5">
+                  <span className={hasOpening ? "text-emerald-600 font-bold" : "text-neutral-300"}>
+                    {hasOpening ? "[✓]" : "[ ]"}
+                  </span>
+                  <span className={hasOpening ? "text-neutral-800 font-bold" : "text-neutral-400"}>
+                    OPENING SLIDE
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className={hasProblemOrJourney ? "text-emerald-600 font-bold" : "text-neutral-300"}>
+                    {hasProblemOrJourney ? "[✓]" : "[ ]"}
+                  </span>
+                  <span className={hasProblemOrJourney ? "text-neutral-800 font-bold" : "text-neutral-400"}>
+                    PROBLEM OR JOURNEY
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className={hasSolutionOrDemo ? "text-emerald-600 font-bold" : "text-neutral-300"}>
+                    {hasSolutionOrDemo ? "[✓]" : "[ ]"}
+                  </span>
+                  <span className={hasSolutionOrDemo ? "text-neutral-800 font-bold" : "text-neutral-400"}>
+                    SOLUTION OR DEMO
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className={hasTechDepth ? "text-emerald-600 font-bold" : "text-neutral-300"}>
+                    {hasTechDepth ? "[✓]" : "[ ]"}
+                  </span>
+                  <span className={hasTechDepth ? "text-neutral-800 font-bold" : "text-neutral-400"}>
+                    TECH ARCHITECTURE
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className={hasBizModel ? "text-emerald-600 font-bold" : "text-neutral-300"}>
+                    {hasBizModel ? "[✓]" : "[ ]"}
+                  </span>
+                  <span className={hasBizModel ? "text-neutral-800 font-bold" : "text-neutral-400"}>
+                    MONETIZATION / BIZ
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-1.5">
+                  <span className={hasClosingAtEnd ? "text-emerald-600 font-bold" : "text-neutral-300"}>
+                    {hasClosingAtEnd ? "[✓]" : "[ ]"}
+                  </span>
+                  <span className={hasClosingAtEnd ? "text-neutral-800 font-bold" : "text-neutral-400"}>
+                    CLOSING SLIDE
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Score & Archetype Live Monitor */}
+            <div className="p-3 border border-neutral-300 rounded bg-white space-y-2 shadow-sm">
+              <span className="text-[8px] text-neutral-400 font-bold uppercase tracking-wider border-b border-neutral-200 pb-1 block">
+                NARRATIVE_STORY_COMPILER
+              </span>
+              
+              <div className="space-y-1 font-mono text-[9px]">
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">DECK_ARCHETYPE:</span>
+                  <span className="font-bold text-neutral-900 uppercase">{deckArchetype}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-neutral-500">NARRATIVE_FLOW:</span>
+                  <span className={`font-bold uppercase ${
+                    deckNarrativeQuality === 'Legendary'
+                      ? "text-emerald-600"
+                      : deckNarrativeQuality === 'Persuasive'
+                      ? "text-blue-600"
+                      : deckNarrativeQuality === 'Coherent'
+                      ? "text-amber-600"
+                      : "text-red-500 animate-pulse"
+                  }`}>{deckNarrativeQuality}</span>
+                </div>
+                <div className="flex justify-between border-t border-neutral-100 pt-1.5 mt-1 border-dashed">
+                  <span className="text-neutral-800 font-bold">NARRATIVE_SCORE:</span>
+                  <span className="font-bold text-neutral-950 text-xs">{pitchDeckScore} / 100</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Terminal Console Log */}
+            <div className="flex-1 flex flex-col p-3 bg-neutral-950 border border-neutral-900 rounded shadow-md text-white font-mono text-[9px] min-h-[140px] overflow-hidden">
+              <span className="text-neutral-500 uppercase border-b border-neutral-805 pb-1 mb-2 font-bold flex items-center gap-1 select-none">
+                <Terminal className="w-2.5 h-2.5 text-amber-500 animate-pulse" />
+                TIMELINE_AUDIT_CONSOLE
+              </span>
+              <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 font-mono leading-relaxed select-text">
+                <span className="text-amber-400 block">&gt; {consoleMsg}</span>
+                
+                {evaluation.feedback.length > 0 ? (
+                  evaluation.feedback.map((log, i) => {
+                    const isWarn = log.includes("Missing") || log.includes("before") || log.includes("penalty") || log.includes("muddled") || log.includes("Vaporware") || log.includes("Duplicate") || log.includes("Dry");
+                    return (
+                      <span key={i} className={`block leading-normal ${
+                        isWarn ? "text-red-400 font-bold" : "text-neutral-305 font-normal"
+                      }`}>
+                        {isWarn ? "⚠️ " : "✓ "}{log}
+                      </span>
+                    );
+                  })
+                ) : (
+                  <span className="text-neutral-600 italic block">
+                    [CONSOLE_IDLE: DECK TIMELINE IS EMPTY. READY FOR INJECT.]
+                  </span>
+                )}
+              </div>
+            </div>
+            
           </div>
+
         </div>
       </GameplayStageCard>
     </DndContext>
@@ -1446,20 +1958,94 @@ function MentorStage() {
       generatedTips.push("✅ STACK_ALIGNED: Framework choices display adequate category coverage for your selected project direction.");
     }
 
-    // Tip 2: USP & Stack Match
-    if (usp === 'Fastest' && ids.has('tech-aws')) {
-      generatedTips.push("⚠️ USP_ALIGN_WARN: Setting 'Fastest' USP while deploying on AWS has latency overheads. Vercel would host faster.");
-    } else if (usp === 'Sustainable' && ids.has('tech-next')) {
-      generatedTips.push("✅ USP_ALIGNED: Sustainability objectives coupled with Next.js static generation are highly carbon efficient.");
+    // Tip 2: USP & Stack Match (Update v1.6 dynamic USP awareness)
+    const { generatedUSPs } = useGameStore.getState();
+    const selectedUspObj = generatedUSPs.find(u => u.name === usp);
+
+    if (selectedUspObj) {
+      if (selectedUspObj.execution < 58) {
+        generatedTips.push(`⚠️ USP_WARN: Your dynamic USP '${selectedUspObj.name}' is highly differentiated but difficult to build within hackathon constraints.`);
+      } else {
+        generatedTips.push(`✅ USP_ALIGNED: Your chosen USP '${usp}' is highly practical and will yield stable execution rates.`);
+      }
     } else {
       generatedTips.push("💡 USP_TIP: Align unique selling propositions strictly with stack constraints to trigger judge pitch multipliers.");
     }
 
-    // Tip 3: Scoping backlog
-    if (features.length > 3) {
-      generatedTips.push("⚠️ SCOPE_WARN: Your backlog has severe scope bloat. Consider ejecting features into Overkill to restore Execution.");
+    // Tip 3: Scoping backlog (Update v1.6 dynamic feature backlog scoping and dependencies awareness)
+    const totalMustEffort = features.reduce((sum, f: any) => {
+      const eff = f.effort === 'high' ? 3 : f.effort === 'medium' ? 2 : 1;
+      return sum + eff;
+    }, 0);
+    const highComplexityCount = features.filter((f: any) => f.effort === 'high').length;
+
+    if (totalMustEffort > 6) {
+      generatedTips.push(`⚠️ SCOPE_WARN: Your feature scope appears unrealistic (${features.length} features with a heavy build effort). Consider ejecting complex items to restore Execution.`);
     } else {
-      generatedTips.push("✅ SCOPE_ALIGNED: Compact Must-Have features secure high baseline feasibility indices. Excellent work.");
+      generatedTips.push("✅ SCOPE_ALIGNED: Balanced Must-Have scope secures high feasibility indices. Excellent MVP containment.");
+    }
+
+    if (highComplexityCount >= 2) {
+      generatedTips.push(`⚠️ SCOPE_COMPLEXITY: Your Must-Have backlog contains ${highComplexityCount} high-complexity modules. Building multiple advanced features will bottleneck compile execution.`);
+    }
+
+    // Dependency Checking
+    features.forEach((f: any) => {
+      if (f.dependsOn && !features.some(x => x.id === f.dependsOn)) {
+        generatedTips.push(`⚠️ DEPENDENCY_WARN: You have built the advanced feature '${f.name}' but missed its required baseline dependency '${f.dependsOnName || 'core'}'! It will trigger compiler errors.`);
+      }
+    });
+
+    // Tip 4: Storytelling Pitch Deck Audit
+    const { pitchDeck: currentDeck } = useGameStore.getState();
+    
+    // Rule A: Lead with the problem
+    const mentorProbIdx = currentDeck.indexOf('problem');
+    if (mentorProbIdx === -1) {
+      generatedTips.push("⚠️ DECK_STORY_WARN: Lead with the problem. You need to outline the core customer pain point early in your deck.");
+    } else if (mentorProbIdx > 2) {
+      generatedTips.push("⚠️ DECK_STORY_WARN: Lead with the problem. Your Problem slide is placed too deep in the deck; judges will lose context.");
+    } else {
+      generatedTips.push("✅ DECK_STORY_OK: Excellent. You established the problem statement early in your presentation sequence.");
+    }
+
+    // Rule B: Move Demo earlier
+    const mentorDemoIdx = currentDeck.indexOf('demo');
+    if (mentorDemoIdx !== -1 && mentorDemoIdx > 4) {
+      generatedTips.push("⚠️ DECK_STORY_WARN: Move Demo earlier. Hackathon judges have short attention spans; show the working MVP sooner.");
+    }
+
+    // Rule C: Consecutiveness Check
+    let consecutiveTech = 0;
+    let maxConsecutiveTech = 0;
+    currentDeck.forEach(s => {
+      const comp = AVAILABLE_SLIDES.find(item => item.id === s);
+      if (comp && (comp.category === 'technology' || comp.id === 'risk-analysis')) {
+        consecutiveTech++;
+        if (consecutiveTech > maxConsecutiveTech) maxConsecutiveTech = consecutiveTech;
+      } else {
+        consecutiveTech = 0;
+      }
+    });
+
+    if (maxConsecutiveTech >= 3) {
+      generatedTips.push("⚠️ DECK_TECH_BLOAT: Too many technical slides in a row. Break them up with customer story slides to keep non-technical judges engaged.");
+    }
+
+    // Rule D: Technical vs Business balance
+    const techCount = currentDeck.filter(s => {
+      const comp = AVAILABLE_SLIDES.find(item => item.id === s);
+      return comp && comp.category === 'technology';
+    }).length;
+    const bizCount = currentDeck.filter(s => {
+      const comp = AVAILABLE_SLIDES.find(item => item.id === s);
+      return comp && comp.category === 'business';
+    }).length;
+
+    if (bizCount > techCount && bizCount >= 2) {
+      generatedTips.push("💡 DECK_BALANCE: Your business case is stronger than your technical story. Startup-leaning judges will appreciate this, but ensure technical feasibility is clear.");
+    } else if (techCount > bizCount && techCount >= 2) {
+      generatedTips.push("💡 DECK_BALANCE: Your technical story is extremely robust. Ensure you map out monetization structures so investors see project survival path.");
     }
 
     setTips(generatedTips);
@@ -2220,6 +2806,10 @@ function JudgingStage() {
           businessModel,
           problem: selectedProb,
           solutionDirection,
+          pitchDeck: useGameStore.getState().pitchDeck,
+          pitchDeckScore: useGameStore.getState().pitchDeckScore,
+          deckNarrativeQuality: useGameStore.getState().deckNarrativeQuality,
+          deckArchetype: useGameStore.getState().deckArchetype,
         });
 
         addJudgeFeedback({
@@ -2256,6 +2846,10 @@ function JudgingStage() {
       businessModel,
       problem: selectedProb,
       solutionDirection,
+      pitchDeck: useGameStore.getState().pitchDeck,
+      pitchDeckScore: useGameStore.getState().pitchDeckScore,
+      deckNarrativeQuality: useGameStore.getState().deckNarrativeQuality,
+      deckArchetype: useGameStore.getState().deckArchetype,
     });
 
     addJudgeFeedback({
@@ -2402,6 +2996,10 @@ function ResultsStage() {
     difficulty,
     activeModifiers,
     score,
+    pitchDeck,
+    pitchDeckScore,
+    deckNarrativeQuality,
+    deckArchetype,
   } = useGameStore();
 
   const [copied, setCopied] = useState(false);
@@ -2951,6 +3549,147 @@ function ResultsStage() {
             </div>
           </div>
         </div>
+
+        {/* Pitch Deck Storytelling Audit Panel */}
+        {(() => {
+          const deckEval = evaluatePitchDeck(pitchDeck);
+          const getStoryGrade = (score: number) => {
+            if (score >= 90) return "S";
+            if (score >= 80) return "A";
+            if (score >= 65) return "B";
+            if (score >= 50) return "C";
+            if (score >= 35) return "D";
+            return "F";
+          };
+          const storyGrade = getStoryGrade(deckEval.score);
+
+          return (
+            <div className="border-2 border-double border-neutral-900 p-5 bg-white space-y-4 shadow-sm select-none rounded">
+              
+              {/* Header block */}
+              <div className="flex items-center justify-between border-b border-neutral-200 pb-2">
+                <span className="text-[8px] text-neutral-400 font-bold uppercase tracking-wider">PITCH_DECK_STORYTELLING_AUDIT</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-[8px] bg-neutral-900 text-white font-mono px-1.5 py-0.5 rounded font-bold uppercase tracking-wider">
+                    {deckEval.archetype}
+                  </span>
+                  <span className="text-[8px] border border-neutral-900 text-neutral-950 font-mono px-1.5 py-0.5 rounded font-black uppercase tracking-wider">
+                    GRADE {storyGrade}
+                  </span>
+                </div>
+              </div>
+
+              {/* Main metrics row */}
+              <div className="grid grid-cols-3 gap-2 text-center font-mono">
+                <div className="p-2 bg-stone-50/50 border border-neutral-200 rounded">
+                  <span className="text-[8px] text-neutral-450 block uppercase mb-1">NARRATIVE_SCORE</span>
+                  <span className="text-base font-bold text-neutral-900">{deckEval.score} / 100</span>
+                </div>
+                <div className="p-2 bg-stone-50/50 border border-neutral-200 rounded">
+                  <span className="text-[8px] text-neutral-450 block uppercase mb-1">FLOW_QUALITY</span>
+                  <span className="text-xs font-bold text-neutral-800 uppercase">{deckEval.quality}</span>
+                </div>
+                <div className="p-2 bg-stone-50/50 border border-neutral-200 rounded">
+                  <span className="text-[8px] text-neutral-450 block uppercase mb-1">COMPILED_SLIDES</span>
+                  <span className="text-xs font-bold text-neutral-800 uppercase">{pitchDeck.filter(s => s !== "").length} slides</span>
+                </div>
+              </div>
+
+              {/* Sub-score Bars (Narrative Analysis) */}
+              <div className="border-t border-dashed border-neutral-200 pt-3.5 space-y-2.5">
+                <span className="text-[8px] text-neutral-400 block uppercase font-bold tracking-wider mb-1">NARRATIVE_DIMENSIONS_ANALYSIS</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 font-mono text-[9px]">
+                  
+                  <div>
+                    <div className="flex justify-between mb-0.5 text-neutral-500">
+                      <span>LOGICAL FLOW:</span>
+                      <span className="font-bold text-neutral-900">{deckEval.subScores.logicalFlow}%</span>
+                    </div>
+                    <div className="w-full bg-neutral-100 border border-neutral-250 h-1 rounded-sm overflow-hidden">
+                      <div className="bg-neutral-950 h-full" style={{ width: `${deckEval.subScores.logicalFlow}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between mb-0.5 text-neutral-500">
+                      <span>STORYTELLING ARCS:</span>
+                      <span className="font-bold text-neutral-900">{deckEval.subScores.storytelling}%</span>
+                    </div>
+                    <div className="w-full bg-neutral-100 border border-neutral-250 h-1 rounded-sm overflow-hidden">
+                      <div className="bg-neutral-950 h-full" style={{ width: `${deckEval.subScores.storytelling}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between mb-0.5 text-neutral-500">
+                      <span>TECHNICAL VALIDATION:</span>
+                      <span className="font-bold text-neutral-900">{deckEval.subScores.techDepth}%</span>
+                    </div>
+                    <div className="w-full bg-neutral-100 border border-neutral-250 h-1 rounded-sm overflow-hidden">
+                      <div className="bg-neutral-950 h-full" style={{ width: `${deckEval.subScores.techDepth}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between mb-0.5 text-neutral-500">
+                      <span>BUSINESS ACUTENESS:</span>
+                      <span className="font-bold text-neutral-900">{deckEval.subScores.bizThinking}%</span>
+                    </div>
+                    <div className="w-full bg-neutral-100 border border-neutral-250 h-1 rounded-sm overflow-hidden">
+                      <div className="bg-neutral-950 h-full" style={{ width: `${deckEval.subScores.bizThinking}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between mb-0.5 text-neutral-500">
+                      <span>CLARITY & STRUCTURE:</span>
+                      <span className="font-bold text-neutral-900">{deckEval.subScores.clarity}%</span>
+                    </div>
+                    <div className="w-full bg-neutral-100 border border-neutral-250 h-1 rounded-sm overflow-hidden">
+                      <div className="bg-neutral-950 h-full" style={{ width: `${deckEval.subScores.clarity}%` }} />
+                    </div>
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between mb-0.5 text-neutral-500">
+                      <span>PERSUASION POWER:</span>
+                      <span className="font-bold text-neutral-900">{deckEval.subScores.persuasion}%</span>
+                    </div>
+                    <div className="w-full bg-neutral-100 border border-neutral-250 h-1 rounded-sm overflow-hidden">
+                      <div className="bg-neutral-950 h-full" style={{ width: `${deckEval.subScores.persuasion}%` }} />
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Narrative Strengths & Weaknesses Logs */}
+              <div className="border-t border-dashed border-neutral-200 pt-3 space-y-1.5 font-mono text-[9px]">
+                <span className="text-[8px] text-neutral-400 block uppercase font-bold tracking-wider mb-1">NARRATIVE_AUDITOR_FEEDBACK</span>
+                {deckEval.feedback.length > 0 ? (
+                  <div className="space-y-1.5 leading-normal max-h-[140px] overflow-y-auto pr-1">
+                    {deckEval.feedback.map((log, i) => {
+                      const isWarn = log.includes("Missing") || log.includes("before") || log.includes("penalty") || log.includes("muddled") || log.includes("Vaporware") || log.includes("Duplicate") || log.includes("Dry");
+                      return (
+                        <div key={i} className="flex gap-1.5">
+                          <span className={isWarn ? "text-rose-505 font-bold" : "text-emerald-600 font-bold"}>
+                            {isWarn ? "[-]" : "[+]"}
+                          </span>
+                          <span className={isWarn ? "text-neutral-600" : "text-neutral-800"}>
+                            {log}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <span className="text-neutral-400 italic block">[NO AUDIT FEEDBACK GENERATED]</span>
+                )}
+              </div>
+
+            </div>
+          );
+        })()}
 
         {/* Strengths & Weaknesses */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 border-t border-dashed border-neutral-200 pt-4">
@@ -3608,6 +4347,8 @@ export default function GamePage() {
         return <UspStage key="usp" />;
       case "features":
         return <FeaturesStage key="features" />;
+      case "pitchDeck":
+        return <PitchDeckStage key="pitchDeck" />;
       case "mentor":
         return <MentorStage key="mentor" />;
       case "businessModel":

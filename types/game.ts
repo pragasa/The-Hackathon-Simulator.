@@ -25,6 +25,7 @@ export type GameStage =
   | 'techStack'
   | 'usp'
   | 'features'
+  | 'pitchDeck'
   | 'mentor'
   | 'businessModel'
   | 'pitchPrep'
@@ -244,6 +245,22 @@ export interface GameState {
   dailyModifier: string | null;
   /** Persisted stats for all historical runs */
   stats: GameStats;
+  
+  // Update v1.5: Pitch Deck Builder variables
+  /** Selected slides in the pitch deck */
+  pitchDeck: string[];
+  /** Numeric score calculated for the deck layout */
+  pitchDeckScore: number;
+  /** Narrative category based on deck layout */
+  deckNarrativeQuality: string;
+  /** Computed slide deck archetype */
+  deckArchetype: string;
+
+  // Update v1.6: AI Generated Project Design System variables
+  /** AI generated USP options */
+  generatedUSPs: any[];
+  /** AI generated features backlog */
+  generatedBacklog: any[];
 }
 
 /** Actions the player (or system) can dispatch to mutate game state */
@@ -284,8 +301,14 @@ export interface GameActions {
   setMentorName: (name: string) => void;
   /** Choose a business model */
   setBusinessModel: (model: string) => void;
-  /** Set elevator pitch text */
+  /** Set pitch deck text */
   setPitchText: (text: string) => void;
+  /** Set pitch deck slides */
+  setPitchDeck: (slides: string[]) => void;
+  /** Set generated USP options */
+  setGeneratedUSPs: (usps: any[]) => void;
+  /** Set generated features backlog */
+  setGeneratedBacklog: (backlog: any[]) => void;
 
   /** Decrement the global timer by one second */
   tickTimer: () => void;

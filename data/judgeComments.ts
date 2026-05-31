@@ -6,6 +6,7 @@
  */
 
 import type { TechItem, Feature, Problem } from "@/types/game";
+import { AVAILABLE_SLIDES } from "@/lib/pitchDeckEvaluator";
 
 export interface ContextState {
   techStack: TechItem[];
@@ -14,6 +15,10 @@ export interface ContextState {
   businessModel: string | null;
   problem: Problem | null;
   solutionDirection: string | null;
+  pitchDeck?: string[];
+  pitchDeckScore?: number;
+  deckNarrativeQuality?: string;
+  deckArchetype?: string;
 }
 
 export interface CommentResult {
@@ -37,11 +42,46 @@ export function generateJudgeFeedback(
   const hasAI = techIds.has("tech-gemini") || techIds.has("tech-openai");
   const hasHardware = techIds.has("tech-esp32") || techIds.has("tech-arduino");
 
+  // Dynamic Backlog Analysis
+  const totalMustEffort = state.features.reduce((sum: number, f: any) => {
+    const eff = f.effort === 'high' ? 3 : f.effort === 'medium' ? 2 : 1;
+    return sum + eff;
+  }, 0);
+
+  // Check for missing dependencies
+  const missingDependencyFeature = state.features.find(
+    (f: any) => f.dependsOn && !state.features.some(x => x.id === f.dependsOn)
+  ) as any;
+
   // ---------------------------------------------------------
   // 1. Uday Sharma (EdTech Creator & Hackathon Specialist)
   // Focus: Speed, MVPs, EdTech, practicality, actual user validation.
   // ---------------------------------------------------------
   if (judgeId === "judge-builder") {
+    if (state.pitchDeck) {
+      const demoIdx = state.pitchDeck.indexOf('demo');
+      if (demoIdx !== -1 && demoIdx > 4) {
+        return {
+          comment: "The demo arrived too late in the story, reducing impact. In a hackathon, you need to show the functional product before the judges lose interest.",
+          highlight: "The demo arrived too late in the story, reducing impact."
+        };
+      }
+    }
+
+    if (missingDependencyFeature) {
+      return {
+        comment: `Your technical execution crashed. You built '${missingDependencyFeature.name}' but omitted its required baseline dependency '${missingDependencyFeature.dependsOnName || 'core system'}' from your Must-Have backlog.`,
+        highlight: `System failed due to missing dependency: ${missingDependencyFeature.dependsOnName || 'core'}.`
+      };
+    }
+
+    if (totalMustEffort > 6) {
+      return {
+        comment: `Your backlog contains severe scope bloat (${state.features.length} features with a heavy effort footprint). Trying to build complex modules like ${state.features.map(f => f.name).join(', ')} in a short hackathon is unrealistic.`,
+        highlight: "Backlog displays severe scope bloat and high build complexity."
+      };
+    }
+
     if (score >= 90) {
       if (isMinimalist) {
         return {
@@ -50,7 +90,7 @@ export function generateJudgeFeedback(
         };
       }
       return {
-        comment: "Excellent hackathon execution! The MVP is highly practical, extremely responsive, and focuses entirely on solving a real problem. No fluff, just direct user utility.",
+        comment: `Excellent hackathon execution! The MVP is highly practical, extremely responsive, and focuses entirely on solving a real problem. The '${state.features[0]?.name || 'core feature'}' is built properly with zero fluff.`,
         highlight: "Practical product scoping with high speed-to-market value."
       };
     }
@@ -77,11 +117,17 @@ export function generateJudgeFeedback(
   // Focus: Startup potential, PMF, customer discovery, differentiation.
   // ---------------------------------------------------------
   if (judgeId === "judge-founder") {
+    if (state.deckArchetype === 'Engineer Deck') {
+      return {
+        comment: "The presentation focused heavily on implementation but never clearly explained the problem. Who is the customer and why do they desperately need this? Judges need stronger business validation.",
+        highlight: "The presentation focused heavily on implementation but never clearly explained the problem."
+      };
+    }
     if (score >= 90) {
-      if (state.usp === "Community-first" || state.businessModel === "Marketplace") {
+      if (state.usp) {
         return {
-          comment: "This is a venture-scale startup opportunity. By starting with a community-first hook, you solve the cold-start problem and build an organic acquisition loop that competitors can't easily copy.",
-          highlight: "Outstanding network effect distribution loops."
+          comment: `This is a venture-scale startup opportunity! The dynamic USP centering on '${state.usp}' is highly differentiated and solves a genuine customer pain point with an organic acquisition hook.`,
+          highlight: `Outstanding, highly differentiated value proposition: ${state.usp}`
         };
       }
       return {
@@ -90,10 +136,10 @@ export function generateJudgeFeedback(
       };
     }
     if (score >= 70) {
-      if (state.usp === "Cheapest") {
+      if (state.usp) {
         return {
-          comment: "Being the cheapest is a race to the bottom, not a defensible startup moat. Who is your desperate customer? Focus less on price and more on why someone would pay for your product specifically.",
-          highlight: "Cost-leader strategy is vulnerable to scaled competitors."
+          comment: `The value proposition centering on '${state.usp}' has potential, but you need a much stronger customer validation moat to defend against competitors copying you.`,
+          highlight: `USP has potential but lacks defensible engineering boundaries.`
         };
       }
       return {
@@ -102,8 +148,8 @@ export function generateJudgeFeedback(
       };
     }
     return {
-      comment: "This is a classic solution looking for a problem. The customer discovery is non-existent, the value proposition is muddled, and I don't see anyone desperately paying money for this.",
-      highlight: "Muddled value proposition and absent distribution plans."
+      comment: `This is a solution looking for a problem. Establishing a USP on '${state.usp || 'this concept'}' is extremely weak, customer discovery is absent, and the product moat is non-existent.`,
+      highlight: `Muddled value proposition and absent distribution plans.`
     };
   }
 
@@ -112,10 +158,21 @@ export function generateJudgeFeedback(
   // Focus: UI design, usability, onboarding, accessibility, user friction.
   // ---------------------------------------------------------
   if (judgeId === "judge-design") {
+    if (state.pitchDeck) {
+      const probIdx = state.pitchDeck.indexOf('problem');
+      const solIdx = state.pitchDeck.indexOf('solution');
+      if (probIdx !== -1 && solIdx !== -1 && solIdx < probIdx) {
+        return {
+          comment: "The solution is clear but the presentation flow felt fragmented because you didn't explain the problem before the solution.",
+          highlight: "Fragmented presentation flow with solution before problem."
+        };
+      }
+    }
     if (score >= 90) {
+      const featureName = state.features[0]?.name || 'MVP modules';
       return {
-        comment: "A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the onboarding flow is completely frictionless. It's accessible and delightful to use.",
-        highlight: "Pixel-perfect visual design and seamless screen responsiveness."
+        comment: `A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the screens for the '${featureName}' feature feel accessible and delightful.`,
+        highlight: `Pixel-perfect visual design and frictionless workflow for ${featureName}.`
       };
     }
     if (score >= 70) {
@@ -141,16 +198,34 @@ export function generateJudgeFeedback(
   // Focus: Monetization models, scalability, demand, sustainable revenue, risks.
   // ---------------------------------------------------------
   if (judgeId === "judge-investor") {
-    if (score >= 90) {
-      if (state.businessModel === "B2B SaaS" && (state.usp === "Most Scalable" || state.usp === "AI-powered")) {
+    if (state.pitchDeck) {
+      const bizSlides = state.pitchDeck.filter(s => {
+        const comp = AVAILABLE_SLIDES.find(item => item.id === s);
+        return comp && comp.category === 'business';
+      });
+      if (bizSlides.length >= 3) {
         return {
-          comment: "High margins, clear unit economics, and clean digital scalability. Coupling B2B enterprise SaaS subscriptions with automated software models makes this incredibly capital-efficient.",
-          highlight: "Strong B2B SaaS unit economics and sustainable margins."
+          comment: "Strong business reasoning. The market opportunity was communicated effectively, showing clear growth paths and strategic customer acquisition wedge ideas.",
+          highlight: "Strong business reasoning. The market opportunity was communicated effectively."
+        };
+      }
+    }
+    if (state.deckArchetype === 'Founder Deck') {
+      return {
+        comment: "Your deck archetype is a Founder Deck, which had great vision but lacked real traction metrics and business validations.",
+        highlight: "Founder Deck archetype lacks analytical business metrics."
+      };
+    }
+    if (score >= 90) {
+      if (state.usp) {
+        return {
+          comment: `High margins, clean digital scalability. Coupling your B2B model with the differentiated strategy of '${state.usp}' makes this startup extremely capital-efficient and viable.`,
+          highlight: `Capital-efficient unit economics driven by strategic USP: ${state.usp}`
         };
       }
       return {
         comment: "A highly viable business concept! Your monetization channels are planned properly, operational costs are realistic, and the customer acquisition math stands up under analyst scrutiny.",
-        highlight: "Logical operational plan and sustainable revenue channels."
+        highlight: "Strong B2B SaaS unit economics and sustainable margins."
       };
     }
     if (score >= 70) {
@@ -176,6 +251,30 @@ export function generateJudgeFeedback(
   // Focus: CS fundamentals, software engineering, architecture, technical feasibility.
   // ---------------------------------------------------------
   if (judgeId === "judge-chaos") {
+    if (state.pitchDeck) {
+      const techIdx = state.pitchDeck.indexOf('tech-stack');
+      const probIdx = state.pitchDeck.indexOf('problem');
+      if (techIdx !== -1 && probIdx !== -1 && techIdx < probIdx) {
+        return {
+          comment: "The system architecture is solid, but the presentation slide sequencing was completely illogical—Tech Stack before Problem? That is a fundamental error.",
+          highlight: "Fundamental logic failure: technical stack slide placed before problem statement."
+        };
+      }
+    }
+    if (state.deckArchetype === 'Engineer Deck') {
+      return {
+        comment: "The technical architecture was excellent but difficult for non-technical judges to follow. You focused heavily on framework compile times but omitted human story context.",
+        highlight: "The technical architecture was excellent but difficult for non-technical judges to follow."
+      };
+    }
+
+    if (missingDependencyFeature) {
+      return {
+        comment: `Severe structural engineering faults! You integrated the advanced module '${missingDependencyFeature.name}' but omitted its baseline dependency '${missingDependencyFeature.dependsOnName || 'core'}' from your Must-Have scope, creating runtime exceptions.`,
+        highlight: `Dangling promise chains and unhandled runtime exceptions from missing dependency.`
+      };
+    }
+
     if (score >= 90) {
       if (hasHardware) {
         return {
@@ -208,7 +307,7 @@ export function generateJudgeFeedback(
 
   // Final fallback
   return {
-    comment: "Decent project demo. The concept is interesting but requires deeper validation of features, tech choices, and user workflows.",
+    comment: `Decent project demo. The concept is interesting, and the dynamic USP centering on '${state.usp || 'this concept'}' shows potential but requires deeper validation of features.`,
     highlight: "Standard hackathon project with balanced execution."
   };
 }

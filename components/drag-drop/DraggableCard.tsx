@@ -71,27 +71,28 @@ export function DraggableCard({
       style={dndStyle}
       // Framer Motion handles visual enhancements on top of the dnd transform
       animate={{
-        scale: isDragging ? 1.04 : 1,
-        y: isDragging ? -4 : 0,
-        opacity: isDragging ? 0.85 : 1,
+        scale: isDragging ? 1.03 : 1,
+        y: isDragging ? -6 : 0,
+        rotate: isDragging ? -1.5 : 0,
+        opacity: isDragging ? 0.9 : 1,
       }}
       transition={{
         type: 'spring',
-        stiffness: 350,
-        damping: 25,
+        stiffness: 300,
+        damping: 22,
         mass: 0.8,
       }}
       className={cn(
         // Base glass card styling
-        'glass-card relative rounded-xl p-3',
-        // Shadow & glow when dragging
+        'glass-card relative rounded-xl p-3 select-none',
+        // Grayscale shadow & border when dragging
         isDragging
-          ? 'shadow-lg shadow-neon-blue/25 ring-1 ring-neon-blue/40 z-50'
-          : 'shadow-md z-0',
+          ? 'shadow-xl shadow-neutral-400/20 ring-1 ring-neutral-300 z-50'
+          : 'shadow-sm hover:shadow-md hover:border-neutral-300 z-0',
         // Cursor states
         isDragging ? 'cursor-grabbing' : 'cursor-grab',
         // Smooth transition for non-framer properties
-        'transition-shadow duration-200',
+        'transition-shadow duration-300 ease-out',
         className,
       )}
       {...listeners}

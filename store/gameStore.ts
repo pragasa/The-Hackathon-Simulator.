@@ -31,6 +31,8 @@ import type {
 } from '@/types/game';
 import { getRandomChaosEvent, CHAOS_EVENTS } from '@/data/chaosEvents';
 import { getDailyChallenge } from '@/lib/dailyChallenge';
+import { evaluatePitchDeck } from '@/lib/pitchDeckEvaluator';
+import { TECH_REGISTRY, toRegistryId } from '@/data/techRegistry';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -46,6 +48,7 @@ export const STAGE_ORDER: GameStage[] = [
   'techStack',
   'usp',
   'features',
+  'pitchDeck',
   'mentor',
   'businessModel',
   'pitchPrep',
@@ -77,6 +80,7 @@ const mapStageToPhase = (stage: GameStage): GamePhase => {
       return 'TECH_STACK';
     case 'usp':
     case 'features':
+    case 'pitchDeck':
       return 'FEATURE_PRIORITY';
     case 'mentor':
     case 'businessModel':
@@ -161,6 +165,16 @@ const initialGameState = {
   activeModifiers: [] as string[],
   dailyModifier: null as string | null,
   stats: initialStats,
+
+  // Update v1.5: Pitch Deck Builder variables
+  pitchDeck: [] as string[],
+  pitchDeckScore: 0,
+  deckNarrativeQuality: 'Fragmented',
+  deckArchetype: 'Custom Deck',
+
+  // Update v1.6: AI Generated Project Design System variables
+  generatedUSPs: [] as any[],
+  generatedBacklog: [] as any[],
 };
 
 // ---------------------------------------------------------------------------
@@ -311,8 +325,41 @@ export const useGameStore = create<GameState & GameActions>()(
         setMentorName: (name) => set({ mentorName: name }, false, 'core/setMentorName'),
 
         setBusinessModel: (model) => set({ businessModel: model }, false, 'core/setBusinessModel'),
-
+        
         setPitchText: (text) => set({ pitchText: text }, false, 'core/setPitchText'),
+
+        setPitchDeck: (slides) => {
+          const evalRes = evaluatePitchDeck(slides);
+          
+          // Calculate unblended tech stack pitch potential
+          const techStack = get().techStack;
+          let techStackPitch = 50;
+          techStack.forEach((tech) => {
+            const regId = toRegistryId(tech.id);
+            const regItem = TECH_REGISTRY.find((item) => item.id === regId);
+            if (regItem) {
+              techStackPitch += regItem.pitchWeight;
+            }
+          });
+          techStackPitch = Math.max(0, Math.min(techStackPitch, 100));
+
+          // Blended Pitch Score = 40% Tech Stack Pitch + 60% Pitch Deck Score
+          const blendedPitch = Math.round((techStackPitch * 0.4) + (evalRes.score * 0.6));
+
+          set({
+            pitchDeck: slides,
+            pitchDeckScore: evalRes.score,
+            deckNarrativeQuality: evalRes.quality,
+            deckArchetype: evalRes.archetype,
+            score: {
+              ...get().score,
+              pitch: Math.max(0, Math.min(blendedPitch, 100))
+            }
+          }, false, 'core/setPitchDeck');
+        },
+
+        setGeneratedUSPs: (usps) => set({ generatedUSPs: usps }, false, 'core/setGeneratedUSPs'),
+        setGeneratedBacklog: (backlog) => set({ generatedBacklog: backlog }, false, 'core/setGeneratedBacklog'),
 
         resetGame: () =>
           set(
@@ -638,6 +685,8 @@ export const useGameStore = create<GameState & GameActions>()(
           activeModifiers: state.activeModifiers,
           dailyModifier: state.dailyModifier,
           stats: state.stats,
+          generatedUSPs: state.generatedUSPs,
+          generatedBacklog: state.generatedBacklog,
         }),
       }
     ),

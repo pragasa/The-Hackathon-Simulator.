@@ -38,6 +38,10 @@ export interface DropZoneProps {
   acceptClassName?: string;
   /** Additional CSS classes merged onto the outer wrapper */
   className?: string;
+  /** If true, the default absolute empty state overlay will not be rendered */
+  hideDefaultEmpty?: boolean;
+  /** Optional custom text displayed in the default empty overlay instead of "+ Add Component" */
+  emptyLabel?: string;
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────────
@@ -60,12 +64,15 @@ export function DropZone({
   currentCount = 0,
   acceptClassName,
   className,
+  hideDefaultEmpty = false,
+  emptyLabel,
 }: DropZoneProps) {
   const { setNodeRef, isOver } = useDroppable({ id });
 
   const isFull = capacity !== undefined && currentCount >= capacity;
   const capacityPercentage =
     capacity !== undefined ? Math.min((currentCount / capacity) * 100, 100) : 0;
+  const isOccupied = currentCount > 0;
 
   return (
     <motion.div
@@ -73,28 +80,31 @@ export function DropZone({
       layout
       className={cn(
         // Base styling — always visible as a drop target
-        'relative rounded-lg min-h-[140px] p-4 transition-all duration-200',
-        // Default dashed border
-        !isOver && !isFull && 'border border-dashed border-neutral-300 bg-neutral-50/40',
-        // Drag-over: solid border + highlight
-        isOver && !isFull && [
-          'border border-solid border-neutral-800 bg-neutral-100/60',
-          'shadow-[0_4px_12px_rgba(0,0,0,0.03)]',
-          acceptClassName,
-        ],
-        // At capacity
-        isFull && 'border border-solid border-neutral-200 bg-neutral-50/80 opacity-90',
+        'relative rounded-lg transition-all duration-300 ease-out',
+        // When occupied: remove placeholder borders and backgrounds, let the card shine
+        isOccupied
+          ? 'p-0 min-h-0 border-none bg-transparent shadow-none'
+          : [
+              'min-h-[56px] p-3 border border-dashed border-neutral-200 bg-neutral-50/20',
+              // Drag-over: solid border + highlight
+              isOver && !isFull && [
+                'border-solid border-neutral-900 bg-neutral-100/40 shadow-[0_2px_8px_rgba(0,0,0,0.02)]',
+                acceptClassName,
+              ],
+              // At capacity
+              isFull && 'border-solid border-neutral-250 bg-neutral-50/80 opacity-90',
+            ],
         className,
       )}
     >
       {/* ── Header: Label + Capacity ─────────────────────────────────────── */}
       {(label || capacity !== undefined) && (
-        <div className="mb-3 flex items-center justify-between gap-3">
+        <div className="mb-2 flex items-center justify-between gap-3 select-none">
           {label && (
             <h3
               className={cn(
-                'text-xs font-mono font-bold uppercase tracking-wider',
-                isOver ? 'text-neutral-900' : 'text-neutral-500',
+                'text-[9px] font-mono font-bold uppercase tracking-wider',
+                isOver ? 'text-neutral-900' : 'text-neutral-450',
                 'transition-colors duration-200',
               )}
             >
@@ -102,12 +112,11 @@ export function DropZone({
             </h3>
           )}
 
-          {capacity !== undefined && (
+          {capacity !== undefined && capacity > 1 && (
             <div className="flex items-center gap-2">
               <span
                 className={cn(
-                  'text-[10px] font-mono tabular-nums',
-                  isFull ? 'text-amber-600 font-bold' : 'text-neutral-400',
+                  'text-[8px] font-mono tabular-nums text-neutral-400',
                 )}
               >
                 {currentCount}/{capacity} slots
@@ -118,17 +127,10 @@ export function DropZone({
       )}
 
       {/* ── Capacity Progress Bar ────────────────────────────────────────── */}
-      {capacity !== undefined && (
-        <div className="mb-3 h-1 w-full overflow-hidden rounded-full bg-neutral-100">
+      {capacity !== undefined && capacity > 1 && (
+        <div className="mb-2.5 h-0.5 w-full overflow-hidden rounded-full bg-neutral-100">
           <motion.div
-            className={cn(
-              'h-full rounded-full',
-              isFull
-                ? 'bg-amber-500'
-                : capacityPercentage > 70
-                  ? 'bg-neutral-600'
-                  : 'bg-neutral-800',
-            )}
+            className="h-full rounded-full bg-neutral-800"
             initial={false}
             animate={{ width: `${capacityPercentage}%` }}
             transition={{ type: 'spring', stiffness: 300, damping: 30 }}
@@ -137,23 +139,22 @@ export function DropZone({
       )}
 
       {/* ── Drop zone content ────────────────────────────────────────────── */}
-      <div className="relative z-10">
+      <div className="relative z-10 w-full h-full">
         {children}
       </div>
 
       {/* ── Empty state ──────────────────────────────────────────────────── */}
       <AnimatePresence>
-        {currentCount === 0 && !isOver && (
+        {!isOccupied && !isOver && !hideDefaultEmpty && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-1.5"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
           >
-            <Inbox className="h-6 w-6 text-neutral-300" />
-            <p className="text-[10px] font-mono uppercase tracking-wider text-neutral-400">
-              {isFull ? 'Zone is full' : 'Drag items here'}
-            </p>
+            <span className="text-[9px] font-mono uppercase tracking-wider text-neutral-400">
+              {emptyLabel || '+ Add Component'}
+            </span>
           </motion.div>
         )}
       </AnimatePresence>
@@ -166,7 +167,7 @@ export function DropZone({
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.15 }}
-            className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-neutral-400/20 pulse-ring"
+            className="pointer-events-none absolute inset-0 rounded-lg ring-1 ring-neutral-900/10 bg-neutral-900/[0.01]"
           />
         )}
       </AnimatePresence>
@@ -178,10 +179,10 @@ export function DropZone({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-neutral-100/80 backdrop-blur-[1px]"
+            className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-lg bg-white/80 backdrop-blur-[0.5px]"
           >
-            <span className="text-xs font-mono uppercase font-bold text-neutral-700">
-              Zone is full
+            <span className="text-[9px] font-mono uppercase font-bold text-neutral-700">
+              Full
             </span>
           </motion.div>
         )}
