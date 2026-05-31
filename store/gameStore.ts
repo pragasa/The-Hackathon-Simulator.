@@ -30,6 +30,7 @@ import type {
   GameStats,
   GeneratedBusinessModel,
   AdvisorAdvice,
+  JudgeDecisionMemory,
 } from '@/types/game';
 import { getRandomChaosEvent, CHAOS_EVENTS } from '@/data/chaosEvents';
 import { getDailyChallenge } from '@/lib/dailyChallenge';
@@ -94,10 +95,20 @@ const mapStageToPhase = (stage: GameStage): GamePhase => {
       return 'JUDGING';
     case 'results':
       return 'RESULTS';
-    default:
-      return 'LOBBY';
   }
 };
+
+const compileDecisionMemory = (state: any): JudgeDecisionMemory => ({
+  chosenUsp: state.usp,
+  selectedTechIds: state.techStack.map((t: any) => toRegistryId(t.id)),
+  mentorDecisions: state.generatedAdvisorAdvice.reduce((acc: any, adv: any) => {
+    acc[adv.id] = adv.status;
+    return acc;
+  }, {} as Record<string, 'applied' | 'rejected' | 'pending'>),
+  backlogFeatureIds: state.features.map((f: any) => f.id),
+  businessModelChoice: state.businessModel,
+  pitchStructureSlides: state.pitchDeck,
+});
 
 const initialScore: ScoreBreakdown = {
   innovation: 0,
@@ -183,6 +194,9 @@ const initialGameState = {
   generatedBusinessModels: [] as GeneratedBusinessModel[],
   generatedAdvisorAdvice: [] as AdvisorAdvice[],
   mentorConfidence: 50,
+
+  // Update v1.8: Hidden Scoring + Project Health Dashboard variables
+  judgeDecisionMemory: null as JudgeDecisionMemory | null,
 };
 
 // ---------------------------------------------------------------------------
@@ -248,6 +262,7 @@ export const useGameStore = create<GameState & GameActions>()(
                     stage: next,
                     phase: mapStageToPhase(next),
                     isGameOver: next === 'results',
+                    judgeDecisionMemory: compileDecisionMemory(get()),
                   },
                   false,
                   'core/nextStageWithChaos'
@@ -262,6 +277,7 @@ export const useGameStore = create<GameState & GameActions>()(
                 phase: mapStageToPhase(next),
                 isGameOver: next === 'results',
                 isTimerPaused: next === 'results' ? true : (stage === 'problemReveal' ? false : get().isTimerPaused),
+                judgeDecisionMemory: compileDecisionMemory(get()),
               },
               false,
               'core/nextStage'

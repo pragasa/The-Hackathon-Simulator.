@@ -11,7 +11,9 @@ export interface GeneratedUSP {
   execution: number;
   design: number;
   pitch: number;
-  tradeoffInfo: string;
+  advantages: string;
+  challenges: string;
+  tradeoffInfo?: string;
 }
 
 export interface GeneratedFeature extends Feature {
@@ -156,7 +158,31 @@ export function generateUSPOptions(
     const baseDesign = Math.max(20, Math.min(tpl.design + (tpl.key === "Hyper-personalized" ? variance : 0), 95));
     const basePitch = Math.max(20, Math.min(tpl.pitch + (tpl.key === "Community-first" ? variance : 0), 95));
 
-    const tradeoffInfo = `// tradeoffs: ${baseInnovation >= 70 ? '+' : ''}${baseInnovation - 50} Innovation, ${baseExecution >= 70 ? '+' : ''}${baseExecution - 60} Execution, ${baseDesign >= 70 ? '+' : ''}${baseDesign - 55} Design`;
+    let advantages = "Standard configuration advantage.";
+    let challenges = "No additional challenges detected.";
+
+    if (tpl.key === "Fastest") {
+      advantages = "Lightning-fast initial build speed.";
+      challenges = "May lack deep customized innovation.";
+    } else if (tpl.key === "Cheapest") {
+      advantages = "Extremely low operational cloud overhead.";
+      challenges = "Not suitable for complex server-side data calculations.";
+    } else if (tpl.key === "Most Scalable") {
+      advantages = "Excellent concurrency handling.";
+      challenges = "Higher technical setup feasibility requirements.";
+    } else if (tpl.key === "AI-powered") {
+      advantages = "Highly differentiated, high innovation factor.";
+      challenges = "Increased execution difficulty and slower build pacing.";
+    } else if (tpl.key === "Sustainable") {
+      advantages = "Strong environmental impact storytelling.";
+      challenges = "Relies on external tracking API availability.";
+    } else if (tpl.key === "Hyper-personalized") {
+      advantages = "Tailored user journeys, premium design metrics.";
+      challenges = "Requires complex client state routing.";
+    } else if (tpl.key === "Community-first") {
+      advantages = "Powerful user-growth virality metrics.";
+      challenges = "Relies heavily on network effect density.";
+    }
 
     return {
       key: tpl.key,
@@ -166,7 +192,8 @@ export function generateUSPOptions(
       execution: baseExecution,
       design: baseDesign,
       pitch: basePitch,
-      tradeoffInfo
+      advantages,
+      challenges
     };
   });
 
@@ -288,6 +315,10 @@ export function generateFeatureBacklog(
  * Procedurally generates 3-5 highly contextual business models matching the active project state,
  * along with detailed pricing strategies, target segments, and monetization logic.
  */
+/**
+ * Procedurally generates 3-5 highly contextual business models matching the active project state,
+ * along with detailed pricing strategies, target segments, and monetization logic.
+ */
 export function generateBusinessModels(
   problem: Problem | null,
   solutionDirection: string | null,
@@ -326,7 +357,9 @@ export function generateBusinessModels(
       pricingStructure: `Starter: $1,200/yr // Professional: $4,800/yr // Enterprise: Custom Contract`,
       customerSegment: `Tier-1 Campus Administrators and Mid-market Corporate Directors`,
       revenueStream: `Recurring B2B Annual Software Licensing and Premium Technical Integration Credits`,
-      growthStrategy: `Partner with local governance committees to run subsidized pilots, establishing a standard for procurement.`
+      growthStrategy: `Partner with local governance committees to run subsidized pilots, establishing a standard for procurement.`,
+      potentialStrengths: "Predictable recurring revenue, clear corporate monetization path.",
+      potentialRisks: "Long enterprise sales cycles, high custom integration overhead."
     },
     {
       id: "biz-model-1",
@@ -339,7 +372,9 @@ export function generateBusinessModels(
       pricingStructure: `Standard Listing: Free // Platform Brokerage Fee: 4.5% of transaction value // Premium Match: $2.99`,
       customerSegment: `Campus Community Peers and Local Retail Service Providers`,
       revenueStream: `Transactional Brokerage Commissions and Featured Merchant Visibility Subscriptions`,
-      growthStrategy: `Seed initial transaction volume by distributing $5 test credits to the first 500 registered campus users.`
+      growthStrategy: `Seed initial transaction volume by distributing $5 test credits to the first 500 registered campus users.`,
+      potentialStrengths: "Viral peer network loop, low direct inventory cost.",
+      potentialRisks: "Difficult supply/demand balance challenge, thin margins."
     },
     {
       id: "biz-model-2",
@@ -352,7 +387,9 @@ export function generateBusinessModels(
       pricingStructure: `Developer: Free // Professional: $89/mo (up to 100k calls) // Scale Node: $0.001 per API request`,
       customerSegment: `Third-party Developers, Research Labs, and Corporate Systems Engineers`,
       revenueStream: `Metered API Request Fees and Dedicated Enterprise API Hosting SLAs`,
-      growthStrategy: `Integrate with popular open-source dev suites to provide plug-and-play SDK modules for Slack/Discord.`
+      growthStrategy: `Integrate with popular open-source dev suites to provide plug-and-play SDK modules for Slack/Discord.`,
+      potentialStrengths: "Highly scalable infrastructure design, strong developer affinity.",
+      potentialRisks: "Variable query usage, database outbound network limits."
     },
     {
       id: "biz-model-3",
@@ -365,7 +402,9 @@ export function generateBusinessModels(
       pricingStructure: `Base Tier: Free // Premium Access: $6.99/mo // Annual Pass: $49.99/yr`,
       customerSegment: `University Students, Young Professionals, and General Tech Consumers`,
       revenueStream: `Direct-to-Consumer Recurring Subscriptions and In-app Specialized Feature Unlocks`,
-      growthStrategy: `Offer viral referral credits allowing users to unlock three months of Premium for every two friends onboarded.`
+      growthStrategy: `Offer viral referral credits allowing users to unlock three months of Premium for every two friends onboarded.`,
+      potentialStrengths: "Frictionless direct-to-consumer signup flow, clear user pain cure.",
+      potentialRisks: "High customer churn, relies heavily on continuous user engagement."
     }
   ];
 
@@ -405,8 +444,8 @@ export function generateAdvisorAdvice(
       id: "adv-replace-tech",
       title: "Simplify Bloated Tech Stack",
       explanation: `You selected Spring Boot, PostgreSQL, Kafka, or Kubernetes for a student-focused campus project. You're building enterprise infrastructure instead of a product. Switch to FastAPI or Node.js and deploy to Vercel or Supabase to spend the saved time actually improving your product demo.`,
-      expectedImpact: "Removes complex backend infrastructure lockouts and speeds up build execution.",
-      tradeoffs: "+20 Execution Feasibility, -5 Innovation.",
+      expectedImpact: "Improves build feasibility and removes runtime setup bottlenecks.",
+      tradeoffs: "Strong boost to technical feasibility, slight impact on innovation metrics.",
       status: 'pending',
       scoreModifiers: { execution: 20, innovation: -5 },
       mentorPersona: {
@@ -432,8 +471,8 @@ export function generateAdvisorAdvice(
       id: "adv-reduce-scope",
       title: "Prune Bloated MVP Backlog",
       explanation: `Your backlog has ${features.length} features, including multiple high-effort tasks. This is a 24-hour hackathon, not a multi-month VC-backed startup milestone. Let's prune the low-impact Nice-to-Have features and consolidate your scope to secure demo stability.`,
-      expectedImpact: "Prunes low-impact backlog nodes and secures execution stability.",
-      tradeoffs: "+15 Execution Feasibility, -5 Innovation, +5 Design.",
+      expectedImpact: "Reduces visual clutter and increases execution stability.",
+      tradeoffs: "Improves execution complexity, slightly reduces broad feature scope.",
       status: 'pending',
       scoreModifiers: { execution: 15, innovation: -5, design: 5 },
       mentorPersona: {
@@ -457,8 +496,8 @@ export function generateAdvisorAdvice(
       id: "adv-move-slide",
       title: "Fix Slide Deck Narrative Flow",
       explanation: `You put the Tech Stack slide before the Problem slide. You are explaining your database schema before the judges even know what customer pain point you are solving. Let's move the Problem slide to the very front.`,
-      expectedImpact: "Reorders slides to present the problem context before technical details.",
-      tradeoffs: "+15 Pitch Potential, +5 Design.",
+      expectedImpact: "Reorders slide sequence to put customer pain point context first.",
+      tradeoffs: "High impact on presentation clarity, no technical build cost.",
       status: 'pending',
       scoreModifiers: { pitch: 15, design: 5 },
       mentorPersona: {
@@ -482,8 +521,8 @@ export function generateAdvisorAdvice(
       id: "adv-pilot-strategy",
       title: "Establish Campus Pilot Focus",
       explanation: `Your current customer segment strategy is far too broad for a 24-hour hackathon prototype. Selling annual enterprise contracts immediately is a pipe dream. Let's refine your business model to focus strictly on a high-margin Campus Pilot.`,
-      expectedImpact: "Pivots value propositions and customer descriptions to local pilot markets.",
-      tradeoffs: "+15 Pitch Potential, +5 Design, -5 Execution.",
+      expectedImpact: "Establishes a highly realistic local wedge market to pitch.",
+      tradeoffs: "Increases pitch strength, adds localized pilot boundary requirements.",
       status: 'pending',
       scoreModifiers: { pitch: 15, design: 5, execution: -5 },
       mentorPersona: {
@@ -507,8 +546,8 @@ export function generateAdvisorAdvice(
         id: "adv-increase-differentiation",
         title: "Amplify Strategic Tech Moat",
         explanation: `Your active stack is clean, but lacks a high-innovation hook. In a competitive hackathon, adding LLM capabilities makes the demo feel like magic. Let's integrate the Gemini API to run a vector classification engine.`,
-        expectedImpact: "Boosts competitive differentiation and judge wow-factor.",
-        tradeoffs: "+25 Innovation, -10 Execution, +5 Pitch.",
+        expectedImpact: "High sponsor alignment and interactive prototype wow-factor.",
+        tradeoffs: "Boosts innovation potential, increases tech stack difficulty.",
         status: 'pending',
         scoreModifiers: { innovation: 25, execution: -10, pitch: 5 },
         mentorPersona: {
@@ -530,8 +569,8 @@ export function generateAdvisorAdvice(
         id: "adv-user-journey",
         title: "Insert User Storyboard",
         explanation: `Your slides present features perfectly, but miss the human element. Let's insert a User Journey slide to trace a student persona experiencing the core benefit of the application.`,
-        expectedImpact: "Improves storytelling and emotional hook for the judges.",
-        tradeoffs: "+12 Pitch Potential, +5 Design.",
+        expectedImpact: "Improves storytelling and creates an emotional hook.",
+        tradeoffs: "Polishes presentation flow and deck design layout.",
         status: 'pending',
         scoreModifiers: { pitch: 12, design: 5 },
         mentorPersona: {
@@ -552,8 +591,8 @@ export function generateAdvisorAdvice(
       id: "adv-customer-focus",
       title: "Adopt High-Margin Premium Tier",
       explanation: `Your monetization model is a bit weak on unit economics. Let's add a clear Premium SaaS subscription tier for administrators to show the judges you know how to scale.`,
-      expectedImpact: "Polishes commercial pricing layout and increases business viability.",
-      tradeoffs: "+10 Pitch Potential, +5 Execution.",
+      expectedImpact: "Strengthens commercial unit economics.",
+      tradeoffs: "Polishes business viability case, no visual impact.",
       status: 'pending',
       scoreModifiers: { pitch: 10, execution: 5 },
       mentorPersona: {

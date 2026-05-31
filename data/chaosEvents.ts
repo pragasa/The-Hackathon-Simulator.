@@ -19,13 +19,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Simplify Features",
         description: "Strip out real-time queries. Build static mock pipelines instead.",
-        effectText: "Execution +15, Innovation -10, Time remaining +30s",
+        effectText: "Significantly improves execution, dampens innovation, adds extra build time.",
         modifiers: { execution: 15, innovation: -10, timeOffset: 30 }
       },
       {
         label: "Push Through",
         description: "Re-index async requests and build a lightweight cache interface over the API.",
-        effectText: "Innovation +15, Execution -10, Time remaining -45s",
+        effectText: "Increases innovation potential, increases execution complexity, consumes build time.",
         modifiers: { innovation: 15, execution: -10, timeOffset: -45 }
       }
     ]
@@ -40,13 +40,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Patch Quickly",
         description: "Apply a simple local storage fallback state. Bypass the complex cluster entirely.",
-        effectText: "Execution +12, Design -8, Time remaining +15s",
+        effectText: "Improves execution stability, reduces design polish, slight build time boost.",
         modifiers: { execution: 12, design: -8, timeOffset: 15 }
       },
       {
         label: "Rebuild Properly",
         description: "Re-initialize the PostgreSQL tables and index schemas correctly from scratch.",
-        effectText: "Design +15, Execution +10, Time remaining -60s",
+        effectText: "Massive design polish, improves execution, consumes significant build time.",
         modifiers: { design: 15, execution: 10, timeOffset: -60 }
       }
     ]
@@ -61,13 +61,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Use Laptop Keyboard",
         description: "Grind along on the cramped laptop keys. Typing efficiency drops.",
-        effectText: "Execution -8, Time remaining -20s",
+        effectText: "Slightly reduces execution, consumes build time.",
         modifiers: { execution: -8, timeOffset: -20 }
       },
       {
         label: "Borrow Backup Board",
         description: "Scout neighboring tables to borrow a spare keyboard. Costs presentation credits.",
-        effectText: "Pitch -5, Time remaining +15s",
+        effectText: "Slightly reduces pitch effectiveness, adds build time.",
         modifiers: { pitch: -5, timeOffset: 15 }
       }
     ]
@@ -84,13 +84,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Cut Visual Scope",
         description: "Drop complex motion animations. Stick to basic structural grid layouts.",
-        effectText: "Execution +12, Design -10, Time remaining +30s",
+        effectText: "Improves execution, reduces visual design, adds build time.",
         modifiers: { execution: 12, design: -10, timeOffset: 30 }
       },
       {
         label: "Double Down Solo",
         description: "Write the interface CSS configurations yourself. Extremely exhausting.",
-        effectText: "Design +12, Pitch -8, Time remaining -50s",
+        effectText: "Polishes design layout, slight pitch penalty, consumes build time.",
         modifiers: { design: 12, pitch: -8, timeOffset: -50 }
       }
     ]
@@ -105,13 +105,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Execute Pivot",
         description: "Pivot the MVP now! Re-orient under a brand-new startup direction.",
-        effectText: "Innovation +25, Execution -20, Design -10",
+        effectText: "Massive innovation breakthrough, severe execution complexity, dampens visual design.",
         modifiers: { innovation: 25, execution: -20, design: -10 }
       },
       {
         label: "Stay Focused",
         description: "Politely decline. Stay disciplined and focus strictly on your active backlog path.",
-        effectText: "Execution +15, Innovation -5, Time remaining +15s",
+        effectText: "Improves execution feasibility, slight innovation decrease, adds build time.",
         modifiers: { execution: 15, innovation: -5, timeOffset: 15 }
       }
     ]
@@ -126,13 +126,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Proceed Blindly",
         description: "Keep building the project according to current specifications without external feedback.",
-        effectText: "Execution +5, Innovation +5",
+        effectText: "Slightly improves execution and innovation metrics.",
         modifiers: { execution: 5, innovation: 5 }
       },
       {
         label: "Wait Near Rooms",
         description: "Wait patiently in the hallway. Costs precious time, but secures helpful visual metrics.",
-        effectText: "Pitch +12, Time remaining -35s",
+        effectText: "Strengthens pitch deck storyboard, consumes build time.",
         modifiers: { pitch: 12, timeOffset: -35 }
       }
     ]
@@ -149,13 +149,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Adopt Sponsor API",
         description: "Integrate the model for instant innovation boosts and jury sponsorship matches.",
-        effectText: "Innovation +20, Execution +5, Bonus +10",
+        effectText: "High innovation potential, slight execution benefit, unlocks strategic bonus.",
         modifiers: { innovation: 20, execution: 5, bonus: 10 }
       },
       {
         label: "Ignore (Stay Lean)",
         description: "Stay focused on your active architecture configuration to avoid build complexity.",
-        effectText: "Execution +10, Time remaining +15s",
+        effectText: "Improves execution stability, adds build time.",
         modifiers: { execution: 10, timeOffset: 15 }
       }
     ]
@@ -170,13 +170,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Drink Up Instantly",
         description: "Developers surge in energy and focus levels.",
-        effectText: "Execution +10, Time remaining +20s",
+        effectText: "Improves execution, adds build time.",
         modifiers: { execution: 10, timeOffset: 20 }
       },
       {
         label: "Distribute to Neighbors",
         description: "Build excellent relationships with adjacent startup teams.",
-        effectText: "Pitch +12, Bonus +5",
+        effectText: "Improves presentation flow, minor strategic bonus.",
         modifiers: { pitch: 12, bonus: 5 }
       }
     ]
@@ -193,13 +193,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Optimize Green Operations",
         description: "Adopt low-emission server templates and throttle background sync loops.",
-        effectText: "Innovation +12, Execution -10, Bonus +10",
+        effectText: "Improves innovation, increases execution complexity, unlocks strategic bonus.",
         modifiers: { innovation: 12, execution: -10, bonus: 10 }
       },
       {
         label: "Highlight Eco USP",
         description: "Incorporate environmental metrics directly into your elevator pitch summary.",
-        effectText: "Pitch +15, Design +5",
+        effectText: "Strengthens presentation storyboard and visual design.",
         modifiers: { pitch: 15, design: 5 }
       }
     ]
@@ -214,13 +214,13 @@ export const CHAOS_EVENTS: ChaosEvent[] = [
       {
         label: "Condense Presentation",
         description: "Compact talking points. Omit complex database explanations.",
-        effectText: "Pitch +15, Innovation -8",
+        effectText: "Improves presentation pitch, slight decrease in absolute innovation.",
         modifiers: { pitch: 15, innovation: -8 }
       },
       {
         label: "Focus on Features Demo",
         description: "Eject slides and perform a fast, direct prototype walkthrough.",
-        effectText: "Execution +12, Pitch +8, Time remaining -20s",
+        effectText: "Improves execution and pitch potential, consumes build time.",
         modifiers: { execution: 12, pitch: 8, timeOffset: -20 }
       }
     ]

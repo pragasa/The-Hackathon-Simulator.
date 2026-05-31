@@ -20,6 +20,7 @@ import { generatePRD } from '@/lib/prdGenerator';
 import { JUDGES } from '@/data/judges';
 import { generateJudgeFeedback } from '@/data/judgeComments';
 import { classifyProjectArchetype } from '@/lib/archetypes';
+import { playWinTheme, playLoseTheme, playScoreChord } from '@/lib/sound';
 
 // ─── Score categories ───────────────────────────────────────────────────────────
 
@@ -255,6 +256,18 @@ export default function ResultScreen() {
     return "F";
   };
   const grade = getGrade(finalScore100);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const projectGrade = getGrade(feedback.score);
+    if (projectGrade === "S" || projectGrade === "A") {
+      playWinTheme();
+    } else if (projectGrade === "D" || projectGrade === "F") {
+      playLoseTheme();
+    } else {
+      playScoreChord();
+    }
+  }, [feedback]);
 
   const archetype = classifyProjectArchetype({
     techStack,

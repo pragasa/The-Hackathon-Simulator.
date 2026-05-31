@@ -57,7 +57,13 @@ import {
   playWarningTick,
   playWheelSpinClick,
   playScoreChord,
-  playUnlockArpeggio
+  playUnlockArpeggio,
+  playMilestoneUnlock,
+  playCategoryComplete,
+  playWinTheme,
+  playLoseTheme,
+  playRevealTension,
+  playRevealSuccess
 } from "@/lib/sound";
 
 // --- Standard Reusable Stage Wrapper ---------------------------------------
@@ -1254,8 +1260,11 @@ function UspStage() {
             <span className="font-bold text-neutral-900 block">{opt.name.toUpperCase()}</span>
             <span className="text-[9px] text-muted-foreground mt-2 block font-sans font-light leading-relaxed">
               {opt.desc}
-              <span className="block mt-2.5 font-mono text-[7.5px] text-neutral-450 select-none">
-                {opt.tradeoffInfo}
+              <span className="block mt-2.5 font-mono text-[8px] text-emerald-600 select-none leading-normal">
+                ▲ ADVANTAGE: {opt.advantages}
+              </span>
+              <span className="block mt-1 font-mono text-[8px] text-rose-500 select-none leading-normal">
+                ▼ CHALLENGE: {opt.challenges}
               </span>
             </span>
           </button>
@@ -1481,12 +1490,16 @@ function FeaturesStage() {
                             {feat.description}
                           </span>
                           <div className="flex items-center gap-1.5 mt-2.5 text-[7px] tracking-wide font-mono uppercase">
-                            <span className="text-neutral-400">EFFORT:</span>
+                            <span className="text-neutral-400">COMPLEXITY:</span>
                             <span className={cn(
-                              feat.effort === 'low' ? 'text-green-600 font-bold' :
+                              feat.effort === 'low' ? 'text-emerald-600 font-bold' :
                               feat.effort === 'medium' ? 'text-amber-600 font-bold' :
                               'text-rose-600 font-bold'
-                            )}>{feat.effort}</span>
+                            )}>
+                              {feat.effort === 'low' ? 'EASY BUILD' :
+                               feat.effort === 'medium' ? 'MODERATE BUILD' :
+                               'AMBITIOUS BUILD'}
+                            </span>
                             <span className="text-neutral-350">|</span>
                             <span className="text-neutral-400">IMPACT:</span>
                             <span className="text-neutral-900 font-bold">{feat.impact}</span>
@@ -2214,12 +2227,20 @@ function BusinessModelStage() {
             >
               <div>
                 <span className="font-bold text-neutral-900 block text-[11px]">{opt.name.toUpperCase()}</span>
-                <span className="text-[8px] text-neutral-400 italic block mt-1 font-sans">
+                <span className="text-[8px] text-neutral-450 italic block mt-1 font-sans">
                   Value Prop: {opt.valueProp}
                 </span>
                 <span className="text-[9px] text-muted-foreground mt-2 block font-sans font-light leading-relaxed">
                   {opt.desc}
                 </span>
+                <div className="mt-2 space-y-1 select-none">
+                  <span className="block text-[8px] text-emerald-600 font-mono leading-normal">
+                    ▲ STRENGTH: {opt.potentialStrengths}
+                  </span>
+                  <span className="block text-[8px] text-rose-500 font-mono leading-normal">
+                    ▼ RISK: {opt.potentialRisks}
+                  </span>
+                </div>
               </div>
               <div className="mt-3 pt-2 border-t border-dashed border-neutral-200 flex justify-between items-center text-[8.5px]">
                 <span className="text-neutral-400 uppercase">RISK LEVEL:</span>
@@ -2258,6 +2279,17 @@ function BusinessModelStage() {
               <div className="p-3 bg-neutral-950 rounded border border-neutral-800 space-y-1">
                 <span className="text-neutral-500 block uppercase text-[8px]">FUTURE ROADMAP:</span>
                 <span className="text-neutral-200 font-sans text-[10px] leading-relaxed">{activeModel.growthStrategy}</span>
+              </div>
+            </div>
+            
+            <div className="border-t border-neutral-800 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="p-3 bg-neutral-950 rounded border border-neutral-800 space-y-1">
+                <span className="text-emerald-400 block uppercase text-[8px] font-bold">▲ KEY STRENGTH:</span>
+                <span className="text-neutral-200 font-sans text-[10px] leading-relaxed">{activeModel.potentialStrengths}</span>
+              </div>
+              <div className="p-3 bg-neutral-950 rounded border border-neutral-800 space-y-1">
+                <span className="text-rose-400 block uppercase text-[8px] font-bold">▼ CRITICAL RISK:</span>
+                <span className="text-neutral-200 font-sans text-[10px] leading-relaxed">{activeModel.potentialRisks}</span>
               </div>
             </div>
             
@@ -2654,6 +2686,7 @@ function JudgingStage() {
     nextStage,
     activeModifiers,
     gameMode,
+    deckNarrativeQuality,
   } = useGameStore();
 
   const [loadingStep, setLoadingStep] = useState(0);
@@ -2662,33 +2695,31 @@ function JudgingStage() {
 
   const stagedSteps = [
     {
-      key: "architecture",
-      label: "Reviewing Architecture",
+      key: "innovation",
+      label: "Evaluating Innovation",
       getLog: () => {
-        const techs = techStack.map(t => t.name).join(", ");
-        return `Scanning tech stack: [${techs || "None Selected"}]. Checking framework synergies...`;
-      }
-    },
-    {
-      key: "scope",
-      label: "Validating Scope",
-      getLog: () => {
-        const must = features.length;
-        return `Auditing prioritized backlog components. Found ${must} scoped features...`;
-      }
-    },
-    {
-      key: "business",
-      label: "Assessing Business Fit",
-      getLog: () => {
-        return `Matching positioning: "${usp || "N/A"}" combined with "${businessModel || "N/A"}" monetization...`;
+        return `Checking originality. Analyzing chosen unique advantage: "${usp || "None"}".`;
       }
     },
     {
       key: "execution",
-      label: "Evaluating Execution",
+      label: "Evaluating Execution Quality",
       getLog: () => {
-        return `Integrating ${currentJudge?.name || "Evaluator"}'s specialized weights and parameters...`;
+        return `Checking framework implementation depth. Scoped features: ${features.length} Must-Have components.`;
+      }
+    },
+    {
+      key: "business",
+      label: "Assessing Business Viability",
+      getLog: () => {
+        return `Analyzing market strategy. Monetization framework: "${businessModel || "None"}".`;
+      }
+    },
+    {
+      key: "pitch",
+      label: "Measuring Pitch Strength",
+      getLog: () => {
+        return `Reviewing pitch deck structure. Narrative quality: "${deckNarrativeQuality || "Unstructured"}".`;
       }
     }
   ];
@@ -2697,19 +2728,27 @@ function JudgingStage() {
     if (evaluationComplete || !currentJudge) return;
 
     let step = 0;
-    playWheelSpinClick(); // initial tick
+    playRevealTension(); // Initial suspense tick
     const interval = setInterval(() => {
       if (step < 3) {
         setCompletedSteps(prev => [...prev, stagedSteps[step].key]);
+        playRevealSuccess(); // Checkmark reveal sound
         step++;
         setLoadingStep(step);
-        playWheelSpinClick();
+        setTimeout(() => {
+          if (step < 4) {
+            playRevealTension(); // Next category suspense sound
+          }
+        }, 150);
       } else {
-        setCompletedSteps(["architecture", "scope", "business", "execution"]);
+        setCompletedSteps(["innovation", "execution", "business", "pitch"]);
+        playRevealSuccess(); // Last category checkmark sound
         clearInterval(interval);
-        performEvaluation();
+        setTimeout(() => {
+          performEvaluation();
+        }, 300);
       }
-    }, 1200);
+    }, 1500);
 
     return () => clearInterval(interval);
   }, [currentJudge]);
@@ -3246,6 +3285,18 @@ function ResultsStage() {
     return "F";
   };
   const grade = getGrade(finalScore100);
+
+  useEffect(() => {
+    if (!feedback) return;
+    const projectGrade = getGrade(feedback.score);
+    if (projectGrade === "S" || projectGrade === "A") {
+      playWinTheme();
+    } else if (projectGrade === "D" || projectGrade === "F") {
+      playLoseTheme();
+    } else {
+      playScoreChord();
+    }
+  }, [feedback]);
 
   const renderFormattedText = (text: string) => {
     if (!text) return "";
@@ -4409,10 +4460,199 @@ function ChaosEventOverlay() {
   );
 }
 
+function ProjectHealthDashboard() {
+  const { stage, score, techStack, features, usp, businessModel, pitchDeckScore } = useGameStore();
+
+  const currentIdx = STAGE_ORDER.indexOf(stage);
+  const isInnovationActive = currentIdx >= STAGE_ORDER.indexOf('techStack');
+  const isFeasibilityActive = currentIdx >= STAGE_ORDER.indexOf('usp');
+  const isExecutionActive = currentIdx >= STAGE_ORDER.indexOf('pitchDeck');
+  const isPitchActive = currentIdx >= STAGE_ORDER.indexOf('mentor');
+  const isViabilityActive = currentIdx >= STAGE_ORDER.indexOf('pitchPrep');
+
+  const innovation = Math.max(0, Math.min(100, score.innovation));
+  const execution = Math.max(0, Math.min(100, score.execution));
+
+  const techDifficultySum = techStack.reduce((sum, t) => sum + (t.difficulty || 0), 0);
+  const highEffortFeaturesCount = features.filter(f => f.effort === 'high').length;
+  const feasibility = Math.max(10, Math.min(100, 95 - (techDifficultySum * 3.5) - (highEffortFeaturesCount * 12)));
+
+  const hasUsp = !!usp;
+  const hasBizModel = !!businessModel;
+  const pitchVal = pitchDeckScore || score.pitch || 45;
+  const viability = Math.round(
+    (hasUsp ? 30 : 0) + (hasBizModel ? 30 : 0) + (pitchVal * 0.4)
+  );
+
+  const pitchStrength = Math.max(pitchDeckScore, score.pitch);
+
+  const activeStatus = {
+    INNOVATION: isInnovationActive,
+    EXECUTION: isExecutionActive,
+    'TECH FEASIBILITY': isFeasibilityActive,
+    'BIZ VIABILITY': isViabilityActive,
+    'PITCH STRENGTH': isPitchActive,
+  };
+
+  const [analyzingCategories, setAnalyzingCategories] = useState<Record<string, boolean>>({});
+  const [highlightedCategories, setHighlightedCategories] = useState<Record<string, boolean>>({});
+
+  const prevActiveRef = useRef<Record<string, boolean>>({});
+  const completionTriggers = useRef<Set<string>>(new Set());
+
+  // 1. Detect newly activated categories
+  useEffect(() => {
+    const newlyActivated: string[] = [];
+    Object.entries(activeStatus).forEach(([label, active]) => {
+      if (active && !prevActiveRef.current[label]) {
+        newlyActivated.push(label);
+      }
+    });
+
+    if (newlyActivated.length > 0) {
+      setAnalyzingCategories(prev => {
+        const next = { ...prev };
+        newlyActivated.forEach(lbl => {
+          next[lbl] = true;
+        });
+        return next;
+      });
+
+      playMilestoneUnlock();
+
+      setHighlightedCategories(prev => {
+        const next = { ...prev };
+        newlyActivated.forEach(lbl => {
+          next[lbl] = true;
+        });
+        return next;
+      });
+
+      newlyActivated.forEach(lbl => {
+        setTimeout(() => {
+          setAnalyzingCategories(prev => {
+            const next = { ...prev };
+            delete next[lbl];
+            return next;
+          });
+        }, 1500);
+
+        setTimeout(() => {
+          setHighlightedCategories(prev => {
+            const next = { ...prev };
+            delete next[lbl];
+            return next;
+          });
+        }, 3000);
+      });
+    }
+
+    prevActiveRef.current = { ...activeStatus };
+  }, [isInnovationActive, isFeasibilityActive, isExecutionActive, isPitchActive, isViabilityActive]);
+
+  // 2. Play category completion triggers when metrics change
+  useEffect(() => {
+    const metrics = [
+      { label: 'INNOVATION', value: innovation },
+      { label: 'EXECUTION', value: execution },
+      { label: 'TECH FEASIBILITY', value: feasibility },
+      { label: 'BIZ VIABILITY', value: viability },
+      { label: 'PITCH STRENGTH', value: pitchStrength }
+    ];
+
+    metrics.forEach(m => {
+      const active = activeStatus[m.label as keyof typeof activeStatus];
+      if (!active || analyzingCategories[m.label]) return;
+
+      const val = m.value;
+      let threshold: string | null = null;
+      if (val >= 95) threshold = 'outstanding';
+      else if (val >= 85) threshold = 'excellent';
+      else if (val >= 70) threshold = 'healthy';
+
+      if (threshold) {
+        const key = `${m.label}-${threshold}`;
+        if (!completionTriggers.current.has(key)) {
+          completionTriggers.current.add(key);
+          playCategoryComplete();
+          
+          setHighlightedCategories(prev => ({ ...prev, [m.label]: true }));
+          setTimeout(() => {
+            setHighlightedCategories(prev => {
+              const next = { ...prev };
+              delete next[m.label];
+              return next;
+            });
+          }, 2000);
+        }
+      }
+    });
+  }, [innovation, execution, feasibility, viability, pitchStrength, analyzingCategories]);
+
+  const getMeterBar = (val: number) => {
+    const filled = Math.round(val / 10);
+    return {
+      bar: '█'.repeat(filled) + '░'.repeat(10 - filled),
+      color: val >= 70 ? 'text-emerald-500' : val >= 40 ? 'text-amber-500' : 'text-rose-500'
+    };
+  };
+
+  const metrics = [
+    { label: 'INNOVATION', value: innovation },
+    { label: 'EXECUTION', value: execution },
+    { label: 'TECH FEASIBILITY', value: feasibility },
+    { label: 'BIZ VIABILITY', value: viability },
+    { label: 'PITCH STRENGTH', value: pitchStrength }
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto mb-4 p-3 bg-neutral-900 border border-neutral-950 text-white rounded-md shadow-md font-mono text-[10px]">
+      <div className="flex items-center justify-between border-b border-neutral-800 pb-1.5 mb-2">
+        <span className="text-neutral-400 font-bold uppercase tracking-wider">▲ PROJECT HEALTH MONITOR</span>
+        <span className="text-neutral-500 text-[8px] animate-pulse">● LIVE TELEMETRY</span>
+      </div>
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        {metrics.map((m) => {
+          const active = activeStatus[m.label as keyof typeof activeStatus];
+          const analyzing = analyzingCategories[m.label];
+          const highlighted = highlightedCategories[m.label];
+          const { bar, color } = getMeterBar(m.value);
+
+          return (
+            <div
+              key={m.label}
+              className={cn(
+                "p-2 bg-neutral-950 rounded border transition-all duration-300 space-y-1",
+                highlighted ? "border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]" : "border-neutral-800",
+                analyzing ? "border-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.2)] animate-pulse" : ""
+              )}
+            >
+              <span className="text-neutral-500 block text-[8px] tracking-tight">{m.label}</span>
+              {analyzing ? (
+                <span className="block font-bold tracking-tight text-[11px] font-mono leading-none text-amber-500">
+                  ANALYZING...
+                </span>
+              ) : !active ? (
+                <span className="block font-mono text-[9px] text-neutral-600 leading-none">
+                  NOT EVALUATED
+                </span>
+              ) : (
+                <span className={`block font-bold tracking-tight text-[11px] font-mono leading-none ${color}`}>
+                  {bar}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // --- Main Conditional Stage Orchestrator / GamePage ---------------------------
 
 export default function GamePage() {
-  const { stage, isGameStarted, startGame, tickTimer, isTimerPaused, activeChaosEvent } = useGameStore();
+  const { stage, isGameStarted, startGame, tickTimer, isTimerPaused, activeChaosEvent, selectedProblem } = useGameStore();
 
   useEffect(() => {
     if (!isGameStarted) {
@@ -4478,6 +4718,7 @@ export default function GamePage() {
   return (
     <GameLayout>
       <div className="relative w-full h-full min-h-screen">
+        {selectedProblem && stage !== 'results' && <ProjectHealthDashboard />}
         <AnimatePresence mode="wait">{renderStageContent()}</AnimatePresence>
         <AnimatePresence>
           {activeChaosEvent && <ChaosEventOverlay />}
