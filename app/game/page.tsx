@@ -5269,23 +5269,9 @@ function ProjectHealthDashboard() {
 
 function TeammateAdviceNotification() {
   const { activeTeammateAdvice, team, applyTeammateAdvice, rejectTeammateAdvice } = useGameStore();
-  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const adviceList = Object.entries(activeTeammateAdvice);
   if (adviceList.length === 0) return null;
-
-  const toggleExpand = (id: string) => {
-    setExpandedIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-    playMutedClick();
-  };
 
   return (
     <div className="max-w-4xl mx-auto px-4 mt-2 space-y-2 text-left font-mono text-[11px]">
@@ -5315,27 +5301,6 @@ function TeammateAdviceNotification() {
           );
         }
 
-        const isExpanded = expandedIds.has(teammateId);
-
-        if (!isExpanded) {
-          return (
-            <div key={teammateId} className="border border-neutral-350 bg-amber-50/75 rounded px-3 py-2 shadow-sm flex items-center justify-between gap-3 animate-fade-in">
-              <div className="flex items-center gap-1.5 text-neutral-900 font-medium">
-                <span className="text-sm">{teammate.avatar}</span>
-                <span>{teammate.name} ({teammate.role}) has a suggestion.</span>
-              </div>
-              <Button
-                size="xs"
-                variant="outline"
-                onClick={() => toggleExpand(teammateId)}
-                className="text-[10px] h-6 cursor-pointer border-neutral-400 text-neutral-800 hover:bg-neutral-100"
-              >
-                ASK FOR OPINION
-              </Button>
-            </div>
-          );
-        }
-
         return (
           <div key={teammateId} className="border-2 border-neutral-900 bg-amber-50 rounded p-4 shadow-[3px_3px_0px_rgba(0,0,0,1)] space-y-3 animate-fade-in">
             <div className="flex items-start justify-between border-b border-neutral-250 pb-2">
@@ -5347,10 +5312,13 @@ function TeammateAdviceNotification() {
                 </div>
               </div>
               <button
-                onClick={() => toggleExpand(teammateId)}
-                className="text-neutral-455 hover:text-neutral-900 text-[10px] font-bold"
+                onClick={() => {
+                  playMutedClick();
+                  rejectTeammateAdvice(teammateId);
+                }}
+                className="text-neutral-455 hover:text-red-600 text-[10px] font-bold"
               >
-                [COLLAPSE]
+                [DISMISS]
               </button>
             </div>
 
@@ -5358,9 +5326,6 @@ function TeammateAdviceNotification() {
               <h4 className="text-neutral-900 font-bold uppercase text-[11px] font-mono leading-tight">
                 {advice.title}
               </h4>
-              <p className="text-neutral-700 font-sans font-light leading-relaxed text-[11px] bg-neutral-50/50 border border-neutral-200 rounded p-2.5 italic">
-                {advice.explanation}
-              </p>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-neutral-200/50 text-[10px] text-neutral-650 font-sans font-light">
@@ -5573,21 +5538,23 @@ export default function GamePage() {
 
   const getSubtleGatingStatus = (teammate: Teammate) => {
     const role = (teammate.role || "").toLowerCase();
-    const name = (teammate.name || "").toLowerCase();
-    if (name.includes("tanmay") || role.includes("backend") || role.includes("database")) {
+    if (role.includes("backend") || role.includes("database") || role.includes("developer") || role.includes("full stack") || role.includes("fullstack") || role.startsWith("dev")) {
       return "Watching architecture.";
     }
-    if (name.includes("priya") || role.includes("designer") || role.includes("design") || role.includes("frontend")) {
+    if (role.includes("designer") || role.includes("ux") || role.includes("ui ") || role.includes("product design") || role.includes("frontend") || role.includes("front-end")) {
       return "Watching product decisions.";
     }
-    if (role.includes("strategist") || role.includes("founder") || role.includes("business")) {
+    if (role.includes("strategist") || role.includes("founder") || role.includes("business") || role.includes("co-founder") || role.includes("analyst")) {
       return "Watching business model.";
     }
-    if (name.includes("riya") || role.includes("ai") || role.includes("ml")) {
+    if ((role.includes("ai") && !role.includes("assistant")) || role.includes("ml") || role.includes("machine learning") || role.includes("data scientist")) {
       return "Watching AI direction.";
     }
-    if (role.includes("researcher")) {
+    if (role.includes("researcher") || role.includes("research")) {
       return "Watching project selection.";
+    }
+    if (role.includes("pitch") || role.includes("marketing") || role.includes("sales")) {
+      return "Watching pitch deck.";
     }
     return "Watching project details.";
   };

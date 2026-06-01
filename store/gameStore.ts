@@ -337,47 +337,61 @@ export function playNotificationSound() {
 /**
  * Checks context thresholds for a teammate.
  */
+/** Pure role-based keyword matcher — returns a normalized role category from any role string */
+function getRoleCategory(role: string): 'backend' | 'designer' | 'frontend' | 'strategist' | 'ai' | 'pitch' | 'researcher' | 'chaiwala' | 'general' {
+  const r = role.toLowerCase();
+  if (r.includes('chaiwala') || r.includes('chai')) return 'chaiwala';
+  if (r.includes('backend') || r.includes('database') || r.includes('full stack') || r.includes('fullstack') || r.includes('developer') || r.includes(' dev') || r.startsWith('dev')) return 'backend';
+  if (r.includes('ai engineer') || r.includes('ai specialist') || r.includes('ml engineer') || r.includes('data scientist') || r.includes('machine learning') || (r.includes('ai') && !r.includes('assistant'))) return 'ai';
+  if (r.includes('designer') || r.includes('ux') || r.includes('ui ') || r.includes('product design')) return 'designer';
+  if (r.includes('frontend') || r.includes('front-end') || r.includes('front end')) return 'frontend';
+  if (r.includes('strategist') || r.includes('founder') || r.includes('business') || r.includes('co-founder') || r.includes('analyst')) return 'strategist';
+  if (r.includes('pitch') || r.includes('marketing') || r.includes('sales')) return 'pitch';
+  if (r.includes('researcher') || r.includes('research')) return 'researcher';
+  return 'general';
+}
+
 export function checkTeammateGating(teammate: Teammate, state: GameState): { isGated: boolean; reason: string; } {
   const role = (teammate.role || "").toLowerCase();
-  const name = (teammate.name || "").toLowerCase();
   const techStack = state.techStack || [];
   const hasUsp = !!state.usp || !!state.primaryUsp || !!state.secondaryUsp;
   const numFeatures = (state.features || []).length;
   const hasPitch = state.pitchDeck && state.pitchDeck.length > 0;
   const pitchCount = state.pitchDeck ? state.pitchDeck.length : 0;
+  const cat = getRoleCategory(role);
 
-  if (name.includes("tanmay") || role.includes("backend") || role.includes("database") || role.includes("developer") || role.includes("dev")) {
-    const hasBackend = techStack.some(t => t.category === 'Backend');
-    const hasDb = techStack.some(t => t.category === 'Database');
-    const hasHosting = techStack.some(t => t.category === 'Hosting / Infra' || t.category === 'Hosting');
+  if (cat === 'backend') {
+    const hasBackend = techStack.some(t => t.category === 'Backend' || t.category === 'backend');
+    const hasDb = techStack.some(t => t.category === 'Database' || t.category === 'database');
+    const hasHosting = techStack.some(t => t.category === 'Hosting / Infra' || t.category === 'Hosting' || t.category === 'devops');
     const hasThreeTech = techStack.length >= 3;
     if (hasBackend || hasDb || hasHosting || hasThreeTech) {
       return { isGated: false, reason: "Ready to review architecture" };
     }
     return { isGated: true, reason: "Watching architecture." };
-  } else if (name.includes("priya") || role.includes("designer") || role.includes("design") || role.includes("frontend")) {
+  } else if (cat === 'designer' || cat === 'frontend') {
     if (hasUsp || numFeatures >= 3 || hasPitch) {
       return { isGated: false, reason: "Ready to review product design" };
     }
     return { isGated: true, reason: "Watching product decisions." };
-  } else if (role.includes("pitch") || name.includes("pitch")) {
+  } else if (cat === 'pitch') {
     if (hasUsp || pitchCount >= 3) {
       return { isGated: false, reason: "Ready to review pitch deck" };
     }
     return { isGated: true, reason: "Waiting for pitch deck." };
-  } else if (role.includes("strategist") || role.includes("founder") || role.includes("business")) {
+  } else if (cat === 'strategist') {
     if (hasUsp || !!state.businessModel) {
       return { isGated: false, reason: "Ready to review business model" };
     }
     return { isGated: true, reason: "Watching business model." };
-  } else if (name.includes("riya") || role.includes("ai") || role.includes("ml")) {
-    const hasAiTech = techStack.some(t => t.category === 'AI / ML');
+  } else if (cat === 'ai') {
+    const hasAiTech = techStack.some(t => t.category === 'AI / ML' || t.category === 'ai');
     const hasAiSol = state.solutionDirection === 'ai-solution';
     if (hasAiTech || hasAiSol) {
       return { isGated: false, reason: "Ready to review AI features" };
     }
     return { isGated: true, reason: "Watching AI direction." };
-  } else if (role.includes("researcher")) {
+  } else if (cat === 'researcher') {
     if (state.selectedProblem) {
       return { isGated: false, reason: "Ready to review project" };
     }
@@ -423,16 +437,19 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
   if (!teammate) return null;
 
   const role = teammate.role || "";
-  const r = role.toLowerCase();
   const p = teammate.personality;
   const name = teammate.name;
+  const cat = getRoleCategory(role);
   
   const problemTitle = state.selectedProblem?.title || "our prototype";
-  const solution = state.solutionDirection || "solution";
   const activeUsp = state.usp || "our value proposition";
   const activeModel = state.businessModel || "our business strategy";
   const techNames = state.techStack.map(t => t.name).join(", ");
   const numFeatures = state.features.length;
+
+  // Helper: check if a tech exists in the current stack or the base pool
+  const hasTechInStack = (nameFragment: string) =>
+    state.techStack.some(t => t.name.toLowerCase().includes(nameFragment.toLowerCase()));
 
   let title = "Strategic Optimization";
   let observation = "";
@@ -444,7 +461,7 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
   let action = null as any;
   let logMessage = "";
 
-  if (r.includes("backend") || r.includes("database") || r.includes("developer") || r.includes("dev")) {
+  if (cat === 'backend') {
     title = "Database Architecture Improvement";
     const hasPostgres = state.techStack.some(t => t.id === 'tech-postgres' || t.name.toLowerCase().includes("postgres"));
     const hasSupabase = state.techStack.some(t => t.id === 'tech-supabase' || t.name.toLowerCase().includes("supabase"));
@@ -534,138 +551,102 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
       action = { type: 'reduce_scope', payload: {} };
       logMessage = `${name} pruned backend backlog feature ${featName}.`;
     }
-  } else if (r.includes("ai engineer") || r.includes("ai specialist") || r.includes("ai")) {
+  } else if (cat === 'ai') {
     title = "AI Model Selection Tuning";
-    const hasOpenAI = state.techStack.some(t => t.id === 'tech-openai' || t.name.toLowerCase().includes("openai"));
-    const hasGemini = state.techStack.some(t => t.id === 'tech-gemini' || t.name.toLowerCase().includes("gemini"));
+    const hasOpenAI = hasTechInStack("openai");
+    const hasGemini = hasTechInStack("gemini");
     
     if (hasOpenAI) {
       observation = `We are calling OpenAI API model endpoints for our solution solving ${problemTitle}.`;
       concern = "OpenAI API has higher response latency and model execution costs for dynamic UI content.";
-      recommendation = "Let's replace OpenAI API with Gemini API to utilize Gemini Flash models.";
+      recommendation = "Let's replace OpenAI API with Gemini API to utilize Gemini Flash models, which are faster and cheaper.";
       expectedImpact = "Decreases response latency and improves prototype design polish.";
       tradeoffs = "Slight differences in text completion formats.";
       modifiers = { execution: 12, design: 5 };
-      const geminiItem = {
-        id: "store-gemini",
-        name: "Gemini API",
-        icon: "layers",
-        category: "AI / ML" as const,
-        difficulty: 2,
-        synergies: []
-      };
-      action = {
-        type: 'replace_tech_directly',
-        payload: {
-          removeName: 'OpenAI',
-          addTech: geminiItem
-        }
-      };
+      const geminiItem = { id: "tech-gemini", name: "Gemini API", icon: "brain", category: "ai" as const, difficulty: 2, synergies: [] };
+      action = { type: 'replace_tech_directly', payload: { removeName: 'OpenAI', addTech: geminiItem } };
       logMessage = `${name} replaced OpenAI API with Gemini API.`;
     } else if (hasGemini) {
       observation = `We are calling Gemini API Flash model endpoints for ${problemTitle} with stack: ${techNames || "None."}`;
       concern = `Our prompting calls for all ${numFeatures} features might run slowly if we don't prune redundant input context.`;
-      recommendation = "Let's remove OpenAI or redundant tools if selected and focus strictly on Gemini Flash endpoints.";
+      recommendation = "Let's remove any duplicate AI tools and focus strictly on Gemini Flash endpoints for speed.";
       expectedImpact = "Reduces execution risk and speeds up API calls.";
-      tradeoffs = "Loses GPT-4 fallback options.";
+      tradeoffs = "Loses fallback model options.";
       modifiers = { execution: 10, innovation: 5 };
       action = { type: 'simplify_ai', payload: {} };
       logMessage = `${name} optimized the Gemini API pipeline.`;
     } else {
-      observation = `We are building a prototype for ${problemTitle} without integrating any LLM API models.`;
-      concern = "We need semantic capabilities to convince the judges of our product's intelligence.";
-      recommendation = "Let's add Gemini API to our stack. I can write the serverless model functions.";
-      expectedImpact = "Increases product innovation rating.";
-      tradeoffs = "Requires setting up environment API keys.";
+      observation = `We are building a prototype for ${problemTitle} without integrating any AI/LLM models.`;
+      concern = "We need semantic capabilities to convince the judges of our product's intelligence and innovation.";
+      recommendation = "Let's add Gemini API to our stack — it's fast, free to prototype with, and very impressive to judges.";
+      expectedImpact = "Increases product innovation and wow-factor rating significantly.";
+      tradeoffs = "Requires setting up environment API keys and writing prompt functions.";
       modifiers = { innovation: 18, execution: -5 };
-      const geminiItem = {
-        id: "store-gemini",
-        name: "Gemini API",
-        icon: "layers",
-        category: "AI / ML" as const,
-        difficulty: 2,
-        synergies: []
-      };
-      action = {
-        type: 'add_tech_directly',
-        payload: { techItem: geminiItem }
-      };
+      const geminiItem = { id: "tech-gemini", name: "Gemini API", icon: "brain", category: "ai" as const, difficulty: 2, synergies: [] };
+      action = { type: 'add_tech_directly', payload: { techItem: geminiItem } };
       logMessage = `${name} added Gemini API to the tech stack.`;
     }
-  } else if (r.includes("designer") || r.includes("design")) {
+  } else if (cat === 'designer') {
     title = "UX Interface Optimization";
     const lowestImpactFeature = state.features.length > 0 
       ? [...state.features].sort((a, b) => (a.impact === 'low' ? 0 : 1) - (b.impact === 'low' ? 0 : 1))[0]
       : null;
     const featName = lowestImpactFeature?.name || "complex components";
     
-    observation = `We are displaying our USP "${activeUsp}" via a complex feature set including ${featName}.`;
-    concern = `Users will be overwhelmed by this layout structure and abandon the onboarding flow across all ${numFeatures} features.`;
-    recommendation = `Let's remove the lower impact feature ${featName} and focus on a clean landing page layout.`;
-    expectedImpact = "Guarantees a clean, fully functional UI demo.";
-    tradeoffs = "Prunes the feature list.";
+    observation = `We are displaying our USP "${activeUsp}" via a complex feature set of ${numFeatures} features, including ${featName}.`;
+    concern = `Users will be overwhelmed by too many features and abandon the onboarding flow. The UI needs more breathing room.`;
+    recommendation = `As the designer, I'd say we drop the lower priority feature "${featName}" and focus on perfecting the core user journey.`;
+    expectedImpact = "Guarantees a clean, polished UI that wows judges on first impression.";
+    tradeoffs = "Reduces total feature count by one.";
     modifiers = { design: 15, execution: 5 };
     action = { type: 'reduce_scope', payload: {} };
     logMessage = `${name} pruned feature ${featName} to optimize UX landing page.`;
-  } else if (r.includes("frontend")) {
-    title = "Frontend Stack Migration";
-    const hasReact = state.techStack.some(t => t.id === 'tech-react' || t.name.toLowerCase().includes("react"));
-    const hasNext = state.techStack.some(t => t.id === 'tech-next' || t.name.toLowerCase().includes("next"));
+  } else if (cat === 'frontend') {
+    title = "Frontend Stack Optimization";
+    const hasReact = hasTechInStack("react");
+    const hasNext = hasTechInStack("next");
     
     if (hasReact && !hasNext) {
-      observation = `We are configuring custom React router and state hooks for the ${problemTitle} problem.`;
-      concern = `Building manual state management boilerplate for all ${numFeatures} features will leave us with no time for visual polish.`;
-      recommendation = "Let's switch React to Next.js to leverage Next.js App Router folders.";
-      expectedImpact = "Provides file-system routing out of the box and speeds up frontend build.";
-      tradeoffs = "Adds configuration file overhead.";
+      observation = `We are using React with custom routing for the ${problemTitle} problem.`;
+      concern = `Setting up manual state management and routing for all ${numFeatures} features eats into our demo time.`;
+      recommendation = "Migrating to Next.js gives us file-system routing and server components out of the box — way faster.";
+      expectedImpact = "Speeds up the frontend build and gives us SEO-friendly routes for free.";
+      tradeoffs = "Requires updating routing config files.";
       modifiers = { execution: 14, design: 5 };
-      const nextItem = {
-        id: "store-next",
-        name: "Next.js",
-        icon: "layers",
-        category: "Frontend" as const,
-        difficulty: 2,
-        synergies: []
-      };
-      action = {
-        type: 'replace_tech_directly',
-        payload: {
-          removeName: 'React',
-          addTech: nextItem
-        }
-      };
+      const nextItem = { id: "tech-next", name: "Next.js", icon: "layers", category: "frontend" as const, difficulty: 2, synergies: [] };
+      action = { type: 'replace_tech_directly', payload: { removeName: 'React', addTech: nextItem } };
       logMessage = `${name} migrated the frontend stack from React to Next.js.`;
     } else {
-      observation = `We have scheduled a large UI feature set of ${numFeatures} features for ${problemTitle}.`;
-      concern = "Building all these custom views will leave us with zero time for visual polish.";
-      recommendation = "Let's prune the lowest impact nice-to-have features so we can focus on polishing the core app views.";
-      expectedImpact = "Improves execution and design rating.";
-      tradeoffs = "Reduces UI page count.";
+      observation = `We have ${numFeatures} features in our backlog for ${problemTitle}.`;
+      concern = "Building all these views will leave zero time for visual polish and animations.";
+      recommendation = "Let's cut the lowest priority features and spend that time making the core screens look really sharp.";
+      expectedImpact = "Better-looking UI with more polish = better design score.";
+      tradeoffs = "Reduces total feature count.";
       modifiers = { execution: 10, design: 8 };
       action = { type: 'reduce_scope', payload: {} };
       logMessage = `${name} pruned frontend feature backlog.`;
     }
-  } else if (r.includes("strategist") || r.includes("founder") || r.includes("business")) {
-    title = "Revenue Pivot Optimization";
-    observation = `Our monetization model for "${activeUsp}" is currently set to "${activeModel}".`;
-    concern = "This monetization model is generic and won't convince judges about long-term sustainability.";
+  } else if (cat === 'strategist') {
+    title = "Revenue Model Pivot";
+    observation = `Our current business model is "${activeModel}" and our USP is "${activeUsp}".`;
+    concern = "Judges look for a clear, believable path to revenue. A vague model tanks the pitch score.";
     
     if (activeModel.toLowerCase().includes("sponsorship")) {
-      recommendation = "Let's change our business model to Freemium subscription options. It scales much better for target users.";
-      expectedImpact = "Proves recurring monthly viability.";
-      tradeoffs = "Requires a clear feature paywall.";
+      recommendation = "Let's pivot to a Freemium model — free tier hooks users, paid tier converts power users. Much more scalable.";
+      expectedImpact = "Shows recurring monthly revenue potential — judges love this narrative.";
+      tradeoffs = "Need to define a clear feature paywall.";
       modifiers = { pitch: 15, execution: -5 };
       action = { type: 'change_biz_model', payload: { model: 'Freemium' } };
-      logMessage = `${name} updated business model to Freemium subscription options.`;
+      logMessage = `${name} updated business model to Freemium.`;
     } else {
-      recommendation = "Let's switch our business model to Local Sponsorship options. It scales much better for immediate campus pilot traction.";
-      expectedImpact = "Establishes immediate revenue options and localized viability.";
-      tradeoffs = "Limits addressable market size.";
+      recommendation = "Let's pitch a Local Sponsorship model — brands pay to reach our users. Zero friction for early adopters.";
+      expectedImpact = "Immediate revenue story without charging users. Great for campus pilots.";
+      tradeoffs = "Limits total addressable market.";
       modifiers = { pitch: 15, execution: -5 };
       action = { type: 'change_biz_model', payload: { model: 'Local Sponsorship' } };
       logMessage = `${name} updated business model to Local Sponsorship.`;
     }
-  } else if (r.includes("pitch")) {
+  } else if (cat === 'pitch') {
     title = "Pitch Slide Restructuring";
     observation = `We have prioritized the following slide sequence: [${state.pitchDeck.join(", ") || "None."}], total ${state.pitchDeck.length} slides.`;
     concern = `The slide sequence is too technical and lacks a strong hook to showcase our technology stack: ${techNames || "None."}.`;
@@ -685,40 +666,40 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
       action = { type: 'add_slide_directly', payload: { slide: 'demo' } };
       logMessage = `${name} added a Demo slide to the pitch deck.`;
     }
-  } else if (r.includes("researcher")) {
-    title = "USP Target Segmentation";
-    observation = `Our unique selling proposition is set to "${activeUsp}" to address the ${problemTitle} category.`;
-    concern = "This value proposition targets a very broad audience and lacks focus for judges.";
-    recommendation = "Let's change our USP to student campus users. This will simplify our features scope.";
-    expectedImpact = "Improves target audience alignment and innovation ratings.";
-    tradeoffs = "Reduces addressable market size.";
+  } else if (cat === 'researcher') {
+    title = "User Research Insight";
+    observation = `Our USP is "${activeUsp}" targeting the ${problemTitle} problem.`;
+    concern = "The value proposition is too vague and generic. Judges want to see a specific, researched target audience.";
+    recommendation = "Based on my research, let's narrow our USP to focus specifically on the student/campus demographic — more believable in a 24h build.";
+    expectedImpact = "Sharpens target audience alignment and makes the innovation story more credible.";
+    tradeoffs = "Reduces the total addressable market size claim.";
     modifiers = { innovation: 12, pitch: 5 };
     action = { type: 'change_usp', payload: { usp: 'Student-centric campus tools' } };
-    logMessage = `${name} refined the USP to student campus users.`;
-  } else if (r.includes("chaiwala") || r.includes("chai")) {
-    title = "Morale Support Tea Break";
-    observation = `The team is working under pressure to build ${problemTitle}.`;
-    concern = "Developer fatigue is slowing down code execution.";
-    recommendation = "Let's take a cardamom chai break. It will reset developer focus.";
-    expectedImpact = "Boosts team energy and execution capability.";
-    tradeoffs = "Briefly pauses development focus.";
+    logMessage = `${name} refined the USP based on user research.`;
+  } else if (cat === 'chaiwala') {
+    title = "Emergency Chai Break 🍵";
+    observation = `The team has been heads-down on ${problemTitle} for hours.`;
+    concern = "Developer fatigue is real — slow thinking, more bugs, worse decisions.";
+    recommendation = "Chai break. Now. I'm serious. Ten minutes of cardamom chai resets the brain better than three hours of frustrated coding.";
+    expectedImpact = "Boosts team morale, execution speed, and general vibe.";
+    tradeoffs = "Ten minutes pause on coding.";
     modifiers = { execution: 10, design: 5, bonus: 5 };
     action = { type: 'boost_morale', payload: {} };
     logMessage = `${name} served Cardamom Chai to boost team morale.`;
   } else {
-    title = "General Scope Optimization";
+    title = "MVP Scope Trim";
     const lowestImpactFeature = state.features.length > 0 
       ? [...state.features].sort((a, b) => (a.impact === 'low' ? 0 : 1) - (b.impact === 'low' ? 0 : 1))[0]
       : null;
     const featName = lowestImpactFeature?.name || "nice-to-have features";
-    observation = `Our backlog features include: [${state.features.map(f => f.name).join(", ")}].`;
-    concern = "We have prioritized too many nice-to-have features for our MVP.";
-    recommendation = `Let's remove the lower impact feature ${featName} to focus on a working prototype.`;
-    expectedImpact = "Reduces execution risk and code bloat.";
-    tradeoffs = "Removes nice-to-have features.";
+    observation = `We have ${numFeatures} features in our backlog: [${state.features.map(f => f.name).join(", ")}].`;
+    concern = "We are over-scoped for a hackathon. Trying to build everything means delivering nothing polished.";
+    recommendation = `Drop "${featName}" from the backlog. It's the lowest priority and we can always add it post-hackathon.`;
+    expectedImpact = "More focused dev time on core features = better execution score.";
+    tradeoffs = "One less feature to demo.";
     modifiers = { execution: 10, design: 5 };
     action = { type: 'reduce_scope', payload: {} };
-    logMessage = `${name} pruned low impact backlog feature ${featName}.`;
+    logMessage = `${name} trimmed the MVP scope by removing ${featName}.`;
   }
 
   const teammateHistory = state.teamAdviceHistory ? state.teamAdviceHistory.filter((h: any) => h.teammateId === teammateId) : [];
@@ -726,15 +707,14 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
   if (teammateHistory.length > 0) {
     const lastChoice = teammateHistory[teammateHistory.length - 1];
     if (lastChoice.status === 'rejected') {
-      memoryIntroduction = `I still think our last suggestion for '${lastChoice.title}' would have been a safer bet. But let's look at this stage. `;
+      memoryIntroduction = `Look, I still stand by my last suggestion ("${lastChoice.title}") but let's move on. `;
     } else {
-      memoryIntroduction = `Since we successfully applied '${lastChoice.title}' earlier, let's keep that focus. `;
+      memoryIntroduction = `Good call applying "${lastChoice.title}" earlier. Building on that — `;
     }
   }
 
-  const charPrompt = getTeammateCharacter(name, role, p);
-  let explanationText = `${memoryIntroduction}**Observation:** ${observation} **Concern:** ${concern} **Recommendation:** ${recommendation}`;
-  explanationText = `[${charPrompt.role.toUpperCase()} - ${charPrompt.personality.toUpperCase()}] ${explanationText} (Style: ${charPrompt.commStyle})`;
+  // Build a clean, plain-language explanation without role/personality metadata
+  let explanationText = `${memoryIntroduction}${observation} ${concern} ${recommendation}`;
 
   return {
     teammateId,
@@ -2002,7 +1982,7 @@ export const useGameStore = create<GameState & GameActions>()(
             ...extraState
           }, false, 'team/applyTeammateAdvice');
 
-          get().triggerTeamChatMessage('teammate_advice');
+          get().triggerTeamChatMessage('teammate_advice', teammateId);
           get().updateTeammateContext();
         },
 
@@ -2777,10 +2757,12 @@ export const useGameStore = create<GameState & GameActions>()(
             ];
             teammateToUse = riya;
           } else if (event === 'teammate_advice') {
-            messageText = `My advice has been implemented. Let's make sure we review the changes before testing.`;
+            // Use the teammate who just gave the advice (passed as payload)
+            const advisingTeammate = payload ? team.find(t => t.id === payload) || defaultTeammate : defaultTeammate;
+            messageText = `Done — my advice has been applied. Let's review the changes before we proceed.`;
             msgType = 'action_completed';
             isSilent = false;
-            teammateToUse = priya;
+            teammateToUse = advisingTeammate;
           } else if (event === 'timer_milestone') {
             const ratio = payload as number;
             const pct = Math.round(ratio * 100);
