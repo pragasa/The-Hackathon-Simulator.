@@ -917,13 +917,18 @@ function SolutionDirectionStage() {
 // --- Stage 4: Tech Stack Phase ----------------------------------------------
 
 function TechStackStage() {
-  const { techStack, addTechItem, removeTechItem, updateScore, solutionDirection, usp, primaryUsp, generatedUSPs, selectedProblem } = useGameStore();
+  const { techStack, addTechItem, removeTechItem, updateScore, solutionDirection, usp, primaryUsp, generatedUSPs, selectedProblem, setActiveTechTab } = useGameStore();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeTab, setActiveTab] = useState('all');
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const slotRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Synchronize active tab to the Zustand store
+  useEffect(() => {
+    setActiveTechTab(activeTab);
+  }, [activeTab, setActiveTechTab]);
 
   // Auto-scroll the slots panel to the newly selected slot
   useEffect(() => {
@@ -1618,6 +1623,14 @@ function UspStage() {
   } = useGameStore();
 
   const [loading, setLoading] = useState(false);
+  const [selectedUspToVote, setSelectedUspToVote] = useState<string>('');
+  const [voteRole, setVoteRole] = useState<'primary' | 'secondary'>('primary');
+
+  useEffect(() => {
+    if (generatedUSPs.length > 0 && !selectedUspToVote) {
+      setSelectedUspToVote(generatedUSPs[0].name);
+    }
+  }, [generatedUSPs, selectedUspToVote]);
 
   useEffect(() => {
     if (generatedUSPs.length === 0 && selectedProblem) {
@@ -1886,26 +1899,72 @@ function UspStage() {
               <div className="space-y-1">
                 <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-wide block font-mono">🗳️ TRIGGER CREW-WIDE POLL</span>
                 <p className="text-[9px] text-neutral-400 font-light font-sans leading-relaxed">
-                  Call an immediate crew-wide vote on our current selection. All active crew members will cast their votes based on their specific roles.
+                  Select a unique advantage and assign it as Primary or Secondary to run a customized crew-wide alignment poll.
                 </p>
               </div>
 
-              <div className="space-y-2">
-                {hasCrewVotedThisStage[stage] ? (
-                  <div className="p-2 border border-emerald-950/40 bg-emerald-950/20 text-emerald-400 rounded text-center text-[8px] font-bold font-mono py-4">
-                    ✓ CREW POLL RECORDED IN CHAT FEED (+5 POINT PITCH BONUS APPLIED)
-                  </div>
-                ) : (
-                  <Button
-                    size="xs"
-                    onClick={() => {
-                      playMutedClick();
-                      triggerCrewVote('usp');
-                    }}
-                    className="w-full bg-emerald-600 text-white hover:bg-emerald-500 border-none font-bold text-[8.5px] font-mono tracking-wider uppercase h-7 cursor-pointer"
+              <div className="space-y-2.5">
+                {/* USP Selection Dropdown */}
+                <div className="space-y-1">
+                  <label className="text-[7.5px] text-neutral-400 font-bold uppercase block tracking-wider font-mono">SELECT USP TO VOTE ON:</label>
+                  <select
+                    value={selectedUspToVote}
+                    onChange={(e) => setSelectedUspToVote(e.target.value)}
+                    className="w-full bg-neutral-900 border border-neutral-850 text-white rounded px-2 py-1 text-[9px] font-mono focus:outline-none focus:border-emerald-600 tracking-wide"
                   >
-                    ⚡ INITIATE CREW VOTE
-                  </Button>
+                    {generatedUSPs.map((u) => (
+                      <option key={u.key || u.name} value={u.name} className="bg-neutral-950 text-white font-mono">
+                        {u.name.toUpperCase()}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Role Switch: Primary vs Secondary */}
+                <div className="space-y-1">
+                  <label className="text-[7.5px] text-neutral-400 font-bold uppercase block tracking-wider font-mono">ASSIGN USP ROLE FOR POLL:</label>
+                  <div className="flex gap-1 border border-neutral-850 p-0.5 rounded bg-neutral-900">
+                    <button
+                      type="button"
+                      onClick={() => setVoteRole('primary')}
+                      className={`flex-1 py-1 rounded text-[8px] font-bold font-mono tracking-wider transition-all duration-150 border-none cursor-pointer uppercase ${
+                        voteRole === 'primary' 
+                          ? 'bg-emerald-600 text-white shadow-sm' 
+                          : 'bg-transparent text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      Primary USP
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setVoteRole('secondary')}
+                      className={`flex-1 py-1 rounded text-[8px] font-bold font-mono tracking-wider transition-all duration-150 border-none cursor-pointer uppercase ${
+                        voteRole === 'secondary' 
+                          ? 'bg-amber-600 text-white shadow-sm' 
+                          : 'bg-transparent text-neutral-400 hover:text-white'
+                      }`}
+                    >
+                      Secondary USP
+                    </button>
+                  </div>
+                </div>
+
+                <Button
+                  size="xs"
+                  onClick={() => {
+                    playMutedClick();
+                    triggerCrewVote('usp', selectedUspToVote, voteRole);
+                  }}
+                  disabled={!selectedUspToVote}
+                  className="w-full bg-emerald-600 text-white hover:bg-emerald-500 border-none font-bold text-[8.5px] font-mono tracking-wider uppercase h-7 cursor-pointer"
+                >
+                  ⚡ INITIATE CREW VOTE
+                </Button>
+
+                {hasCrewVotedThisStage[stage] && (
+                  <div className="text-center font-bold text-[7.5px] text-emerald-400 uppercase tracking-widest font-mono pt-1 animate-pulse">
+                    ✓ LAST POLL RECORDED IN CHAT FEED (+5 POINT PITCH BONUS LOCKED)
+                  </div>
                 )}
               </div>
             </div>
@@ -1920,6 +1979,7 @@ function UspStage() {
 
 function FeaturesStage() {
   const { 
+    features,
     reorderFeatures, 
     updateScore, 
     generatedBacklog, 
@@ -2009,24 +2069,31 @@ function FeaturesStage() {
     }
   }, [generatedBacklog, selectedProblem, solutionDirection, selectedUspObj, techStack, gameMode, setGeneratedBacklog]);
 
-  // 2. Initialize dynamic unassigned backlog buckets
+  // 2. Synchronize local buckets state with Zustand store features
   useEffect(() => {
     if (generatedBacklog.length > 0) {
-      const persistedMustIds = new Set(useGameStore.getState().features.map(f => f.id));
+      const persistedMustIds = new Set(features.map(f => f.id));
       setBuckets(prev => {
+        let changed = false;
         const next = { ...prev };
-        let updated = false;
+        
         generatedBacklog.forEach(f => {
-          if (!next[f.id]) {
-            if (persistedMustIds.has(f.id)) {
-              next[f.id] = 'must';
-            } else {
-              next[f.id] = 'backlog';
-            }
-            updated = true;
+          const isMustInStore = persistedMustIds.has(f.id);
+          const currentBucket = next[f.id];
+          
+          if (isMustInStore && currentBucket !== 'must') {
+            next[f.id] = 'must';
+            changed = true;
+          } else if (!isMustInStore && currentBucket === 'must') {
+            next[f.id] = 'backlog';
+            changed = true;
+          } else if (next[f.id] === undefined) {
+            next[f.id] = 'backlog';
+            changed = true;
           }
         });
-        if (updated) {
+        
+        if (changed) {
           // Defer to avoid state update during render warning
           setTimeout(() => {
             recalculateFeatureScores(next);
@@ -2036,7 +2103,7 @@ function FeaturesStage() {
         return prev;
       });
     }
-  }, [generatedBacklog, recalculateFeatureScores]);
+  }, [features, generatedBacklog, recalculateFeatureScores]);
 
   // Click trigger to cycle feature buckets (touch fallback)
   const handleCycleBucket = (id: string) => {
@@ -2849,6 +2916,14 @@ function BusinessModelStage() {
     stage
   } = useGameStore();
 
+  const [selectedModelToVote, setSelectedModelToVote] = useState<string>('');
+
+  useEffect(() => {
+    if (generatedBusinessModels.length > 0 && !selectedModelToVote) {
+      setSelectedModelToVote(generatedBusinessModels[0].id);
+    }
+  }, [generatedBusinessModels, selectedModelToVote]);
+
   // 1. Procedurally generate business models on stage load
   useEffect(() => {
     if (generatedBusinessModels.length === 0 && selectedProblem) {
@@ -3073,26 +3148,43 @@ function BusinessModelStage() {
                 <div className="space-y-1">
                   <span className="text-[8px] text-emerald-500 font-bold uppercase tracking-wide block font-mono">🗳️ TRIGGER CREW-WIDE POLL</span>
                   <p className="text-[9px] text-neutral-400 font-light font-sans leading-relaxed">
-                    Call an immediate crew-wide vote on our current selection. All active crew members will cast their votes based on their specific roles.
+                    Select a business model option to trigger an immediate, role-specific crew poll on its commercial viability.
                   </p>
                 </div>
 
-                <div className="space-y-2">
-                  {hasCrewVotedThisStage[stage] ? (
-                    <div className="p-2 border border-emerald-950/40 bg-emerald-950/20 text-emerald-400 rounded text-center text-[8px] font-bold font-mono py-4">
-                      ✓ CREW POLL RECORDED IN CHAT FEED (+5 POINT PITCH BONUS APPLIED)
-                    </div>
-                  ) : (
-                    <Button
-                      size="xs"
-                      onClick={() => {
-                        playMutedClick();
-                        triggerCrewVote('businessModel');
-                      }}
-                      className="w-full bg-emerald-600 text-white hover:bg-emerald-500 border-none font-bold text-[8.5px] font-mono tracking-wider uppercase h-7 cursor-pointer"
+                <div className="space-y-2.5">
+                  {/* Model Selection Dropdown */}
+                  <div className="space-y-1">
+                    <label className="text-[7.5px] text-neutral-400 font-bold uppercase block tracking-wider font-mono">SELECT STRATEGY TO VOTE ON:</label>
+                    <select
+                      value={selectedModelToVote}
+                      onChange={(e) => setSelectedModelToVote(e.target.value)}
+                      className="w-full bg-neutral-900 border border-neutral-850 text-white rounded px-2 py-1 text-[9px] font-mono focus:outline-none focus:border-emerald-600 tracking-wide"
                     >
-                      ⚡ INITIATE CREW VOTE
-                    </Button>
+                      {generatedBusinessModels.map((m) => (
+                        <option key={m.id} value={m.id} className="bg-neutral-950 text-white font-mono">
+                          {m.name.toUpperCase()}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <Button
+                    size="xs"
+                    onClick={() => {
+                      playMutedClick();
+                      triggerCrewVote('businessModel', selectedModelToVote);
+                    }}
+                    disabled={!selectedModelToVote}
+                    className="w-full bg-emerald-600 text-white hover:bg-emerald-500 border-none font-bold text-[8.5px] font-mono tracking-wider uppercase h-7 cursor-pointer"
+                  >
+                    ⚡ INITIATE CREW VOTE
+                  </Button>
+
+                  {hasCrewVotedThisStage[stage] && (
+                    <div className="text-center font-bold text-[7.5px] text-emerald-400 uppercase tracking-widest font-mono pt-1 animate-pulse">
+                      ✓ LAST POLL RECORDED IN CHAT FEED (+5 POINT PITCH BONUS LOCKED)
+                    </div>
                   )}
                 </div>
               </div>
@@ -5518,6 +5610,75 @@ function PersistentTeamPanel({
   const { applyTeammateAdvice, rejectTeammateAdvice } = useGameStore();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  const [selectedUspToVote, setSelectedUspToVote] = useState<string>('');
+  const [voteRole, setVoteRole] = useState<'primary' | 'secondary'>('primary');
+  const [selectedModelToVote, setSelectedModelToVote] = useState<string>('');
+
+  const getRoleCategory = (role: string): string => {
+    const r = role.toLowerCase();
+    if (r.includes('chaiwala') || r.includes('chai')) return 'chaiwala';
+    if (r.includes('ai engineer') || r.includes('ai specialist') || r.includes('ml engineer') || r.includes('data scientist') || r.includes('machine learning') || (r.includes('ai') && !r.includes('assistant'))) return 'ai';
+    if (r.includes('designer') || r.includes('ux') || r.includes('ui ') || r.includes('product design')) return 'designer';
+    if (r.includes('frontend') || r.includes('front-end') || r.includes('front end')) return 'frontend';
+    if (r.includes('backend') || r.includes('database') || r.includes('full stack') || r.includes('fullstack') || r.includes('developer') || r.includes(' dev') || r.startsWith('dev')) return 'backend';
+    if (r.includes('strategist') || r.includes('founder') || r.includes('business') || r.includes('co-founder') || r.includes('analyst')) return 'strategist';
+    if (r.includes('pitch') || r.includes('marketing') || r.includes('sales')) return 'pitch';
+    if (r.includes('researcher') || r.includes('research')) return 'researcher';
+    return 'general';
+  };
+
+  const getSpecialtyFitBadge = (teammate: any) => {
+    if (stage !== 'techStack') return null;
+
+    const roleCat = getRoleCategory(teammate.role || '');
+    const activeTab = state.activeTechTab || 'all';
+
+    let bonusPts = 0;
+    if (activeTab === 'frontend') {
+      if (roleCat === 'frontend' || roleCat === 'designer') bonusPts = 2;
+      else if (roleCat === 'backend') bonusPts = -1;
+    } else if (activeTab === 'backend' || activeTab === 'database') {
+      if (roleCat === 'backend') bonusPts = 2;
+      else if (roleCat === 'frontend' || roleCat === 'designer') bonusPts = -1;
+    } else if (activeTab === 'ai') {
+      if (roleCat === 'ai') bonusPts = 2;
+    } else if (activeTab === 'devops') {
+      if (roleCat === 'frontend' || roleCat === 'designer' || roleCat === 'backend') bonusPts = 2;
+    }
+
+    if (bonusPts === 2) {
+      return (
+        <span className="text-[7.5px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded uppercase tracking-wider animate-[pulse_2s_infinite]">
+          ▲ +2 PTS FIT BONUS
+        </span>
+      );
+    } else if (bonusPts === -1) {
+      return (
+        <span className="text-[7.5px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-1 py-0.5 rounded uppercase tracking-wider animate-[pulse_1s_infinite]">
+          ▼ -1 PTS BAD CHOICE
+        </span>
+      );
+    } else {
+      return (
+        <span className="text-[7.5px] font-bold text-neutral-500 bg-neutral-50 border border-neutral-200 px-1 py-0.5 rounded uppercase tracking-wider">
+          ● +0 PTS GENERAL FIT
+        </span>
+      );
+    }
+  };
+
+  useEffect(() => {
+    if (state.generatedUSPs && state.generatedUSPs.length > 0 && !selectedUspToVote) {
+      setSelectedUspToVote(state.generatedUSPs[0].name);
+    }
+  }, [state.generatedUSPs, selectedUspToVote]);
+
+  useEffect(() => {
+    if (state.generatedBusinessModels && state.generatedBusinessModels.length > 0 && !selectedModelToVote) {
+      setSelectedModelToVote(state.generatedBusinessModels[0].id);
+    }
+  }, [state.generatedBusinessModels, selectedModelToVote]);
+
   // Auto-scroll to newest message
   useEffect(() => {
     if (!isMinimized && activeTeamTab === 'chat') {
@@ -5671,6 +5832,13 @@ function PersistentTeamPanel({
                         </div>
                       </div>
 
+                      {/* Specialty Fit Badge */}
+                      {stage === 'techStack' && (
+                        <div className="flex justify-center pt-1 border-t border-dashed border-neutral-150">
+                          {getSpecialtyFitBadge(t)}
+                        </div>
+                      )}
+
                       {/* Status + Action */}
                       <div className="flex items-center justify-between border-t border-neutral-100 pt-1.5">
                         {!t.helpTokenUsed ? (
@@ -5679,7 +5847,11 @@ function PersistentTeamPanel({
                           ) : (
                             <Button
                               size="xs"
-                              onClick={() => { playMutedClick(); useTeammateHelp(t.id, stage); }}
+                              onClick={() => {
+                                playMutedClick();
+                                useTeammateHelp(t.id, stage);
+                                setActiveTeamTab('chat');
+                              }}
                               disabled={hasAdvice}
                               className="text-[8px] h-5 px-1.5 w-full border border-neutral-900 cursor-pointer disabled:opacity-50"
                             >
@@ -5698,14 +5870,15 @@ function PersistentTeamPanel({
               <div className="p-2 space-y-2">
                 {/* Crew Collaboration Actions in Chat Panel */}
                 {(stage === 'usp' || stage === 'businessModel') && (
-                  <div className="p-2 border border-neutral-200 rounded-md bg-neutral-900 text-white space-y-1.5 mb-2 select-none text-[8.5px]">
-                    <div className="flex items-center justify-between font-mono font-bold border-b border-neutral-800 pb-1 uppercase tracking-wider text-amber-500">
+                  <div className="p-2 border border-neutral-800 rounded-md bg-neutral-950 text-white space-y-2 mb-2 select-none text-[8.5px] font-mono">
+                    <div className="flex items-center justify-between border-b border-neutral-800 pb-1 uppercase tracking-wider text-amber-500 font-bold">
                       <span>⚡ CREW COLLABORATION BOARD</span>
-                      <span className="text-[7.5px] bg-neutral-850 text-neutral-400 px-1 py-0.2 rounded font-normal font-sans tracking-normal">
+                      <span className="text-[7.5px] bg-neutral-900 text-neutral-400 px-1 py-0.2 rounded font-normal font-sans tracking-normal">
                         STAGE: {stage === 'usp' ? 'USP' : 'BIZ MODEL'}
                       </span>
                     </div>
-                    <div className="flex gap-1">
+
+                    <div className="flex gap-1.5 border-b border-neutral-800 pb-1.5">
                       {/* Consult Specialist Button */}
                       {(() => {
                         const strategistTeammate = team.find((t: any) => {
@@ -5738,28 +5911,96 @@ function PersistentTeamPanel({
                           </button>
                         );
                       })()}
+                    </div>
 
-                      {/* Vote Button */}
-                      {state.hasCrewVotedThisStage && state.hasCrewVotedThisStage[stage] ? (
-                        <button
-                          disabled
-                          className="flex-1 bg-emerald-950/20 text-emerald-400 border border-emerald-900/40 rounded py-1 font-bold uppercase text-[7.5px]"
-                        >
-                          ✓ VOTED (+5)
-                        </button>
-                      ) : (
+                    {stage === 'usp' ? (
+                      <div className="space-y-1.5 pt-0.5">
+                        <div className="space-y-0.5">
+                          <span className="text-[7px] text-neutral-400 uppercase tracking-wider block font-bold">SELECT USP TO VOTE ON:</span>
+                          <select
+                            value={selectedUspToVote}
+                            onChange={(e) => setSelectedUspToVote(e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 text-white rounded px-1.5 py-0.5 text-[8px] font-mono focus:outline-none focus:border-emerald-600"
+                          >
+                            {(state.generatedUSPs || []).map((u: any) => (
+                              <option key={u.key || u.name} value={u.name} className="bg-neutral-950 text-white font-mono">
+                                {u.name.toUpperCase()}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[7px] text-neutral-400 uppercase tracking-wider block font-bold">ROLE:</span>
+                          <div className="flex gap-1 border border-neutral-855 p-0.5 rounded bg-neutral-900">
+                            <button
+                              type="button"
+                              onClick={() => setVoteRole('primary')}
+                              className={`flex-1 py-0.5 rounded text-[7.5px] font-bold font-mono tracking-wider border-none cursor-pointer uppercase ${
+                                voteRole === 'primary' 
+                                  ? 'bg-emerald-600 text-white shadow-sm' 
+                                  : 'bg-transparent text-neutral-400 hover:text-white'
+                              }`}
+                            >
+                              Primary
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setVoteRole('secondary')}
+                              className={`flex-1 py-0.5 rounded text-[7.5px] font-bold font-mono tracking-wider border-none cursor-pointer uppercase ${
+                                voteRole === 'secondary' 
+                                  ? 'bg-amber-600 text-white shadow-sm' 
+                                  : 'bg-transparent text-neutral-400 hover:text-white'
+                              }`}
+                            >
+                              Secondary
+                            </button>
+                          </div>
+                        </div>
                         <button
                           onClick={() => {
                             playMutedClick();
                             const { triggerCrewVote } = useGameStore.getState();
-                            triggerCrewVote(stage === 'usp' ? 'usp' : 'businessModel');
+                            triggerCrewVote('usp', selectedUspToVote, voteRole);
                           }}
-                          className="flex-1 bg-emerald-600 text-white font-bold uppercase tracking-wider rounded border-none py-1 hover:bg-emerald-500 text-[8px] cursor-pointer"
+                          className="w-full bg-emerald-600 text-white font-bold uppercase tracking-wider rounded border-none py-1 hover:bg-emerald-500 text-[8px] cursor-pointer mt-1"
                         >
                           🗳️ ASK TEAM TO VOTE
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-1.5 pt-0.5">
+                        <div className="space-y-0.5">
+                          <span className="text-[7px] text-neutral-400 uppercase tracking-wider block font-bold">SELECT STRATEGY TO VOTE ON:</span>
+                          <select
+                            value={selectedModelToVote}
+                            onChange={(e) => setSelectedModelToVote(e.target.value)}
+                            className="w-full bg-neutral-900 border border-neutral-800 text-white rounded px-1.5 py-0.5 text-[8px] font-mono focus:outline-none focus:border-emerald-600"
+                          >
+                            {(state.generatedBusinessModels || []).map((m: any) => (
+                              <option key={m.id} value={m.id} className="bg-neutral-950 text-white font-mono">
+                                {m.name.toUpperCase()}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        <button
+                          onClick={() => {
+                            playMutedClick();
+                            const { triggerCrewVote } = useGameStore.getState();
+                            triggerCrewVote('businessModel', selectedModelToVote);
+                          }}
+                          className="w-full bg-emerald-600 text-white font-bold uppercase tracking-wider rounded border-none py-1 hover:bg-emerald-500 text-[8px] cursor-pointer mt-1"
+                        >
+                          🗳️ ASK TEAM TO VOTE
+                        </button>
+                      </div>
+                    )}
+
+                    {state.hasCrewVotedThisStage && state.hasCrewVotedThisStage[stage] && (
+                      <div className="text-center font-bold text-[7px] text-emerald-400 uppercase tracking-widest font-mono pt-1 animate-pulse">
+                        ✓ POLL RESOLVED IN CHAT (+5 PTS ADDED)
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -5788,7 +6029,60 @@ function PersistentTeamPanel({
                           </span>
                         )}
 
-                        {msg.type === 'suggestion' && msg.adviceDetails ? (
+                        {msg.type === 'poll' && msg.pollDetails ? (
+                          <div className="p-2 border border-emerald-500/30 bg-emerald-950/90 text-white rounded space-y-2 mt-1 text-[9px] leading-relaxed font-mono shadow-inner select-none">
+                            <div className="flex items-center justify-between border-b border-emerald-800 pb-1 uppercase tracking-wider text-[8px] text-emerald-400">
+                              <span>🗳️ CREW POLL RESOLUTION</span>
+                              <span className="text-[7.5px] bg-emerald-900/50 text-emerald-300 px-1 py-0.2 rounded font-sans tracking-normal font-bold">
+                                {msg.pollDetails.subjectDesc.toUpperCase()}
+                              </span>
+                            </div>
+                            <div className="space-y-1">
+                              <span className="text-neutral-400 text-[8px] uppercase block tracking-widest leading-none font-bold">PROPOSED STRATEGY:</span>
+                              <span className="text-emerald-100 font-bold block text-[10px] border-b border-emerald-900 pb-1 leading-tight font-sans">
+                                {msg.pollDetails.subjectTitle}
+                              </span>
+                            </div>
+                            <div className="space-y-1 text-[8.5px] font-sans">
+                              <span className="text-neutral-400 text-[8px] uppercase block tracking-widest leading-none font-mono font-bold">VOTE LEDGER:</span>
+                              <div className="space-y-1 max-h-[140px] overflow-y-auto pr-0.5">
+                                {msg.pollDetails.votesList.map((v: any, vIdx: number) => (
+                                  <div key={vIdx} className="p-1 rounded bg-neutral-900/60 border border-neutral-850 flex flex-col gap-0.5 leading-normal">
+                                    <div className="flex items-center justify-between text-[8px]">
+                                      <span className="font-bold text-white uppercase">{v.avatar} {v.name} ({v.role})</span>
+                                      <span className={cn(
+                                        "px-1 py-0.2 rounded text-[7px] font-mono font-black uppercase",
+                                        v.vote === 'YES' ? "bg-emerald-900 text-emerald-300" : "bg-red-900 text-red-300"
+                                      )}>{v.vote}</span>
+                                    </div>
+                                    <p className="text-[7.5px] text-neutral-350 italic font-light font-sans">"{v.rationale}"</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="border-t border-emerald-800/80 pt-1.5 space-y-1 mt-1 text-center">
+                              <div className="flex justify-between items-center text-[8.5px]">
+                                <span className="text-neutral-400 uppercase font-mono text-[7.5px]">CONSENSUS RATIO:</span>
+                                <span className="font-bold text-white">{msg.pollDetails.yesCount} YES / {msg.pollDetails.noCount} NO ({msg.pollDetails.consensusPct}% Alignment)</span>
+                              </div>
+                              <div className="w-full bg-emerald-950 border border-emerald-900 rounded-full h-1.5 overflow-hidden">
+                                <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${msg.pollDetails.consensusPct}%` }} />
+                              </div>
+                              <div className={cn(
+                                "p-1 rounded text-center font-bold text-[8.5px] uppercase mt-1.5 font-mono tracking-wider flex items-center justify-center gap-1 leading-none border",
+                                msg.pollDetails.approved 
+                                  ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/60" 
+                                  : "bg-red-950/40 text-red-400 border-red-900/60"
+                              )}>
+                                {msg.pollDetails.approved ? (
+                                  <>🟢 APPROVED (+5 POINT PITCH BONUS LOCKED)</>
+                                ) : (
+                                  <>🔴 WARNING: CONSENSUS REJECTED</>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        ) : msg.type === 'suggestion' && msg.adviceDetails ? (
                           <div className="p-2 border border-purple-200 bg-purple-50/40 rounded space-y-2 mt-1 text-[9px] leading-relaxed">
                             <div className="font-bold text-purple-900 border-b border-purple-150 pb-0.5 uppercase tracking-wide font-mono text-[8px] flex items-center justify-between">
                               <span>💡 TEAMMATE PROPOSAL</span>

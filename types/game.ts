@@ -351,6 +351,7 @@ export interface GameState {
   lastContextState: Record<string, string>;
   isBackendLocked: boolean;
   hasCrewVotedThisStage: Record<string, boolean>;
+  activeTechTab: string;
 }
 
 export interface TeammateDecision {
@@ -416,6 +417,8 @@ export interface GameActions {
   setGeneratedAdvisorAdvice: (advice: AdvisorAdvice[]) => void;
   /** Set compiled roast text */
   setRoastText: (text: string) => void;
+  /** Set the active tech tab during selection */
+  setActiveTechTab: (tab: string) => void;
   /** Apply advisor advice */
   applyAdvisorAdvice: (adviceId: string) => void;
   /** Reject advisor advice */
@@ -461,7 +464,7 @@ export interface GameActions {
   clearUnreadChatCount: () => void;
   triggerTeamChatMessage: (event: string, payload?: any) => void;
   updateTeammateContext: () => void;
-  triggerCrewVote: (voteType: 'usp' | 'businessModel') => void;
+  triggerCrewVote: (voteType: 'usp' | 'businessModel', targetId?: string, voteAs?: 'primary' | 'secondary') => void;
 }
 
 export interface TeamChatMessage {
@@ -472,7 +475,7 @@ export interface TeamChatMessage {
   text: string;
   timestamp: string;
   isRead: boolean;
-  type?: 'info' | 'suggestion' | 'warning' | 'disagreement' | 'contribution' | 'action_completed' | 'waiting';
+  type?: 'info' | 'suggestion' | 'warning' | 'disagreement' | 'contribution' | 'action_completed' | 'waiting' | 'poll';
   adviceDetails?: {
     title: string;
     observation: string;
@@ -480,6 +483,22 @@ export interface TeamChatMessage {
     recommendation: string;
     expectedImpact: string;
     tradeoffs?: string;
+  };
+  pollDetails?: {
+    subjectTitle: string;
+    subjectDesc: string;
+    voteAs?: 'primary' | 'secondary';
+    yesCount: number;
+    noCount: number;
+    consensusPct: number;
+    approved: boolean;
+    votesList: {
+      name: string;
+      role: string;
+      avatar: string;
+      vote: string;
+      rationale: string;
+    }[];
   };
   changeSummary?: {
     before: string;

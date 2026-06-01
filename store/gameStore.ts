@@ -84,10 +84,10 @@ export function isRoleRelevantForStage(role: string | null, stage: string): bool
   if (!role) return false;
   const r = role.toLowerCase();
   
-  if (r.includes("backend developer") || r.includes("ai engineer") || r.includes("ai specialist")) {
+  if (r.includes("backend") || r.includes("ai engineer") || r.includes("ai specialist")) {
     return ['techStack', 'features'].includes(stage);
   }
-  if (r.includes("frontend developer")) {
+  if (r.includes("frontend")) {
     return ['techStack', 'features', 'pitchDeck'].includes(stage);
   }
   if (r.includes("designer")) {
@@ -342,10 +342,10 @@ export function playNotificationSound() {
 function getRoleCategory(role: string): 'backend' | 'designer' | 'frontend' | 'strategist' | 'ai' | 'pitch' | 'researcher' | 'chaiwala' | 'general' {
   const r = role.toLowerCase();
   if (r.includes('chaiwala') || r.includes('chai')) return 'chaiwala';
-  if (r.includes('backend') || r.includes('database') || r.includes('full stack') || r.includes('fullstack') || r.includes('developer') || r.includes(' dev') || r.startsWith('dev')) return 'backend';
   if (r.includes('ai engineer') || r.includes('ai specialist') || r.includes('ml engineer') || r.includes('data scientist') || r.includes('machine learning') || (r.includes('ai') && !r.includes('assistant'))) return 'ai';
   if (r.includes('designer') || r.includes('ux') || r.includes('ui ') || r.includes('product design')) return 'designer';
   if (r.includes('frontend') || r.includes('front-end') || r.includes('front end')) return 'frontend';
+  if (r.includes('backend') || r.includes('database') || r.includes('full stack') || r.includes('fullstack') || r.includes('developer') || r.includes(' dev') || r.startsWith('dev')) return 'backend';
   if (r.includes('strategist') || r.includes('founder') || r.includes('business') || r.includes('co-founder') || r.includes('analyst')) return 'strategist';
   if (r.includes('pitch') || r.includes('marketing') || r.includes('sales')) return 'pitch';
   if (r.includes('researcher') || r.includes('research')) return 'researcher';
@@ -353,6 +353,9 @@ function getRoleCategory(role: string): 'backend' | 'designer' | 'frontend' | 's
 }
 
 export function checkTeammateGating(teammate: Teammate, state: GameState): { isGated: boolean; reason: string; } {
+  if (state.stage === 'techStack') {
+    return { isGated: false, reason: "Ready to advise on tech selection" };
+  }
   if (isRoleRelevantForStage(teammate.role, state.stage)) {
     return { isGated: false, reason: "Ready to give advice" };
   }
@@ -465,14 +468,400 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
   let action = null as any;
   let logMessage = "";
 
+  if (state.stage === 'techStack') {
+    const tab = state.activeTechTab || 'all';
+    
+    if (tab === 'frontend') {
+      if (cat === 'designer' || cat === 'frontend') {
+        title = "Next.js Synergy Suggestion";
+        observation = `We are choosing our Frontend stack for ${problemTitle}.`;
+        concern = "Vanilla JS or basic templates are slow to develop and lack modular component layouts.";
+        recommendation = "Let's select Next.js as our frontend framework. It gives us instant previews, modular layouts, and excellent design aesthetics!";
+        expectedImpact = "Drastically boosts our visual presentation and UX scores (+2 PTS Fit Bonus).";
+        tradeoffs = "Slightly higher initial boilerplate than HTML5.";
+        modifiers = { design: 15, execution: 5, bonus: 2 };
+        const nextItem = {
+          id: "tech-next",
+          name: "Next.js",
+          icon: "layers",
+          category: "Frontend",
+          difficulty: 2,
+          synergies: ["reg-vercel"]
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: nextItem }
+        };
+        logMessage = `${name} recommended Next.js for our frontend framework (+2 PTS).`;
+      } else if (cat === 'backend') {
+        title = "Legacy Raw HTML5 Suggestion";
+        observation = `We are looking at frontend frameworks for ${problemTitle}.`;
+        concern = "Backend developers prefer vanilla lightweight setups, but raw static files lack interactive responsiveness and modern polish.";
+        recommendation = "Let's just use raw HTML5 and Vanilla Javascript. It has no setup overhead, though it will look basic and dry.";
+        expectedImpact = "Improves execution speed, but severely damages design points (-1 PTS bad choice!).";
+        tradeoffs = "Zero component reuse or modern animations.";
+        modifiers = { design: -12, execution: 5, bonus: -1 };
+        const htmlItem = {
+          id: "tech-html5",
+          name: "HTML5 / Vanilla JS",
+          icon: "layers",
+          category: "Frontend",
+          difficulty: 1,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: htmlItem }
+        };
+        logMessage = `${name} gave suboptimal legacy HTML5 suggestion (-1 PTS).`;
+      } else {
+        title = "React UI Library Suggestion";
+        observation = `We are designing our frontend interface layout for ${problemTitle}.`;
+        concern = "We need standard, state-driven reusable components to build our dashboard widgets.";
+        recommendation = "Let's add React as our client rendering library. It is clean, flexible, and has wide ecosystem support.";
+        expectedImpact = "Provides structured rendering layouts (+0 PTS).";
+        tradeoffs = "Requires setting up build bundlers.";
+        modifiers = { design: 10, execution: 4, bonus: 0 };
+        const reactItem = {
+          id: "tech-react",
+          name: "React",
+          icon: "layers",
+          category: "Frontend",
+          difficulty: 2,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: reactItem }
+        };
+        logMessage = `${name} recommended React for the frontend (+0 PTS).`;
+      }
+    } else if (tab === 'backend') {
+      if (cat === 'backend') {
+        title = "Bun Runtime Recommendation";
+        observation = `We are selecting our Backend controllers for ${problemTitle}.`;
+        concern = "Normal Node.js runtime has slower startup times and more verbose setup APIs.";
+        recommendation = "Let's add Bun as our backend controller! It compiles instantly, serves websockets incredibly fast, and runs with zero config.";
+        expectedImpact = "Elevates execution feasibility and network performance (+2 PTS Fit Bonus).";
+        tradeoffs = "Slightly newer runtime ecosystem.";
+        modifiers = { execution: 15, innovation: 5, bonus: 2 };
+        const bunItem = {
+          id: "tech-bun",
+          name: "Bun",
+          icon: "layers",
+          category: "Backend",
+          difficulty: 2,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: bunItem }
+        };
+        logMessage = `${name} recommended Bun for high speed backend runtime (+2 PTS).`;
+      } else if (cat === 'designer' || cat === 'frontend') {
+        title = "Spring Boot Heavyweight Suggestion";
+        observation = `We are looking at backend controllers for ${problemTitle}.`;
+        concern = "Designers might want massive enterprise backends, but Java Spring Boot is extremely heavy and slow for a 24-hour sprint.";
+        recommendation = "Let's use Spring Boot. It has bulletproof stability, though setting it up will waste hours of developer time.";
+        expectedImpact = "Unnecessarily slows down our deployment velocity (-1 PTS bad choice!).";
+        tradeoffs = "Extremely verbose boilerplate code.";
+        modifiers = { execution: -10, innovation: 2, bonus: -1 };
+        const springItem = {
+          id: "tech-springboot",
+          name: "Spring Boot",
+          icon: "layers",
+          category: "Backend",
+          difficulty: 4,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: springItem }
+        };
+        logMessage = `${name} recommended heavyweight Spring Boot runtime (-1 PTS).`;
+      } else {
+        title = "Node.js API Server Setup";
+        observation = `We are adding a backend runtime controller for ${problemTitle}.`;
+        concern = "We need standard server endpoints to handle database requests cleanly.";
+        recommendation = "Let's select Node.js as our API server. It is extremely popular, cohesive, and easy to connect to other systems.";
+        expectedImpact = "Sets up stable database routing (+0 PTS).";
+        tradeoffs = "Single-threaded execution loop.";
+        modifiers = { execution: 8, innovation: 2, bonus: 0 };
+        const nodeItem = {
+          id: "tech-node",
+          name: "Node.js",
+          icon: "layers",
+          category: "Backend",
+          difficulty: 2,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: nodeItem }
+        };
+        logMessage = `${name} recommended standard Node.js server (+0 PTS).`;
+      }
+    } else if (tab === 'database') {
+      if (cat === 'backend') {
+        title = "Supabase Relational Mapping";
+        observation = `We are picking database storage engines for ${problemTitle}.`;
+        concern = "Setting up relational Postgres tables manually requires migrations and raw query connection code.";
+        recommendation = "Let's add Supabase as our relational database. It serves direct Postgres queries with automatic API bindings!";
+        expectedImpact = "Significantly speeds up data integration and table mapping (+2 PTS Fit Bonus).";
+        tradeoffs = "Requires learning the Supabase SDK syntax.";
+        modifiers = { execution: 14, design: 5, bonus: 2 };
+        const supabaseItem = {
+          id: "tech-supabase",
+          name: "Supabase",
+          icon: "layers",
+          category: "Database",
+          difficulty: 1,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: supabaseItem }
+        };
+        logMessage = `${name} recommended Supabase database backend (+2 PTS).`;
+      } else if (cat === 'designer' || cat === 'frontend') {
+        title = "MongoDB Document DB Selection";
+        observation = `We are mapping relational data structures for ${problemTitle}.`;
+        concern = "Frontenders love schema-less JSON docs, but forcing MongoDB to resolve relational mapping leads to clunky client-side joins.";
+        recommendation = "Let's use MongoDB. It is schema-less and easy, though resolving relational connections will be extremely messy.";
+        expectedImpact = "Increases database structural friction and search latency (-1 PTS bad choice!).";
+        tradeoffs = "Loses relational foreign key constraints.";
+        modifiers = { execution: 5, design: -5, bonus: -1 };
+        const mongoItem = {
+          id: "tech-mongodb",
+          name: "MongoDB",
+          icon: "layers",
+          category: "Database",
+          difficulty: 1,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: mongoItem }
+        };
+        logMessage = `${name} gave clunky document MongoDB suggestion (-1 PTS).`;
+      } else {
+        title = "PostgreSQL DB Engine Selection";
+        observation = `We are mapping SQL tables for ${problemTitle}.`;
+        concern = "We need standard, robust relational table safety to scale database transactions.";
+        recommendation = "Let's add PostgreSQL as our SQL database server. It is extremely secure and handles relational constraints flawlessly.";
+        expectedImpact = "Establishes a highly structured data schema (+0 PTS).";
+        tradeoffs = "Requires manually executing table migrations.";
+        modifiers = { execution: 10, bonus: 0 };
+        const postgresItem = {
+          id: "tech-postgres",
+          name: "PostgreSQL",
+          icon: "layers",
+          category: "Database",
+          difficulty: 2,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: postgresItem }
+        };
+        logMessage = `${name} recommended PostgreSQL engine (+0 PTS).`;
+      }
+    } else if (tab === 'ai') {
+      if (cat === 'ai') {
+        title = "Google Gemini Inference";
+        observation = `We are selecting cognitive intelligence pipelines for ${problemTitle}.`;
+        concern = "Standard APIs have higher cost and network latency for dynamic LLM content.";
+        recommendation = "Let's select Google Gemini API Flash models! They are ultra-fast, cost-effective, and handle massive multimodal contexts beautifully.";
+        expectedImpact = "Maximizes prototype innovation score and pitch value (+2 PTS Fit Bonus).";
+        tradeoffs = "Slightly different SDK schemas than standard models.";
+        modifiers = { innovation: 18, pitch: 10, bonus: 2 };
+        const geminiItem = {
+          id: "tech-gemini",
+          name: "Gemini API",
+          icon: "layers",
+          category: "AI / ML",
+          difficulty: 2,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: geminiItem }
+        };
+        logMessage = `${name} recommended high-speed Gemini API Flash models (+2 PTS).`;
+      } else {
+        title = "OpenAI API Core Integration";
+        observation = `We are adding a model intelligence pipeline for ${problemTitle}.`;
+        concern = "Integrating semantic features requires a highly popular API model.";
+        recommendation = "Let's add OpenAI API GPT models to our stack. They are extremely popular with very solid developer documentation.";
+        expectedImpact = "Provides strong cognitive features for the prototype (+0 PTS).";
+        tradeoffs = "Slightly higher latency and execution cost.";
+        modifiers = { innovation: 12, pitch: 5, bonus: 0 };
+        const openaiItem = {
+          id: "tech-openai",
+          name: "OpenAI",
+          icon: "layers",
+          category: "AI / ML",
+          difficulty: 2,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: openaiItem }
+        };
+        logMessage = `${name} recommended OpenAI API models (+0 PTS).`;
+      }
+    } else {
+      if (cat === 'designer' || cat === 'frontend' || cat === 'backend') {
+        title = "Vercel Cloud Deployment";
+        observation = `We are selecting deployment infrastructures for ${problemTitle}.`;
+        concern = "Deploying to raw cloud VPS machines manually wastes precious hackathon hours.";
+        recommendation = "Let's select Vercel for serverless cloud hosting. It gives us instant preview URLs and seamless continuous deployments!";
+        expectedImpact = "Drastically speeds up frontend publishing and validation (+2 PTS Fit Bonus).";
+        tradeoffs = "Serverless execution time-limits.";
+        modifiers = { execution: 12, bonus: 2 };
+        const vercelItem = {
+          id: "tech-vercel",
+          name: "Vercel",
+          icon: "layers",
+          category: "Hosting / Infra",
+          difficulty: 1,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: vercelItem }
+        };
+        logMessage = `${name} recommended Vercel cloud serverless deployment (+2 PTS).`;
+      } else {
+        title = "Netlify Static Hosting Setup";
+        observation = `We are adding server deployment servers for ${problemTitle}.`;
+        concern = "Publishing our static assets requires instant global routing.";
+        recommendation = "Let's add Netlify static server hosting. It is fast, lightweight, and publishes client assets with one command.";
+        expectedImpact = "Simplifies static file server setups (+0 PTS).";
+        tradeoffs = "Loses dynamic custom backend server capabilities.";
+        modifiers = { execution: 8, bonus: 0 };
+        const netlifyItem = {
+          id: "tech-netlify",
+          name: "Netlify",
+          icon: "layers",
+          category: "Hosting / Infra",
+          difficulty: 1,
+          synergies: []
+        };
+        action = {
+          type: 'add_tech_directly',
+          payload: { techItem: netlifyItem }
+        };
+        logMessage = `${name} recommended Netlify static web hosting (+0 PTS).`;
+      }
+    }
+
+    return {
+      title,
+      observation,
+      concern,
+      recommendation,
+      expectedImpact,
+      tradeoffs,
+      modifiers,
+      action,
+      logMessage
+    };
+  }
+
   if (cat === 'backend') {
-    title = "Database Architecture Improvement";
     const hasPostgres = state.techStack.some(t => t.id === 'tech-postgres' || t.name.toLowerCase().includes("postgres"));
     const hasSupabase = state.techStack.some(t => t.id === 'tech-supabase' || t.name.toLowerCase().includes("supabase"));
     const hasRedis = state.techStack.some(t => t.id === 'tech-redis' || t.name.toLowerCase().includes("redis"));
     const hasNext = state.techStack.some(t => t.id === 'tech-next' || t.name.toLowerCase().includes("next"));
+    const hasExpress = state.techStack.some(t => t.id === 'tech-express' || t.name.toLowerCase().includes("express"));
+    const hasNode = state.techStack.some(t => t.id === 'tech-node' || t.name.toLowerCase().includes("node"));
+    const hasBun = state.techStack.some(t => t.id === 'tech-bun' || t.name.toLowerCase().includes("bun"));
+    const hasGo = state.techStack.some(t => t.id === 'tech-go' || t.name.toLowerCase().includes("go"));
     
-    if (hasPostgres) {
+    // Check if we need backend selection help:
+    const hasBackend = state.techStack.some(t => t.category === 'Backend' || t.category === 'backend');
+    const hasDb = state.techStack.some(t => t.category === 'Database' || t.category === 'database');
+    const hasFrontend = state.techStack.some(t => t.category === 'Frontend' || t.category === 'frontend');
+    
+    if (!hasBackend) {
+      title = "Backend Runtime Selection";
+      observation = `We are building a prototype for ${problemTitle} but haven't chosen a backend controller yet.`;
+      concern = `Handling client API calls or orchestrating our ${numFeatures} features requires a highly responsive and lightweight runtime.`;
+      recommendation = "Let's add Bun to our backend stack. It is ultra-fast, compiles instantly, and serves websockets with zero overhead.";
+      expectedImpact = "Speeds up backend response times and local compilation.";
+      tradeoffs = "Newer ecosystem than standard Node.js runtime.";
+      modifiers = { execution: 14, innovation: 10 };
+      const bunItem = {
+        id: "tech-bun",
+        name: "Bun",
+        icon: "layers",
+        category: "Backend",
+        difficulty: 2,
+        synergies: ["reg-react", "reg-supabase"]
+      };
+      action = {
+        type: 'add_tech_directly',
+        payload: { techItem: bunItem }
+      };
+      logMessage = `${name} recommended Bun for the backend controller.`;
+    } else if (!hasDb) {
+      title = "Database Integration Selection";
+      observation = `We have selected backend runtimes for ${problemTitle}, but we haven't selected a relational or non-relational database yet.`;
+      concern = `Storing user status and caching strategic inputs for our ${numFeatures} features requires a persistent data engine.`;
+      recommendation = "Let's add Supabase to our database stack. It gives us PostgreSQL relational mapping with zero API config.";
+      expectedImpact = "Instantly solves backend storage and analytical schemas.";
+      tradeoffs = "Couples the backend database directly to a Supabase client setup.";
+      modifiers = { execution: 14, design: 5, innovation: 6 };
+      const supabaseItem = {
+        id: "tech-supabase",
+        name: "Supabase",
+        icon: "layers",
+        category: "Database",
+        difficulty: 1,
+        synergies: []
+      };
+      action = {
+        type: 'add_tech_directly',
+        payload: { techItem: supabaseItem }
+      };
+      logMessage = `${name} recommended Supabase as our database backend.`;
+    } else if (!hasFrontend) {
+      title = "Frontend Framework Selection";
+      observation = `We are missing a cohesive component interface or rendering controller for ${problemTitle}.`;
+      concern = "Without a strong, component-based reactive framework, we cannot coordinate modern user interfaces fluidly.";
+      recommendation = "Let's add Next.js to our frontend stack. It provides automatic server rendering and super smooth routing.";
+      expectedImpact = "Drastically enhances visual design points and interface speed.";
+      tradeoffs = "Has a slightly higher learning curve than plain Javascript.";
+      modifiers = { design: 15, execution: 8, innovation: 5 };
+      const nextItem = {
+        id: "tech-next",
+        name: "Next.js",
+        icon: "layers",
+        category: "Frontend",
+        difficulty: 2,
+        synergies: ["reg-vercel"]
+      };
+      action = {
+        type: 'add_tech_directly',
+        payload: { techItem: nextItem }
+      };
+      logMessage = `${name} recommended Next.js as our frontend framework.`;
+    } else if (hasGo && hasNode) {
+      title = "Backend Architecture Consolidation";
+      observation = `We are running both Node.js and Go (Gin) in our stack for ${problemTitle}.`;
+      concern = "Managing multiple execution environments in a short 24-hour sprint creates massive deployment risk and team friction.";
+      recommendation = "Let's remove Go (Gin) and standardize our backend on Node.js to keep our runtime cohesive.";
+      expectedImpact = "Drastically reduces integration complexity.";
+      tradeoffs = "Slightly reduces raw network execution speed.";
+      modifiers = { execution: 18, innovation: -5 };
+      action = {
+        type: 'replace_tech_directly',
+        payload: { removeName: 'Go', addTech: { id: "tech-node", name: "Node.js", icon: "layers", category: "Backend", difficulty: 2, synergies: [] } }
+      };
+      logMessage = `${name} consolidated backend stack to Node.js.`;
+    } else if (hasPostgres) {
+      title = "Database Schema Optimization";
       observation = `We are running PostgreSQL in our stack for the ${problemTitle} problem, with selected technologies: ${techNames || "None."}`;
       concern = `Writing raw SQL migrations and managing connections while implementing all ${numFeatures} backlog features is too slow for a 24-hour hackathon sprint.`;
       recommendation = "Let's replace PostgreSQL with MongoDB. It allows us to save records as flexible JSON without migrations, speeding up schema updates.";
@@ -480,10 +869,10 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
       tradeoffs = "Loses relational foreign key constraints.";
       modifiers = { execution: 15, design: -2 };
       const mongoItem = {
-        id: "store-mongo",
+        id: "tech-mongodb",
         name: "MongoDB",
         icon: "layers",
-        category: "Database" as const,
+        category: "Database",
         difficulty: 1,
         synergies: []
       };
@@ -496,6 +885,7 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
       };
       logMessage = `${name} replaced PostgreSQL database with MongoDB.`;
     } else if (hasSupabase) {
+      title = "Database Service Swap";
       observation = `We are using Supabase as our database backend for ${problemTitle}. Selected stack: ${techNames || "None."}`;
       concern = `Integrating Supabase client authentication and database listeners for all ${numFeatures} features adds too much client-side bundle weight.`;
       recommendation = "Let's swap Supabase with Firebase. It will let us utilize simpler SDK setups for state sync.";
@@ -503,10 +893,10 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
       tradeoffs = "Loses PostgreSQL relational capabilities.";
       modifiers = { execution: 12, design: 2 };
       const firebaseItem = {
-        id: "store-firebase",
+        id: "tech-firebase",
         name: "Firebase",
         icon: "layers",
-        category: "Database" as const,
+        category: "Database",
         difficulty: 1,
         synergies: []
       };
@@ -519,6 +909,7 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
       };
       logMessage = `${name} swapped Supabase database with Firebase.`;
     } else if (hasNext && !hasRedis) {
+      title = "Database Caching Implementation";
       observation = `Our frontend uses Next.js to solve ${problemTitle}, but our database fetches are not cached.`;
       concern = `Repeated database queries for our ${numFeatures} features on every page load will slow down our demo response time.`;
       recommendation = "Let's add Redis to cache session queries and speed up the interface.";
@@ -526,10 +917,10 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
       tradeoffs = "Adds a small setup overhead for local caching.";
       modifiers = { execution: 10, design: 4 };
       const redisItem = {
-        id: "store-redis",
+        id: "tech-redis",
         name: "Redis",
         icon: "layers",
-        category: "Database" as const,
+        category: "Database",
         difficulty: 2,
         synergies: ["reg-next"]
       };
@@ -546,6 +937,7 @@ export function generateTeammateAdvice(teammateId: string, state: GameState): an
         : null;
       const featName = lowestImpactFeature?.name || "nice-to-have features";
       
+      title = "Backend Scope Reduction";
       observation = `We have prioritized backend-intensive features including ${featName} for our prototype.`;
       concern = "Building the full API endpoints for these features will leave us with no time for visual polish.";
       recommendation = `Let's remove the lower impact feature ${featName} from our backlog.`;
@@ -1004,6 +1396,7 @@ const initialGameState = {
   lastContextState: {} as Record<string, string>,
   isBackendLocked: false,
   hasCrewVotedThisStage: {} as Record<string, boolean>,
+  activeTechTab: 'all',
 };
 
 // ---------------------------------------------------------------------------
@@ -1281,6 +1674,7 @@ export const useGameStore = create<GameState & GameActions>()(
         setGeneratedBusinessModels: (models) => set({ generatedBusinessModels: models }, false, 'core/setGeneratedBusinessModels'),
         setGeneratedAdvisorAdvice: (advice) => set({ generatedAdvisorAdvice: advice }, false, 'core/setGeneratedAdvisorAdvice'),
         setRoastText: (roastText) => set({ roastText }, false, 'core/setRoastText'),
+        setActiveTechTab: (tab) => set({ activeTechTab: tab }, false, 'core/setActiveTechTab'),
 
         applyAdvisorAdvice: (adviceId) => {
           const state = get();
@@ -1438,10 +1832,11 @@ export const useGameStore = create<GameState & GameActions>()(
             mentorConfidence: nextConfidence
           });
 
-          const advisorAdvice = updatedState.generatedAdvisorAdvice.find(a => a.id === adviceId);
-          if (advisorAdvice) {
-            get().triggerTeamChatMessage('mentor_advice', advisorAdvice);
-          }
+          // Commented out to eliminate redundant teammate suggestions in chat:
+          // const advisorAdvice = updatedState.generatedAdvisorAdvice.find(a => a.id === adviceId);
+          // if (advisorAdvice) {
+          //   get().triggerTeamChatMessage('mentor_advice', advisorAdvice);
+          // }
         },
 
         rejectAdvisorAdvice: (adviceId) => {
@@ -2876,7 +3271,7 @@ export const useGameStore = create<GameState & GameActions>()(
           set({ teamChatMessages, lastContextState }, false, 'team/updateTeammateContext');
         },
 
-        triggerCrewVote: (voteType) => {
+        triggerCrewVote: (voteType, targetId, voteAs) => {
           const state = get();
           const team = state.team;
           if (team.length === 0) return;
@@ -2887,18 +3282,15 @@ export const useGameStore = create<GameState & GameActions>()(
           let subjectTitle = "";
           let subjectDesc = "";
           if (voteType === 'usp') {
-            subjectTitle = state.usp || state.primaryUsp || "No USP Selected";
-            subjectDesc = "Unique Value Proposition";
+            const activeUsp = state.generatedUSPs.find(u => u.id === targetId || u.name === targetId || u.key === targetId) || state.generatedUSPs[0];
+            subjectTitle = activeUsp ? activeUsp.name : (state.usp || state.primaryUsp || "No USP Selected");
+            subjectDesc = voteAs === 'secondary' ? "Secondary USP" : "Primary USP";
           } else {
-            const activeModel = state.generatedBusinessModels.find(m => m.id === state.businessModel);
+            const activeModel = state.generatedBusinessModels.find(m => m.id === targetId || m.name === targetId) || state.generatedBusinessModels.find(m => m.id === state.businessModel) || state.generatedBusinessModels[0];
             subjectTitle = activeModel ? activeModel.name : "No Business Model Selected";
             subjectDesc = "Business Model Strategy";
           }
 
-          // Build a beautiful poll message Text
-          let pollText = `🗳️ TEAM POLL RESOLUTION: **${subjectTitle}**\n\n`;
-          pollText += `The Team Lead requested a crew-wide vote on our chosen ${subjectDesc}.\n\n`;
-          
           let yesCount = 0;
           let noCount = 0;
 
@@ -2951,7 +3343,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
             return {
               name: t.name,
-              role: t.role,
+              role: t.role || "",
               avatar: t.avatar,
               vote,
               rationale
@@ -2962,39 +3354,55 @@ export const useGameStore = create<GameState & GameActions>()(
           const consensusPct = Math.round((yesCount / totalVotes) * 100);
           const approved = yesCount > noCount;
 
-          let resultText = `**POLL RESULTS:**\n`;
-          votesList.forEach(v => {
-            resultText += `• ${v.avatar} **${v.name}** (${v.role}): Voted **${v.vote}** — *"${v.rationale}"*\n`;
-          });
-
-          resultText += `\n**FINAL CONSENSUS:** **${yesCount} YES / ${noCount} NO** (${consensusPct}% Alignment)\n`;
-          resultText += approved 
-            ? `🟢 **APPROVED:** The crew has voted in favor of this strategy! Pitch readiness boosted.` 
-            : `🔴 **WARNING:** The crew has highlighted strategic risks. We can proceed, or re-evaluate.`;
+          const pollDetails = {
+            subjectTitle,
+            subjectDesc,
+            voteAs,
+            yesCount,
+            noCount,
+            consensusPct,
+            approved,
+            votesList
+          };
 
           const newMessage: TeamChatMessage = {
             id: `crew-vote-${Date.now()}`,
             senderId: "team-lead",
             senderName: "Crew Poll Bot",
             senderAvatar: "🗳️",
-            text: pollText + resultText,
+            text: `🗳️ Crew Vote initiated on: ${subjectTitle}`,
             timestamp,
             isRead: false,
-            type: 'info'
+            type: 'poll',
+            pollDetails
           };
 
           // Apply a small score boost if crew approves!
           let scoreBonus = 0;
+          let extraState: any = {};
           if (approved) {
             scoreBonus = 5;
             const currentScore = state.score;
-            set({
-              score: {
-                ...currentScore,
-                bonus: currentScore.bonus + scoreBonus,
-                total: currentScore.innovation + currentScore.execution + currentScore.design + currentScore.pitch + currentScore.bonus + scoreBonus
+            extraState.score = {
+              ...currentScore,
+              bonus: currentScore.bonus + scoreBonus,
+              total: currentScore.innovation + currentScore.execution + currentScore.design + currentScore.pitch + currentScore.bonus + scoreBonus
+            };
+
+            // Auto-apply USP or Business Model if approved!
+            if (voteType === 'usp') {
+              if (voteAs === 'secondary') {
+                extraState.secondaryUsp = subjectTitle;
+              } else {
+                extraState.primaryUsp = subjectTitle;
+                extraState.usp = subjectTitle;
               }
-            }, false, 'team/crewVoteBonus');
+            } else {
+              const activeModel = state.generatedBusinessModels.find(m => m.id === targetId || m.name === targetId);
+              if (activeModel) {
+                extraState.businessModel = activeModel.id;
+              }
+            }
           }
 
           set(s => ({
@@ -3003,7 +3411,8 @@ export const useGameStore = create<GameState & GameActions>()(
             hasCrewVotedThisStage: {
               ...s.hasCrewVotedThisStage,
               [state.stage]: true
-            }
+            },
+            ...extraState
           }), false, 'team/triggerCrewVote');
 
           playNotificationSound();
@@ -3060,6 +3469,7 @@ export const useGameStore = create<GameState & GameActions>()(
           lastContextState: state.lastContextState,
           isBackendLocked: state.isBackendLocked,
           hasCrewVotedThisStage: state.hasCrewVotedThisStage,
+          activeTechTab: state.activeTechTab,
         }),
       }
     ),
