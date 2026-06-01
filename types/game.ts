@@ -343,6 +343,20 @@ export interface GameState {
   activeTeammateAdvice: Record<string, any>;
   teamAdviceHistory: { teammateId: string; adviceId: string; title: string; stage: string; status: 'applied' | 'rejected'; modifiers?: Record<string, number>; }[];
   teamContributionLogs: string[];
+  teamChatMessages: TeamChatMessage[];
+  unreadChatCount: number;
+  teamTimeline: { time: string; event: string; }[];
+  triggeredThresholds: string[];
+  teammateDecisions: TeammateDecision[];
+  lastContextState: Record<string, string>;
+  isBackendLocked: boolean;
+}
+
+export interface TeammateDecision {
+  teammateName: string;
+  recommendation: string;
+  status: 'accepted' | 'rejected';
+  resultingChanges: string;
 }
 
 /** Actions the player (or system) can dispatch to mutate game state */
@@ -442,6 +456,47 @@ export interface GameActions {
   applyTeammateAdvice: (teammateId: string) => void;
   rejectTeammateAdvice: (teammateId: string) => void;
   resolveTeamChatMoment: (choiceIndex: number) => void;
+  resolveTeamChatMessageChoice: (messageId: string, choiceIndex: number) => void;
+  clearUnreadChatCount: () => void;
+  triggerTeamChatMessage: (event: string, payload?: any) => void;
+  updateTeammateContext: () => void;
+}
+
+export interface TeamChatMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar: string;
+  text: string;
+  timestamp: string;
+  isRead: boolean;
+  type?: 'info' | 'suggestion' | 'warning' | 'disagreement' | 'contribution' | 'action_completed' | 'waiting';
+  changeSummary?: {
+    before: string;
+    after: string;
+    reason?: string;
+    senderName?: string;
+  };
+  discussion?: {
+    resolved: boolean;
+    choices: {
+      label: string;
+      description: string;
+      outcomeText: string;
+      modifiers: {
+        innovation?: number;
+        execution?: number;
+        design?: number;
+        pitch?: number;
+        bonus?: number;
+      };
+      action?: {
+        type: string;
+        payload?: any;
+      };
+    }[];
+    chosenIndex?: number;
+  };
 }
 
 // ─── Teammate & Team Chat Moments ──────────────────────────────────────────

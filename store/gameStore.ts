@@ -33,6 +33,8 @@ import type {
   JudgeDecisionMemory,
   Teammate,
   TeamChatMoment,
+  TeamChatMessage,
+  TeammateDecision,
 } from '@/types/game';
 import { getRandomChaosEvent, CHAOS_EVENTS } from '@/data/chaosEvents';
 import { getDailyChallenge } from '@/lib/dailyChallenge';
@@ -103,6 +105,650 @@ export function isRoleRelevantForStage(role: string | null, stage: string): bool
     return ['techStack', 'features', 'mentor', 'businessModel', 'pitchPrep'].includes(stage);
   }
   return false;
+}
+
+/**
+ * Helper to get a simulated time string from globalTimeRemaining and globalTotalTime.
+ */
+export function getSimulatedTime(globalTimeRemaining: number, globalTotalTime: number): string {
+  if (globalTotalTime <= 0) return "Day 1, 09:00.";
+  const elapsedRatio = Math.max(0, Math.min(1, 1 - (globalTimeRemaining / globalTotalTime)));
+  const totalMinutes = 24 * 60;
+  const elapsedMinutes = Math.floor(elapsedRatio * totalMinutes);
+  const startMinutes = 9 * 60;
+  const currentTotalMinutes = startMinutes + elapsedMinutes;
+  
+  const day = currentTotalMinutes >= 1440 ? 2 : 1;
+  const hour = Math.floor((currentTotalMinutes % 1440) / 60);
+  const minute = currentTotalMinutes % 60;
+  
+  const hourStr = String(hour).padStart(2, '0');
+  const minStr = String(minute).padStart(2, '0');
+  return `Day ${day}, ${hourStr}:${minStr}`;
+}
+
+/**
+ * Helper to get a relevant teammate based on event type.
+ */
+export function getTeammateForEvent(team: Teammate[], event: string): Teammate | { id: string; name: string; avatar: string; } {
+  if (!team || team.length === 0) {
+    return { id: "teammate-fallback", name: "Riya", avatar: "👩‍💻" };
+  }
+  if (event === "tech_add" || event === "tech_remove") {
+    const match = team.find(t => t.role?.toLowerCase().includes("backend") || t.role?.toLowerCase().includes("developer"));
+    if (match) return match;
+  }
+  if (event === "backlog_change") {
+    const match = team.find(t => t.role?.toLowerCase().includes("frontend") || t.role?.toLowerCase().includes("designer"));
+    if (match) return match;
+  }
+  if (event === "usp_change" || event === "biz_model_change") {
+    const match = team.find(t => t.role?.toLowerCase().includes("strategist") || t.role?.toLowerCase().includes("founder"));
+    if (match) return match;
+  }
+  if (event === "mentor_advice") {
+    const match = team.find(t => t.role?.toLowerCase().includes("pitch") || t.role?.toLowerCase().includes("user"));
+    if (match) return match;
+  }
+  return team[Math.floor(Math.random() * team.length)];
+}
+
+/**
+ * Character prompt metadata description.
+ */
+export interface CharacterPrompt {
+  role: string;
+  personality: string;
+  expertise: string;
+  commStyle: string;
+}
+
+/**
+ * Returns character-specific profile configuration.
+ */
+export function getTeammateCharacter(name: string, role: string | null, personality: string): CharacterPrompt {
+  const n = name.toLowerCase();
+  const r = (role || "").toLowerCase();
+  
+  if (n.includes("tanmay") || r.includes("backend") || r.includes("database")) {
+    return {
+      role: "Backend Engineer",
+      personality: "Pragmatic",
+      expertise: "Relational modeling, server efficiency, scaling databases",
+      commStyle: "Blunt, dislikes complex setups, calls out overengineering."
+    };
+  }
+  if (n.includes("priya") || r.includes("designer") || r.includes("design") || r.includes("frontend")) {
+    return {
+      role: "UI/UX Designer",
+      personality: "User-focused",
+      expertise: "Interface clarity, human-computer interaction, visual design hierarchy",
+      commStyle: "Detail-oriented, user advocate, challenges confusing layouts and complex UX."
+    };
+  }
+  if (n.includes("riya") || r.includes("ai") || r.includes("ml") || r.includes("data scientist")) {
+    return {
+      role: "AI Engineer",
+      personality: "Skeptical Optimizer",
+      expertise: "Neural networks, model training, serverless model execution",
+      commStyle: "Analytical, technical, questions weak AI integration and buzzword usage."
+    };
+  }
+  if (r.includes("strategist") || r.includes("founder") || r.includes("business")) {
+    return {
+      role: "Product Strategist",
+      personality: "ROI-driven",
+      expertise: "Business viability, monetization funnels, startup metrics",
+      commStyle: "Pragmatic, commercial, focuses strictly on customer value and revenue."
+    };
+  }
+  if (r.includes("pitch")) {
+    return {
+      role: "Pitch Specialist",
+      personality: "Charismatic Storyteller",
+      expertise: "Narrative structure, presentation flow, public speaking",
+      commStyle: "Energetic, focus on pacing, cuts dry technical descriptions for high-impact hooks."
+    };
+  }
+  
+  if (personality === "Builder") {
+    return {
+      role: role || "Developer",
+      personality: "Pragmatic Builder",
+      expertise: "Rapid prototyping, coding clean functions",
+      commStyle: "Direct, prefers simple working prototypes over fancy designs."
+    };
+  } else if (personality === "Perfectionist") {
+    return {
+      role: role || "QA Engineer",
+      personality: "Detail-oriented",
+      expertise: "Error prevention, code quality, edge cases",
+      commStyle: "Cautious, warns about potential bugs, opposes rushing implementations."
+    };
+  } else if (personality === "Dreamer") {
+    return {
+      role: role || "Visionary",
+      personality: "Creative",
+      expertise: "Out of the box ideation, future capabilities",
+      commStyle: "Optimistic, uses visual storytelling, advocates for futuristic integrations."
+    };
+  } else if (personality === "Founder") {
+    return {
+      role: role || "Manager",
+      personality: "ROI-focused Leader",
+      expertise: "Milestone management, customer development",
+      commStyle: "Decisive, business-oriented, pushes for speed and commercial viability."
+    };
+  }
+  return {
+    role: role || "Team Member",
+    personality: "Collaborator",
+    expertise: "General execution support",
+    commStyle: "Supportive, constructive, aligns with the team lead."
+  };
+}
+
+/**
+ * Builds unified project context string to inform advice.
+ */
+export function buildProjectContext(state: GameState): string {
+  const problemTitle = state.selectedProblem?.title || "None";
+  const problemDesc = state.selectedProblem?.description || "None";
+  const category = state.selectedProblem?.category || "None";
+  const solutionType = state.solutionDirection || "None";
+  const techNames = state.techStack.map(t => t.name).join(", ") || "None";
+  const usp = state.usp || "None";
+  const featuresList = state.features.map(f => `${f.name} (${f.effort} effort, ${f.impact} impact)`).join(", ") || "None";
+  const pitchDeck = state.pitchDeck.join(", ") || "None";
+  const businessModel = state.businessModel || "None";
+  
+  const techDifficultySum = state.techStack.reduce((sum, t) => sum + (t.difficulty || 0), 0);
+  const highEffortFeaturesCount = state.features.filter(f => f.effort === 'high').length;
+  const feasibility = Math.max(10, Math.min(100, 95 - (techDifficultySum * 3.5) - (highEffortFeaturesCount * 12)));
+  const hasUsp = !!state.usp;
+  const hasBizModel = !!state.businessModel;
+  const pitchVal = state.pitchDeckScore || state.score.pitch || 45;
+  const viability = Math.round((hasUsp ? 30 : 0) + (hasBizModel ? 30 : 0) + (pitchVal * 0.4));
+  const health = `Innovation: ${state.score.innovation}%, Execution: ${state.score.execution}%, Feasibility: ${feasibility}%, Viability: ${viability}%`;
+  
+  const timerState = `${state.globalTimeRemaining} seconds remaining out of ${state.globalTotalTime}`;
+  
+  const mentorHistory = state.generatedAdvisorAdvice
+    .filter(a => a.status === 'applied')
+    .map(a => a.title)
+    .join(", ") || "None";
+    
+  const teammateHistory = state.teamAdviceHistory
+    ? state.teamAdviceHistory.filter(h => h.status === 'applied').map(h => h.title).join(", ")
+    : "None";
+
+  return `
+Problem: "${problemDesc}" (Category: ${category})
+Solution Type: ${solutionType}
+Tech Stack: ${techNames}
+USP: ${usp}
+Backlog: [${featuresList}]
+Pitch Deck: [${pitchDeck}]
+Business Model: ${businessModel}
+Mentor History: ${mentorHistory}
+Teammate History: ${teammateHistory}
+Timer: ${timerState}
+Health: ${health}
+`.trim();
+}
+
+/**
+ * Play a Slack/Discord-style soft notification chime using the Web Audio API.
+ */
+export function playNotificationSound() {
+  if (typeof window === 'undefined') return;
+  try {
+    const AudioContext = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const now = ctx.currentTime;
+
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(800, now);
+    gain1.gain.setValueAtTime(0.10, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+    osc1.start(now);
+    osc1.stop(now + 0.08);
+
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(1000, now + 0.04);
+    gain2.gain.setValueAtTime(0.08, now + 0.04);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.14);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+    osc2.start(now + 0.04);
+    osc2.stop(now + 0.14);
+  } catch (e) {
+    // Ignore audio context errors.
+  }
+}
+
+/**
+ * Checks context thresholds for a teammate.
+ */
+export function checkTeammateGating(teammate: Teammate, state: GameState): { isGated: boolean; reason: string; } {
+  const role = (teammate.role || "").toLowerCase();
+  const name = (teammate.name || "").toLowerCase();
+  const techStack = state.techStack || [];
+  const hasUsp = !!state.usp || !!state.primaryUsp || !!state.secondaryUsp;
+  const numFeatures = (state.features || []).length;
+  const hasPitch = state.pitchDeck && state.pitchDeck.length > 0;
+  const pitchCount = state.pitchDeck ? state.pitchDeck.length : 0;
+
+  if (name.includes("tanmay") || role.includes("backend") || role.includes("database") || role.includes("developer") || role.includes("dev")) {
+    const hasBackend = techStack.some(t => t.category === 'Backend');
+    const hasDb = techStack.some(t => t.category === 'Database');
+    const hasHosting = techStack.some(t => t.category === 'Hosting / Infra' || t.category === 'Hosting');
+    const hasThreeTech = techStack.length >= 3;
+    if (hasBackend || hasDb || hasHosting || hasThreeTech) {
+      return { isGated: false, reason: "Ready to review architecture" };
+    }
+    return { isGated: true, reason: "Watching architecture." };
+  } else if (name.includes("priya") || role.includes("designer") || role.includes("design") || role.includes("frontend")) {
+    if (hasUsp || numFeatures >= 3 || hasPitch) {
+      return { isGated: false, reason: "Ready to review product design" };
+    }
+    return { isGated: true, reason: "Watching product decisions." };
+  } else if (role.includes("pitch") || name.includes("pitch")) {
+    if (hasUsp || pitchCount >= 3) {
+      return { isGated: false, reason: "Ready to review pitch deck" };
+    }
+    return { isGated: true, reason: "Waiting for pitch deck." };
+  } else if (role.includes("strategist") || role.includes("founder") || role.includes("business")) {
+    if (hasUsp || !!state.businessModel) {
+      return { isGated: false, reason: "Ready to review business model" };
+    }
+    return { isGated: true, reason: "Watching business model." };
+  } else if (name.includes("riya") || role.includes("ai") || role.includes("ml")) {
+    const hasAiTech = techStack.some(t => t.category === 'AI / ML');
+    const hasAiSol = state.solutionDirection === 'ai-solution';
+    if (hasAiTech || hasAiSol) {
+      return { isGated: false, reason: "Ready to review AI features" };
+    }
+    return { isGated: true, reason: "Watching AI direction." };
+  } else if (role.includes("researcher")) {
+    if (state.selectedProblem) {
+      return { isGated: false, reason: "Ready to review project" };
+    }
+    return { isGated: true, reason: "Watching project selection." };
+  } else {
+    if (state.selectedProblem) {
+      return { isGated: false, reason: "Ready to review project" };
+    }
+    return { isGated: true, reason: "Watching project details." };
+  }
+}
+
+/**
+ * Evaluates gating for all teammates and outputs context log updates.
+ */
+export function getUpdatedContextMessages(state: GameState): {
+  teamChatMessages: TeamChatMessage[];
+  lastContextState: Record<string, string>;
+} {
+  const nextMessages = [...state.teamChatMessages];
+  const nextContextState = { ...state.lastContextState };
+
+  state.team.forEach(t => {
+    const { isGated, reason } = checkTeammateGating(t, state);
+    if (isGated) {
+      nextContextState[t.id] = reason;
+    } else {
+      nextContextState[t.id] = 'ready';
+    }
+  });
+
+  return {
+    teamChatMessages: nextMessages,
+    lastContextState: nextContextState
+  };
+}
+
+/**
+ * Procedurally generates context-aware, non-generic advice.
+ */
+export function generateTeammateAdvice(teammateId: string, state: GameState): any {
+  const teammate = state.team.find(t => t.id === teammateId);
+  if (!teammate) return null;
+
+  const role = teammate.role || "";
+  const r = role.toLowerCase();
+  const p = teammate.personality;
+  const name = teammate.name;
+  
+  const problemTitle = state.selectedProblem?.title || "our prototype";
+  const solution = state.solutionDirection || "solution";
+  const activeUsp = state.usp || "our value proposition";
+  const activeModel = state.businessModel || "our business strategy";
+  const techNames = state.techStack.map(t => t.name).join(", ");
+  const numFeatures = state.features.length;
+
+  let title = "Strategic Optimization";
+  let observation = "";
+  let concern = "";
+  let recommendation = "";
+  let expectedImpact = "";
+  let tradeoffs = "";
+  let modifiers = {} as any;
+  let action = null as any;
+  let logMessage = "";
+
+  if (r.includes("backend") || r.includes("database") || r.includes("developer") || r.includes("dev")) {
+    title = "Database Architecture Improvement";
+    const hasPostgres = state.techStack.some(t => t.id === 'tech-postgres' || t.name.toLowerCase().includes("postgres"));
+    const hasSupabase = state.techStack.some(t => t.id === 'tech-supabase' || t.name.toLowerCase().includes("supabase"));
+    const hasRedis = state.techStack.some(t => t.id === 'tech-redis' || t.name.toLowerCase().includes("redis"));
+    const hasNext = state.techStack.some(t => t.id === 'tech-next' || t.name.toLowerCase().includes("next"));
+    
+    if (hasPostgres) {
+      observation = `We are running PostgreSQL in our stack for the ${problemTitle} problem, with selected technologies: ${techNames || "None."}`;
+      concern = `Writing raw SQL migrations and managing connections while implementing all ${numFeatures} backlog features is too slow for a 24-hour hackathon sprint.`;
+      recommendation = "Let's replace PostgreSQL with MongoDB. It allows us to save records as flexible JSON without migrations, speeding up schema updates.";
+      expectedImpact = "Speeds up schema updates and database queries.";
+      tradeoffs = "Loses relational foreign key constraints.";
+      modifiers = { execution: 15, design: -2 };
+      const mongoItem = {
+        id: "store-mongo",
+        name: "MongoDB",
+        icon: "layers",
+        category: "Database" as const,
+        difficulty: 1,
+        synergies: []
+      };
+      action = {
+        type: 'replace_tech_directly',
+        payload: {
+          removeName: 'PostgreSQL',
+          addTech: mongoItem
+        }
+      };
+      logMessage = `${name} replaced PostgreSQL database with MongoDB.`;
+    } else if (hasSupabase) {
+      observation = `We are using Supabase as our database backend for ${problemTitle}. Selected stack: ${techNames || "None."}`;
+      concern = `Integrating Supabase client authentication and database listeners for all ${numFeatures} features adds too much client-side bundle weight.`;
+      recommendation = "Let's swap Supabase with Firebase. It will let us utilize simpler SDK setups for state sync.";
+      expectedImpact = "Simplifies state synchronization and SDK setups.";
+      tradeoffs = "Loses PostgreSQL relational capabilities.";
+      modifiers = { execution: 12, design: 2 };
+      const firebaseItem = {
+        id: "store-firebase",
+        name: "Firebase",
+        icon: "layers",
+        category: "Database" as const,
+        difficulty: 1,
+        synergies: []
+      };
+      action = {
+        type: 'replace_tech_directly',
+        payload: {
+          removeName: 'Supabase',
+          addTech: firebaseItem
+        }
+      };
+      logMessage = `${name} swapped Supabase database with Firebase.`;
+    } else if (hasNext && !hasRedis) {
+      observation = `Our frontend uses Next.js to solve ${problemTitle}, but our database fetches are not cached.`;
+      concern = `Repeated database queries for our ${numFeatures} features on every page load will slow down our demo response time.`;
+      recommendation = "Let's add Redis to cache session queries and speed up the interface.";
+      expectedImpact = "Significantly reduces latency in database responses.";
+      tradeoffs = "Adds a small setup overhead for local caching.";
+      modifiers = { execution: 10, design: 4 };
+      const redisItem = {
+        id: "store-redis",
+        name: "Redis",
+        icon: "layers",
+        category: "Database" as const,
+        difficulty: 2,
+        synergies: ["reg-next"]
+      };
+      action = {
+        type: 'add_tech_directly',
+        payload: {
+          techItem: redisItem
+        }
+      };
+      logMessage = `${name} added Redis cache to the tech stack.`;
+    } else {
+      const lowestImpactFeature = state.features.length > 0 
+        ? [...state.features].sort((a, b) => (a.impact === 'low' ? 0 : 1) - (b.impact === 'low' ? 0 : 1))[0]
+        : null;
+      const featName = lowestImpactFeature?.name || "nice-to-have features";
+      
+      observation = `We have prioritized backend-intensive features including ${featName} for our prototype.`;
+      concern = "Building the full API endpoints for these features will leave us with no time for visual polish.";
+      recommendation = `Let's remove the lower impact feature ${featName} from our backlog.`;
+      expectedImpact = "Improves overall prototype feasibility and database safety.";
+      tradeoffs = "Reduces features in scope.";
+      modifiers = { execution: 10, design: 5, innovation: -5 };
+      action = { type: 'reduce_scope', payload: {} };
+      logMessage = `${name} pruned backend backlog feature ${featName}.`;
+    }
+  } else if (r.includes("ai engineer") || r.includes("ai specialist") || r.includes("ai")) {
+    title = "AI Model Selection Tuning";
+    const hasOpenAI = state.techStack.some(t => t.id === 'tech-openai' || t.name.toLowerCase().includes("openai"));
+    const hasGemini = state.techStack.some(t => t.id === 'tech-gemini' || t.name.toLowerCase().includes("gemini"));
+    
+    if (hasOpenAI) {
+      observation = `We are calling OpenAI API model endpoints for our solution solving ${problemTitle}.`;
+      concern = "OpenAI API has higher response latency and model execution costs for dynamic UI content.";
+      recommendation = "Let's replace OpenAI API with Gemini API to utilize Gemini Flash models.";
+      expectedImpact = "Decreases response latency and improves prototype design polish.";
+      tradeoffs = "Slight differences in text completion formats.";
+      modifiers = { execution: 12, design: 5 };
+      const geminiItem = {
+        id: "store-gemini",
+        name: "Gemini API",
+        icon: "layers",
+        category: "AI / ML" as const,
+        difficulty: 2,
+        synergies: []
+      };
+      action = {
+        type: 'replace_tech_directly',
+        payload: {
+          removeName: 'OpenAI',
+          addTech: geminiItem
+        }
+      };
+      logMessage = `${name} replaced OpenAI API with Gemini API.`;
+    } else if (hasGemini) {
+      observation = `We are calling Gemini API Flash model endpoints for ${problemTitle} with stack: ${techNames || "None."}`;
+      concern = `Our prompting calls for all ${numFeatures} features might run slowly if we don't prune redundant input context.`;
+      recommendation = "Let's remove OpenAI or redundant tools if selected and focus strictly on Gemini Flash endpoints.";
+      expectedImpact = "Reduces execution risk and speeds up API calls.";
+      tradeoffs = "Loses GPT-4 fallback options.";
+      modifiers = { execution: 10, innovation: 5 };
+      action = { type: 'simplify_ai', payload: {} };
+      logMessage = `${name} optimized the Gemini API pipeline.`;
+    } else {
+      observation = `We are building a prototype for ${problemTitle} without integrating any LLM API models.`;
+      concern = "We need semantic capabilities to convince the judges of our product's intelligence.";
+      recommendation = "Let's add Gemini API to our stack. I can write the serverless model functions.";
+      expectedImpact = "Increases product innovation rating.";
+      tradeoffs = "Requires setting up environment API keys.";
+      modifiers = { innovation: 18, execution: -5 };
+      const geminiItem = {
+        id: "store-gemini",
+        name: "Gemini API",
+        icon: "layers",
+        category: "AI / ML" as const,
+        difficulty: 2,
+        synergies: []
+      };
+      action = {
+        type: 'add_tech_directly',
+        payload: { techItem: geminiItem }
+      };
+      logMessage = `${name} added Gemini API to the tech stack.`;
+    }
+  } else if (r.includes("designer") || r.includes("design")) {
+    title = "UX Interface Optimization";
+    const lowestImpactFeature = state.features.length > 0 
+      ? [...state.features].sort((a, b) => (a.impact === 'low' ? 0 : 1) - (b.impact === 'low' ? 0 : 1))[0]
+      : null;
+    const featName = lowestImpactFeature?.name || "complex components";
+    
+    observation = `We are displaying our USP "${activeUsp}" via a complex feature set including ${featName}.`;
+    concern = `Users will be overwhelmed by this layout structure and abandon the onboarding flow across all ${numFeatures} features.`;
+    recommendation = `Let's remove the lower impact feature ${featName} and focus on a clean landing page layout.`;
+    expectedImpact = "Guarantees a clean, fully functional UI demo.";
+    tradeoffs = "Prunes the feature list.";
+    modifiers = { design: 15, execution: 5 };
+    action = { type: 'reduce_scope', payload: {} };
+    logMessage = `${name} pruned feature ${featName} to optimize UX landing page.`;
+  } else if (r.includes("frontend")) {
+    title = "Frontend Stack Migration";
+    const hasReact = state.techStack.some(t => t.id === 'tech-react' || t.name.toLowerCase().includes("react"));
+    const hasNext = state.techStack.some(t => t.id === 'tech-next' || t.name.toLowerCase().includes("next"));
+    
+    if (hasReact && !hasNext) {
+      observation = `We are configuring custom React router and state hooks for the ${problemTitle} problem.`;
+      concern = `Building manual state management boilerplate for all ${numFeatures} features will leave us with no time for visual polish.`;
+      recommendation = "Let's switch React to Next.js to leverage Next.js App Router folders.";
+      expectedImpact = "Provides file-system routing out of the box and speeds up frontend build.";
+      tradeoffs = "Adds configuration file overhead.";
+      modifiers = { execution: 14, design: 5 };
+      const nextItem = {
+        id: "store-next",
+        name: "Next.js",
+        icon: "layers",
+        category: "Frontend" as const,
+        difficulty: 2,
+        synergies: []
+      };
+      action = {
+        type: 'replace_tech_directly',
+        payload: {
+          removeName: 'React',
+          addTech: nextItem
+        }
+      };
+      logMessage = `${name} migrated the frontend stack from React to Next.js.`;
+    } else {
+      observation = `We have scheduled a large UI feature set of ${numFeatures} features for ${problemTitle}.`;
+      concern = "Building all these custom views will leave us with zero time for visual polish.";
+      recommendation = "Let's prune the lowest impact nice-to-have features so we can focus on polishing the core app views.";
+      expectedImpact = "Improves execution and design rating.";
+      tradeoffs = "Reduces UI page count.";
+      modifiers = { execution: 10, design: 8 };
+      action = { type: 'reduce_scope', payload: {} };
+      logMessage = `${name} pruned frontend feature backlog.`;
+    }
+  } else if (r.includes("strategist") || r.includes("founder") || r.includes("business")) {
+    title = "Revenue Pivot Optimization";
+    observation = `Our monetization model for "${activeUsp}" is currently set to "${activeModel}".`;
+    concern = "This monetization model is generic and won't convince judges about long-term sustainability.";
+    
+    if (activeModel.toLowerCase().includes("sponsorship")) {
+      recommendation = "Let's change our business model to Freemium subscription options. It scales much better for target users.";
+      expectedImpact = "Proves recurring monthly viability.";
+      tradeoffs = "Requires a clear feature paywall.";
+      modifiers = { pitch: 15, execution: -5 };
+      action = { type: 'change_biz_model', payload: { model: 'Freemium' } };
+      logMessage = `${name} updated business model to Freemium subscription options.`;
+    } else {
+      recommendation = "Let's switch our business model to Local Sponsorship options. It scales much better for immediate campus pilot traction.";
+      expectedImpact = "Establishes immediate revenue options and localized viability.";
+      tradeoffs = "Limits addressable market size.";
+      modifiers = { pitch: 15, execution: -5 };
+      action = { type: 'change_biz_model', payload: { model: 'Local Sponsorship' } };
+      logMessage = `${name} updated business model to Local Sponsorship.`;
+    }
+  } else if (r.includes("pitch")) {
+    title = "Pitch Slide Restructuring";
+    observation = `We have prioritized the following slide sequence: [${state.pitchDeck.join(", ") || "None."}], total ${state.pitchDeck.length} slides.`;
+    concern = `The slide sequence is too technical and lacks a strong hook to showcase our technology stack: ${techNames || "None."}.`;
+    
+    if (state.pitchDeck.includes("demo")) {
+      recommendation = "Let's reorder the deck to place the Demo slide right after the Problem slide.";
+      expectedImpact = "Hooks the judges in the first ten seconds and boosts pitch rating.";
+      tradeoffs = "Slides order will change.";
+      modifiers = { pitch: 15, design: 5 };
+      action = { type: 'reorder_pitch_deck', payload: {} };
+      logMessage = `${name} reordered the pitch deck to place the Demo slide after the Problem slide.`;
+    } else {
+      recommendation = "Let's add a Demo slide to showcase our frontend prototype.";
+      expectedImpact = "Improves overall presentation flow and pitch delivery.";
+      tradeoffs = "Adds slide deck layout complexity.";
+      modifiers = { pitch: 12, design: 5 };
+      action = { type: 'add_slide_directly', payload: { slide: 'demo' } };
+      logMessage = `${name} added a Demo slide to the pitch deck.`;
+    }
+  } else if (r.includes("researcher")) {
+    title = "USP Target Segmentation";
+    observation = `Our unique selling proposition is set to "${activeUsp}" to address the ${problemTitle} category.`;
+    concern = "This value proposition targets a very broad audience and lacks focus for judges.";
+    recommendation = "Let's change our USP to student campus users. This will simplify our features scope.";
+    expectedImpact = "Improves target audience alignment and innovation ratings.";
+    tradeoffs = "Reduces addressable market size.";
+    modifiers = { innovation: 12, pitch: 5 };
+    action = { type: 'change_usp', payload: { usp: 'Student-centric campus tools' } };
+    logMessage = `${name} refined the USP to student campus users.`;
+  } else if (r.includes("chaiwala") || r.includes("chai")) {
+    title = "Morale Support Tea Break";
+    observation = `The team is working under pressure to build ${problemTitle}.`;
+    concern = "Developer fatigue is slowing down code execution.";
+    recommendation = "Let's take a cardamom chai break. It will reset developer focus.";
+    expectedImpact = "Boosts team energy and execution capability.";
+    tradeoffs = "Briefly pauses development focus.";
+    modifiers = { execution: 10, design: 5, bonus: 5 };
+    action = { type: 'boost_morale', payload: {} };
+    logMessage = `${name} served Cardamom Chai to boost team morale.`;
+  } else {
+    title = "General Scope Optimization";
+    const lowestImpactFeature = state.features.length > 0 
+      ? [...state.features].sort((a, b) => (a.impact === 'low' ? 0 : 1) - (b.impact === 'low' ? 0 : 1))[0]
+      : null;
+    const featName = lowestImpactFeature?.name || "nice-to-have features";
+    observation = `Our backlog features include: [${state.features.map(f => f.name).join(", ")}].`;
+    concern = "We have prioritized too many nice-to-have features for our MVP.";
+    recommendation = `Let's remove the lower impact feature ${featName} to focus on a working prototype.`;
+    expectedImpact = "Reduces execution risk and code bloat.";
+    tradeoffs = "Removes nice-to-have features.";
+    modifiers = { execution: 10, design: 5 };
+    action = { type: 'reduce_scope', payload: {} };
+    logMessage = `${name} pruned low impact backlog feature ${featName}.`;
+  }
+
+  const teammateHistory = state.teamAdviceHistory ? state.teamAdviceHistory.filter((h: any) => h.teammateId === teammateId) : [];
+  let memoryIntroduction = "";
+  if (teammateHistory.length > 0) {
+    const lastChoice = teammateHistory[teammateHistory.length - 1];
+    if (lastChoice.status === 'rejected') {
+      memoryIntroduction = `I still think our last suggestion for '${lastChoice.title}' would have been a safer bet. But let's look at this stage. `;
+    } else {
+      memoryIntroduction = `Since we successfully applied '${lastChoice.title}' earlier, let's keep that focus. `;
+    }
+  }
+
+  const charPrompt = getTeammateCharacter(name, role, p);
+  let explanationText = `${memoryIntroduction}**Observation:** ${observation} **Concern:** ${concern} **Recommendation:** ${recommendation}`;
+  explanationText = `[${charPrompt.role.toUpperCase()} - ${charPrompt.personality.toUpperCase()}] ${explanationText} (Style: ${charPrompt.commStyle})`;
+
+  return {
+    teammateId,
+    title,
+    explanation: explanationText,
+    expectedImpact,
+    tradeoffs,
+    modifiers,
+    action,
+    observation,
+    concern,
+    recommendation,
+    contributionLog: logMessage,
+  };
 }
 
 /**
@@ -351,6 +997,13 @@ const initialGameState = {
   activeTeammateAdvice: {} as Record<string, any>,
   teamAdviceHistory: [] as { teammateId: string; adviceId: string; title: string; stage: string; status: 'applied' | 'rejected'; }[],
   teamContributionLogs: [] as string[],
+  teamChatMessages: [] as TeamChatMessage[],
+  unreadChatCount: 0,
+  teamTimeline: [] as { time: string; event: string; }[],
+  triggeredThresholds: [] as string[],
+  teammateDecisions: [] as TeammateDecision[],
+  lastContextState: {} as Record<string, string>,
+  isBackendLocked: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -507,7 +1160,7 @@ export const useGameStore = create<GameState & GameActions>()(
             roastText: "",
           }, false, 'core/selectProblem'),
 
-        setSolutionDirection: (direction) =>
+        setSolutionDirection: (direction) => {
           set({ 
             solutionDirection: direction,
             usp: null,
@@ -521,45 +1174,75 @@ export const useGameStore = create<GameState & GameActions>()(
             businessModel: null,
             pitchText: "",
             roastText: "",
-          }, false, 'core/setSolutionDirection'),
+          }, false, 'core/setSolutionDirection');
+          get().updateTeammateContext();
+        },
 
-        addTechItem: (item) =>
+        addTechItem: (item) => {
           set(
             (state) => ({
               techStack: [...state.techStack, item],
             }),
             false,
             'core/addTechItem'
-          ),
+          );
+          get().triggerTeamChatMessage('tech_add', item);
+          get().updateTeammateContext();
+        },
 
-        removeTechItem: (itemId) =>
+        removeTechItem: (itemId) => {
+          const item = get().techStack.find(t => t.id === itemId);
           set(
             (state) => ({
               techStack: state.techStack.filter((t) => t.id !== itemId),
             }),
             false,
             'core/removeTechItem'
-          ),
+          );
+          if (item) {
+            get().triggerTeamChatMessage('tech_remove', item);
+          }
+          get().updateTeammateContext();
+        },
 
-        setUsp: (usp) => set({ usp }, false, 'core/setUsp'),
+        setUsp: (usp) => {
+          set({ usp }, false, 'core/setUsp');
+          get().triggerTeamChatMessage('usp_change');
+          get().updateTeammateContext();
+        },
 
-        setPrimaryUsp: (primaryUsp) => set((state) => {
-          const secondary = state.secondaryUsp;
-          const blendedUsp = primaryUsp && secondary ? `Primary: ${primaryUsp} | Secondary: ${secondary}` : primaryUsp || secondary || null;
-          return { primaryUsp, usp: blendedUsp };
-        }, false, 'core/setPrimaryUsp'),
+        setPrimaryUsp: (primaryUsp) => {
+          set((state) => {
+            const secondary = state.secondaryUsp;
+            const blendedUsp = primaryUsp && secondary ? `Primary: ${primaryUsp} | Secondary: ${secondary}` : primaryUsp || secondary || null;
+            setTimeout(() => { get().triggerTeamChatMessage('usp_change'); }, 0);
+            return { primaryUsp, usp: blendedUsp };
+          }, false, 'core/setPrimaryUsp');
+          get().updateTeammateContext();
+        },
 
-        setSecondaryUsp: (secondaryUsp) => set((state) => {
-          const primary = state.primaryUsp;
-          const blendedUsp = primary && secondaryUsp ? `Primary: ${primary} | Secondary: ${secondaryUsp}` : primary || secondaryUsp || null;
-          return { secondaryUsp, usp: blendedUsp };
-        }, false, 'core/setSecondaryUsp'),
+        setSecondaryUsp: (secondaryUsp) => {
+          set((state) => {
+            const primary = state.primaryUsp;
+            const blendedUsp = primary && secondaryUsp ? `Primary: ${primary} | Secondary: ${secondaryUsp}` : primary || secondaryUsp || null;
+            setTimeout(() => { get().triggerTeamChatMessage('usp_change'); }, 0);
+            return { secondaryUsp, usp: blendedUsp };
+          }, false, 'core/setSecondaryUsp');
+          get().updateTeammateContext();
+        },
 
-        reorderFeatures: (features) => set({ features }, false, 'core/reorderFeatures'),
+        reorderFeatures: (features) => {
+          set({ features }, false, 'core/reorderFeatures');
+          get().triggerTeamChatMessage('backlog_change');
+        },
 
         setMentorName: (name) => set({ mentorName: name }, false, 'core/setMentorName'),
 
-        setBusinessModel: (model) => set({ businessModel: model }, false, 'core/setBusinessModel'),
+        setBusinessModel: (model) => {
+          set({ businessModel: model }, false, 'core/setBusinessModel');
+          get().triggerTeamChatMessage('biz_model_change');
+          get().updateTeammateContext();
+        },
         
         setPitchText: (text) => set({ pitchText: text }, false, 'core/setPitchText'),
 
@@ -754,6 +1437,11 @@ export const useGameStore = create<GameState & GameActions>()(
             pitchText: nextPitch,
             mentorConfidence: nextConfidence
           });
+
+          const advisorAdvice = updatedState.generatedAdvisorAdvice.find(a => a.id === adviceId);
+          if (advisorAdvice) {
+            get().triggerTeamChatMessage('mentor_advice', advisorAdvice);
+          }
         },
 
         rejectAdvisorAdvice: (adviceId) => {
@@ -840,6 +1528,15 @@ export const useGameStore = create<GameState & GameActions>()(
               false,
               'timer/tick'
             );
+
+            const { globalTotalTime } = get();
+            const thresholds = [0.5, 0.3, 0.1];
+            thresholds.forEach(ratio => {
+              const targetSeconds = Math.floor(globalTotalTime * ratio);
+              if (nextTime === targetSeconds) {
+                get().triggerTeamChatMessage('timer_milestone', ratio);
+              }
+            });
           }
         },
 
@@ -983,6 +1680,7 @@ export const useGameStore = create<GameState & GameActions>()(
               isTimerPaused: false, // resume timer
             }, false, 'core/resolveChaosEvent');
           }
+          get().updateTeammateContext();
         },
 
         setGameMode: (mode) => {
@@ -1106,31 +1804,16 @@ export const useGameStore = create<GameState & GameActions>()(
               contribution: { innovation: 0, execution: 0, design: 0, pitch: 0 }
             }))
           }, false, 'team/setupTeam');
+          get().updateTeammateContext();
         },
 
         useTeammateHelp: (teammateId, currentStage) => {
           const teammate = get().team.find(t => t.id === teammateId);
           if (!teammate || teammate.helpTokenUsed) return;
 
-          // Locked Stage Check
-          if (!isRoleRelevantForStage(teammate.role, currentStage)) {
-            // Generate non-confident advice without consuming token
-            const adviceCard = {
-              teammateId,
-              isNotConfident: true,
-              title: "Not Confident",
-              explanation: `${teammate.name} doesn't feel confident advising on this round.`,
-              expectedImpact: "None.",
-              tradeoffs: "None.",
-              modifiers: {},
-              action: null
-            };
-            set((state) => ({
-              activeTeammateAdvice: {
-                ...state.activeTeammateAdvice,
-                [teammateId]: adviceCard
-              }
-            }), false, 'team/useTeammateHelpNotConfident');
+          const state = get();
+          const gating = checkTeammateGating(teammate, state);
+          if (gating.isGated) {
             return;
           }
 
@@ -1138,231 +1821,13 @@ export const useGameStore = create<GameState & GameActions>()(
             t.id === teammateId ? { ...t, helpTokenUsed: true } : t
           );
 
-          const role = teammate.role || "";
-          const p = teammate.personality;
-          const stage = currentStage;
-          const state = get();
+          const adviceCard = generateTeammateAdvice(teammateId, state);
+          if (!adviceCard) return;
 
-          const problemTitle = state.selectedProblem?.title || "our prototype";
-          const solutionType = state.solutionDirection || "web application";
-          const techNames = state.techStack.map((t: any) => t.name).join(", ");
-          const featureNames = state.features.map((f: any) => f.name).join(", ");
-          const activeUsp = state.usp || "our unique value proposition";
-          const activeModel = state.businessModel || "our business strategy";
-
-          let title = "Strategic Optimization";
-          let observation = `We are currently structuring our hackathon prototype.`;
-          let concern = "We need to make sure we don't build too many elements at once.";
-          let recommendation = "Let's focus on building a stable MVP block.";
-          let expectedImpact = "Reduces execution risk, minor impact on innovation.";
-          let tradeoffs = "Ensures a cleaner demo presentation.";
-          let modifiers = {} as any;
-          let action = null as any;
-          let logMessage = "";
-
-          const r = role.toLowerCase();
-          const isAi = r.includes("ai") || r.includes("ml") || r.includes("intelligence");
-          const isBackend = r.includes("backend") || (r.includes("developer") && r.includes("backend")) || (r.includes("engineer") && r.includes("backend"));
-          const isFrontend = r.includes("frontend");
-          const isStrategist = r.includes("strategist") || r.includes("founder") || r.includes("business");
-          const isPitch = r.includes("pitch");
-          const isDesigner = r.includes("designer") || r.includes("design");
-          const isResearcher = r.includes("researcher");
-          const isChaiwala = r.includes("chaiwala") || r.includes("chai");
-
-          if (isAi) {
-            title = "AI Scope Optimization";
-            observation = `The AI integration layer for ${problemTitle} contains multiple complex model chains.`;
-            concern = "This AI layer is overcomplicated. It will cause timeout errors during the live demo.";
-            recommendation = "This AI layer is overcomplicated. I can simplify it. Should I refactor the pipeline?";
-            expectedImpact = "Saves execution overhead and ensures stable API calls.";
-            tradeoffs = "Less custom model control.";
-            action = { type: 'simplify_ai', payload: {} };
-            modifiers = { execution: 15, innovation: -5 };
-            logMessage = `${teammate.name} simplified the AI pipeline.`;
-          } else if (isBackend) {
-            title = "Database Architecture Improvement";
-            if (stage === 'techStack') {
-              observation = `We are selecting database services for ${problemTitle}.`;
-              concern = "The current database configuration is overkill or less flexible for rapid schema iterations.";
-              recommendation = "MongoDB would fit this project better than Supabase. Should I update the database architecture?";
-              expectedImpact = "Speeds up write execution and schema updates.";
-              tradeoffs = "Sacrifices relational constraints.";
-              action = {
-                type: 'replace_tech',
-                payload: {
-                  from: ['reg-supabase', 'reg-postgres', 'reg-springboot', 'reg-kubernetes'],
-                  to: 'tech-mongodb'
-                }
-              };
-              modifiers = { execution: 12, design: -2 };
-              logMessage = `${teammate.name} replaced Supabase with MongoDB.`;
-            } else {
-              observation = `We have prioritized multiple backend-intensive features.`;
-              concern = "Our api scope is too complex for a 24-hour sprint.";
-              recommendation = "I want to remove the lowest impact nice-to-have features to simplify the API load. Shall I prune the backend backlog?";
-              expectedImpact = "Improves technical feasibility and reduces dev overhead.";
-              tradeoffs = "Prunes the backlog feature list.";
-              action = { type: 'reduce_scope', payload: {} };
-              modifiers = { execution: 10, design: 5, innovation: -5 };
-              logMessage = `${teammate.name} simplified the backend backlog by removing the lowest impact feature.`;
-            }
-          } else if (isFrontend) {
-            title = "Frontend Stack Migration";
-            if (stage === 'techStack') {
-              observation = `We are building the frontend layout for ${problemTitle}.`;
-              concern = "Building a vanilla or custom React setup will require too much state management boilerplate.";
-              recommendation = "Next.js would improve delivery speed. Want me to switch the frontend stack?";
-              expectedImpact = "Provides routing out of the box, speeding up frontend execution.";
-              tradeoffs = "Slightly higher bundle size.";
-              action = {
-                type: 'replace_tech',
-                payload: {
-                  from: ['reg-react', 'reg-vue', 'reg-svelte', 'reg-html5'],
-                  to: 'tech-next'
-                }
-              };
-              modifiers = { execution: 14, design: 5 };
-              logMessage = `${teammate.name} switched the frontend stack to Next.js.`;
-            } else if (stage === 'features') {
-              observation = `We have scheduled a large UI feature set.`;
-              concern = "Building all these custom pages will leave us with no time for visual polish.";
-              recommendation = "I can prune the nice-to-have features so we can focus on polishing the core app views. Shall I simplify the UI scope?";
-              expectedImpact = "Guarantees a clean, fully functional UI demo.";
-              tradeoffs = "Reduces UI features.";
-              action = { type: 'reduce_scope', payload: {} };
-              modifiers = { execution: 10, design: 8 };
-              logMessage = `${teammate.name} optimized the UI scope by removing the lowest impact feature.`;
-            } else {
-              observation = `We are structuring the deck sequence.`;
-              concern = "Our slides look text-heavy without frontend interfaces.";
-              recommendation = "I want to swap our text-heavy slides with high-fidelity screenshot overlays. Should I restructure the slides?";
-              expectedImpact = "Improves design score and makes the application look modern.";
-              tradeoffs = "Requires time to format screenshots.";
-              action = { type: 'reorder_pitch_deck', payload: {} };
-              modifiers = { design: 12, pitch: 8 };
-              logMessage = `${teammate.name} added design screenshots to the pitch deck.`;
-            }
-          } else if (isStrategist) {
-            title = "Business Model Optimization";
-            if (stage === 'businessModel') {
-              observation = `Our monetization strategy is defined around '${activeModel}'.`;
-              concern = "This monetization strategy is generic and won't convince judges about long-term sustainability.";
-              recommendation = "I found a stronger monetization path. Let's switch our business model to Local Sponsorship.";
-              expectedImpact = "Proves immediate viability and local market traction.";
-              tradeoffs = "Limits initially addressable market size.";
-              action = { type: 'change_biz_model', payload: { model: 'Local Sponsorship' } };
-              modifiers = { pitch: 15, execution: -5 };
-              logMessage = `${teammate.name} updated the monetization strategy to Local Sponsorship.`;
-            } else {
-              observation = `We are positioning around '${activeUsp}'.`;
-              concern = "Our competitive wedge is too broad and easily copied.";
-              recommendation = "Let's refine our positioning to a Community-first growth USP. Should I update the marketing USP?";
-              expectedImpact = "Establishes a strong user moat.";
-              tradeoffs = "Targets a narrower initial market segment.";
-              action = { type: 'change_usp', payload: { usp: 'Community-first' } };
-              modifiers = { innovation: 10, pitch: 8 };
-              logMessage = `${teammate.name} refined the marketing USP to Community-first.`;
-            }
-          } else if (isPitch) {
-            title = "Pitch Enhancement";
-            if (stage === 'pitchPrep') {
-              observation = `We are writing the elevator pitch script.`;
-              concern = "The script spends too much time detailing specifications rather than building a user narrative hook.";
-              recommendation = "I want to restructure the presentation flow to hook the judges within the first ten seconds. Can I rewrite the elevator pitch script?";
-              expectedImpact = "Boosts the pitch delivery score.";
-              tradeoffs = "Replaces the existing pitch text.";
-              action = { type: 'rewrite_pitch', payload: {} };
-              modifiers = { pitch: 18, design: 5 };
-              logMessage = `${teammate.name} improved the pitch structure and script.`;
-            } else {
-              observation = `Our slide sequence is being finalized.`;
-              concern = "The current slide sequence doesn't build a logical business case.";
-              recommendation = "I want to restructure the presentation flow. Let's move the demo slide right after the problem statement.";
-              expectedImpact = "Improves narrative flow and keeps judges engaged.";
-              tradeoffs = "Requires reordering deck items.";
-              action = { type: 'reorder_pitch_deck', payload: {} };
-              modifiers = { pitch: 12 };
-              logMessage = `${teammate.name} restructured the pitch deck slide flow.`;
-            }
-          } else if (isDesigner) {
-            title = "Branding Moat Review";
-            observation = `We are designing the project styling.`;
-            concern = "The UI layout looks cluttered.";
-            recommendation = "I can redesign the interface layout to utilize high-contrast styling presets.";
-            expectedImpact = "Significantly improves design rating.";
-            tradeoffs = "Requires design focus.";
-            action = { type: 'change_usp', payload: { usp: 'Design-first' } };
-            modifiers = { design: 15 };
-            logMessage = `${teammate.name} redesigned the interface layout.`;
-          } else if (isResearcher) {
-            title = "Target Audience Fit";
-            observation = `We are analyzing target segments.`;
-            concern = "The project addresses a broad audience.";
-            recommendation = "Let's focus the product scope on student campus users.";
-            expectedImpact = "Increases innovation score by finding a clear market opening.";
-            tradeoffs = "Reduces absolute addressable market.";
-            action = { type: 'change_usp', payload: { usp: 'Student-centric' } };
-            modifiers = { innovation: 12, pitch: 5 };
-            logMessage = `${teammate.name} focused the product scope on student campus users.`;
-          } else if (isChaiwala) {
-            title = "Cardamom Chai Brewing";
-            observation = `The team is working under high hackathon stress.`;
-            concern = "Fatigue is causing productivity drops.";
-            recommendation = "I brewed cardamom chai to boost team morale. Shall we take a quick tea break?";
-            expectedImpact = "Boosts team energy and execution.";
-            tradeoffs = "Takes a brief break.";
-            action = { type: 'boost_morale', payload: {} };
-            modifiers = { execution: 10, design: 5, bonus: 5 };
-            logMessage = `${teammate.name} brewed cardamom chai to boost team morale.`;
-          }
-
-          // TEAM MEMORY ENHANCEMENTS
-          const teammateHistory = state.teamAdviceHistory ? state.teamAdviceHistory.filter((h: any) => h.teammateId === teammateId) : [];
-          let memoryIntroduction = "";
-          if (teammateHistory.length > 0) {
-            const lastChoice = teammateHistory[teammateHistory.length - 1];
-            if (lastChoice.status === 'rejected') {
-              memoryIntroduction = `I still think our last idea, '${lastChoice.title}', would have reduced our execution risk. But let's look at what we have now. `;
-            } else {
-              memoryIntroduction = `I am glad we applied '${lastChoice.title}' earlier. Let's keep this momentum going. `;
-            }
-          }
-
-          // Structure output
-          let explanationText = `${memoryIntroduction}**Observation:** ${observation} **Concern:** ${concern} **Recommendation:** ${recommendation}`;
-
-          // Apply personality voice modifiers
-          if (p === 'Builder') {
-            explanationText = `[BUILDER VIBES] ${explanationText} Let's ship it and see what happens. Done is better than perfect.`;
-          } else if (p === 'Perfectionist') {
-            explanationText = `[PERFECTIONIST WARNING] ${explanationText} We cannot present a buggy, half-finished demo. Let's do it right.`;
-          } else if (p === 'Dreamer') {
-            explanationText = `[DREAMER VISION] ${explanationText} Imagine how incredible this will look when the judges see it. Let's aim high.`;
-          } else if (p === 'Founder') {
-            explanationText = `[FOUNDER INQUIRY] ${explanationText} Who pays for this? We need to prove this can scale into a real startup. Let's build what matters.`;
-          } else if (p === 'Designer') {
-            explanationText = `[DESIGNER PERSPECTIVE] ${explanationText} Users won't understand this. The user experience is everything. If they cannot use it, it does not work.`;
-          }
-
-          const adviceCard = {
-            teammateId,
-            title,
-            explanation: explanationText,
-            expectedImpact,
-            tradeoffs,
-            modifiers,
-            action,
-            observation,
-            concern,
-            recommendation,
-            contributionLog: logMessage,
-          };
-
-          set((state) => ({
+          set((s) => ({
             team: updatedTeam,
             activeTeammateAdvice: {
-              ...state.activeTeammateAdvice,
+              ...s.activeTeammateAdvice,
               [teammateId]: adviceCard
             }
           }), false, 'team/useTeammateHelp');
@@ -1418,6 +1883,11 @@ export const useGameStore = create<GameState & GameActions>()(
                   synergies: (regItem.synergy || []).map(toStoreId)
                 }];
               }
+            } else if (act.type === 'replace_tech_directly') {
+              const removeName = act.payload?.removeName;
+              const addTech = act.payload?.addTech;
+              const filtered = get().techStack.filter(t => !t.name.toLowerCase().includes(removeName.toLowerCase()));
+              extraState.techStack = [...filtered, addTech];
             } else if (act.type === 'reduce_scope') {
               if (get().features.length > 0) {
                 const sorted = [...get().features].sort((a, b) => {
@@ -1460,6 +1930,32 @@ export const useGameStore = create<GameState & GameActions>()(
                 }
                 extraState.pitchDeck = filtered;
               }
+            } else if (act.type === 'add_tech_directly') {
+              const techItem = act.payload?.techItem;
+              if (techItem) {
+                extraState.techStack = [...get().techStack, techItem];
+              } else {
+                const techId = act.payload?.techId;
+                if (techId) {
+                  const regItem = TECH_REGISTRY.find(r => r.id === toRegistryId(techId));
+                  if (regItem && !get().techStack.some(x => toRegistryId(x.id) === toRegistryId(regItem.id))) {
+                    extraState.techStack = [...get().techStack, {
+                      id: toStoreId(regItem.id),
+                      name: regItem.name,
+                      icon: 'layers',
+                      category: regItem.category,
+                      difficulty: regItem.difficultyScore,
+                      synergies: (regItem.synergy || []).map(toStoreId)
+                    }];
+                  }
+                }
+              }
+            } else if (act.type === 'add_slide_directly') {
+              const slide = act.payload.slide;
+              const currentDeck = get().pitchDeck || [];
+              if (!currentDeck.includes(slide)) {
+                extraState.pitchDeck = [...currentDeck, slide];
+              }
             }
           }
 
@@ -1476,17 +1972,38 @@ export const useGameStore = create<GameState & GameActions>()(
             modifiers: advice.modifiers
           }];
 
+          const teammateName = get().team.find(t => t.id === teammateId)?.name || "Teammate";
+          const newDecision: TeammateDecision = {
+            teammateName,
+            recommendation: advice.title,
+            status: 'accepted',
+            resultingChanges: advice.contributionLog || "Applied recommendation."
+          };
+          const nextDecisions = [...(get().teammateDecisions || []), newDecision];
+
           const logMsg = advice.contributionLog || "";
           const nextLogs = logMsg ? [...(get().teamContributionLogs || []), logMsg] : (get().teamContributionLogs || []);
+
+          const timestamp = getSimulatedTime(get().globalTimeRemaining, get().globalTotalTime);
+          const timelineEvent = `${teammateName}: Applied advice - "${advice.title}".`;
+          const nextTimeline = [...(get().teamTimeline || []), {
+            time: timestamp,
+            event: timelineEvent
+          }];
 
           set({
             score: nextScore,
             team: updatedTeam,
             activeTeammateAdvice: nextAdvice,
             teamAdviceHistory: nextHistory,
+            teammateDecisions: nextDecisions,
             teamContributionLogs: nextLogs,
+            teamTimeline: nextTimeline,
             ...extraState
           }, false, 'team/applyTeammateAdvice');
+
+          get().triggerTeamChatMessage('teammate_advice');
+          get().updateTeammateContext();
         },
 
         rejectTeammateAdvice: (teammateId) => {
@@ -1495,6 +2012,7 @@ export const useGameStore = create<GameState & GameActions>()(
           delete nextAdvice[teammateId];
 
           let nextHistory = get().teamAdviceHistory || [];
+          let nextDecisions = get().teammateDecisions || [];
           if (advice && !advice.isNotConfident) {
             nextHistory = [...nextHistory, {
               teammateId,
@@ -1504,12 +2022,23 @@ export const useGameStore = create<GameState & GameActions>()(
               status: 'rejected' as const,
               modifiers: advice.modifiers
             }];
+
+            const teammateName = get().team.find(t => t.id === teammateId)?.name || "Teammate";
+            const newDecision: TeammateDecision = {
+              teammateName,
+              recommendation: advice.title || "Teammate Suggestion",
+              status: 'rejected',
+              resultingChanges: "None."
+            };
+            nextDecisions = [...nextDecisions, newDecision];
           }
 
           set({ 
             activeTeammateAdvice: nextAdvice,
-            teamAdviceHistory: nextHistory
+            teamAdviceHistory: nextHistory,
+            teammateDecisions: nextDecisions
           }, false, 'team/rejectTeammateAdvice');
+          get().updateTeammateContext();
         },
 
         resolveTeamChatMoment: (choiceIndex) => {
@@ -1537,6 +2066,828 @@ export const useGameStore = create<GameState & GameActions>()(
             teamChatHistory: nextHistory,
             activeTeamChatMoment: null
           }, false, 'team/resolveTeamChatMoment');
+        },
+
+        resolveTeamChatMessageChoice: (messageId, choiceIndex) => {
+          const state = get();
+          const message = state.teamChatMessages.find(m => m.id === messageId);
+          if (!message || !message.discussion || message.discussion.resolved) return;
+
+          const choice = message.discussion.choices[choiceIndex];
+          if (!choice) return;
+
+          const mods = choice.modifiers || {};
+          const currentScore = state.score;
+
+          const nextScore = {
+            innovation: Math.max(0, Math.min(100, currentScore.innovation + (mods.innovation || 0))),
+            execution: Math.max(0, Math.min(100, currentScore.execution + (mods.execution || 0))),
+            design: Math.max(0, Math.min(100, currentScore.design + (mods.design || 0))),
+            pitch: Math.max(0, Math.min(100, currentScore.pitch + (mods.pitch || 0))),
+            bonus: currentScore.bonus + (mods.bonus || 0),
+            total: 0
+          };
+          nextScore.total = nextScore.innovation + nextScore.execution + nextScore.design + nextScore.pitch + nextScore.bonus;
+
+          let extraState: any = {};
+          const action = choice.action;
+          let beforeText = "None.";
+          let afterText = "None.";
+
+          if (action) {
+            if (action.type === 'apply_mentor_advice') {
+              beforeText = "Mentor Suggestions: Pending.";
+              get().applyAdvisorAdvice(action.payload.adviceId);
+              afterText = "Mentor Suggestions: Applied.";
+            } else if (action.type === 'remove_tech') {
+              const techId = action.payload?.techId;
+              const techName = state.techStack.find(t => t.id === techId)?.name || techId;
+              beforeText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              const newStack = state.techStack.filter(t => t.id !== techId);
+              extraState.techStack = newStack;
+              afterText = `Tech Stack: ${newStack.map(t => t.name).join(", ") || "None."} (Removed: ${techName})`;
+            } else if (action.type === 'remove_tech_name') {
+              const name = action.payload?.techName;
+              const tech = state.techStack.find(t => t.name.toLowerCase().includes(name.toLowerCase()));
+              beforeText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              if (tech) {
+                const newStack = state.techStack.filter(t => t.id !== tech.id);
+                extraState.techStack = newStack;
+                afterText = `Tech Stack: ${newStack.map(t => t.name).join(", ") || "None."} (Removed: ${tech.name})`;
+              } else {
+                afterText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              }
+            } else if (action.type === 'simplify_usp') {
+              beforeText = `USP: "${state.usp || "None."}"`;
+              extraState.usp = "Instant Student Group Matching Platform.";
+              afterText = `USP: "Instant Student Group Matching Platform."`;
+            } else if (action.type === 'prune_backlog' || action.type === 'reduce_scope_debate') {
+              beforeText = `${state.features.length} Features in backlog.`;
+              if (state.features.length > 0) {
+                const sorted = [...state.features].sort((a, b) => {
+                  const aVal = a.impact === 'low' ? 0 : a.impact === 'medium' ? 1 : 2;
+                  const bVal = b.impact === 'low' ? 0 : b.impact === 'medium' ? 1 : 2;
+                  return aVal - bVal;
+                });
+                const removed = sorted[0];
+                const newFeatures = state.features.filter(f => f.id !== removed.id);
+                extraState.features = newFeatures;
+                afterText = `${newFeatures.length} Features in backlog (Removed: ${removed.name})`;
+              } else {
+                afterText = "0 Features in backlog.";
+              }
+            } else if (action.type === 'build_ambitious_mvp') {
+              beforeText = `${state.features.length} Features in backlog.`;
+              const advFeature = {
+                id: `feat-adv-${Date.now()}`,
+                name: "Advanced Real-time Analytics Dashboard",
+                description: "High-fidelity database tracking metrics.",
+                effort: 'high' as const,
+                impact: 'high' as const
+              };
+              const newFeatures = [...state.features, advFeature];
+              extraState.features = newFeatures;
+              afterText = `${newFeatures.length} Features in backlog (Added: Advanced Real-time Analytics Dashboard)`;
+            } else if (action.type === 'upgrade_architecture') {
+              const techId = action.payload?.addedTechId;
+              const techName = state.techStack.find(t => t.id === techId)?.name || "Advanced Tech";
+              beforeText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              const vercelItem = TECH_REGISTRY.find(r => r.id === 'reg-vercel');
+              let nextStack = [...state.techStack];
+              if (vercelItem && !nextStack.some(x => toRegistryId(x.id) === 'reg-vercel')) {
+                nextStack.push({
+                  id: toStoreId(vercelItem.id),
+                  name: vercelItem.name,
+                  icon: 'layers',
+                  category: vercelItem.category,
+                  difficulty: vercelItem.difficultyScore,
+                  synergies: (vercelItem.synergy || []).map(toStoreId)
+                });
+              }
+              extraState.techStack = nextStack;
+              afterText = `Tech Stack: ${nextStack.map(t => t.name).join(", ")} (Kept: ${techName}, Added: Vercel)`;
+            } else if (action.type === 'upgrade_architecture_redis') {
+              beforeText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              const redisItem = TECH_REGISTRY.find(r => r.id === 'reg-redis');
+              let nextStack = [...state.techStack];
+              if (redisItem && !nextStack.some(x => toRegistryId(x.id) === 'reg-redis')) {
+                nextStack.push({
+                  id: toStoreId(redisItem.id),
+                  name: redisItem.name,
+                  icon: 'layers',
+                  category: redisItem.category,
+                  difficulty: redisItem.difficultyScore,
+                  synergies: (redisItem.synergy || []).map(toStoreId)
+                });
+              }
+              extraState.techStack = nextStack;
+              afterText = `Tech Stack: ${nextStack.map(t => t.name).join(", ")} (Added: Redis)`;
+            } else if (action.type === 'lock_backend_remove') {
+              const techId = action.payload?.techId;
+              const techName = state.techStack.find(t => t.id === techId)?.name || techId;
+              beforeText = `Backend: Flexible, Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              const newStack = state.techStack.filter(t => t.id !== techId);
+              extraState.techStack = newStack;
+              extraState.isBackendLocked = true;
+              afterText = `Backend: Locked, Tech Stack: ${newStack.map(t => t.name).join(", ") || "None."} (Removed: ${techName})`;
+            } else if (action.type === 'lock_backend_milestone') {
+              beforeText = "Backend: Flexible.";
+              extraState.isBackendLocked = true;
+              afterText = "Backend: Locked.";
+            } else if (action.type === 'focus_ux') {
+              beforeText = `Pitch Deck: [${state.pitchDeck.join(", ")}], USP: "${state.usp || "None."}"`;
+              const currentDeck = state.pitchDeck || [];
+              let newDeck = [...currentDeck];
+              if (newDeck.includes('demo')) {
+                newDeck = newDeck.filter(s => s !== 'demo');
+                const probIdx = newDeck.indexOf('problem');
+                if (probIdx !== -1) {
+                  newDeck.splice(probIdx + 1, 0, 'demo');
+                } else {
+                  newDeck.unshift('demo');
+                }
+              }
+              extraState.pitchDeck = newDeck;
+              extraState.usp = "Polished UI-first Landing Interface.";
+              afterText = `Pitch Deck: [${newDeck.join(", ")}], USP: "Polished UI-first Landing Interface."`;
+            } else if (action.type === 'focus_market') {
+              beforeText = `Pitch Deck: [${state.pitchDeck.join(", ")}], Business Model: "${state.businessModel || "None."}"`;
+              const currentDeck = state.pitchDeck || [];
+              let newDeck = [...currentDeck];
+              if (newDeck.includes('business')) {
+                newDeck = newDeck.filter(s => s !== 'business');
+                newDeck.unshift('business');
+              }
+              extraState.pitchDeck = newDeck;
+              extraState.businessModel = "Emphasized Enterprise SaaS Model.";
+              afterText = `Pitch Deck: [${newDeck.join(", ")}], Business Model: Emphasized Enterprise SaaS Model.`;
+            } else if (action.type === 'enterprise_first') {
+              beforeText = `Business Model: ${state.businessModel || "None."}`;
+              extraState.businessModel = "Enterprise B2B Subscription";
+              afterText = "Business Model: Enterprise B2B Subscription.";
+            } else if (action.type === 'freemium_first') {
+              beforeText = `Business Model: ${state.businessModel || "None."}`;
+              extraState.businessModel = "Freemium Tier Model";
+              afterText = "Business Model: Freemium Tier Model.";
+            } else if (action.type === 'replace_tech_directly') {
+              const removeName = action.payload?.removeName;
+              const addTech = action.payload?.addTech;
+              beforeText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              const filtered = state.techStack.filter(t => !t.name.toLowerCase().includes(removeName.toLowerCase()));
+              const newStack = [...filtered, addTech];
+              extraState.techStack = newStack;
+              afterText = `Tech Stack: ${newStack.map(t => t.name).join(", ") || "None."} (Replaced ${removeName} with ${addTech.name})`;
+            } else if (action.type === 'add_tech_directly') {
+              const techItem = action.payload?.techItem;
+              beforeText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              if (techItem && !state.techStack.some(t => t.name.toLowerCase() === techItem.name.toLowerCase())) {
+                const newStack = [...state.techStack, techItem];
+                extraState.techStack = newStack;
+                afterText = `Tech Stack: ${newStack.map(t => t.name).join(", ") || "None."} (Added ${techItem.name})`;
+              } else {
+                afterText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              }
+            } else if (action.type === 'reorder_pitch_slides') {
+              beforeText = `Pitch Deck: [${state.pitchDeck.join(", ") || "None."}]`;
+              const currentDeck = state.pitchDeck || [];
+              let newDeck = [...currentDeck];
+              if (newDeck.includes('demo')) {
+                newDeck = newDeck.filter(s => s !== 'demo');
+                const probIdx = newDeck.indexOf('problem');
+                if (probIdx !== -1) {
+                  newDeck.splice(probIdx + 1, 0, 'demo');
+                } else {
+                  newDeck.unshift('demo');
+                }
+              }
+              extraState.pitchDeck = newDeck;
+              afterText = `Pitch Deck: [${newDeck.join(", ") || "None."}] (Demo slide moved after Problem slide)`;
+            } else if (action.type === 'merge_backlog') {
+              beforeText = `${state.features.length} Features in backlog.`;
+              const uniqueFeatures: any[] = [];
+              const seenNames = new Set<string>();
+              state.features.forEach(f => {
+                const normName = f.name.toLowerCase().trim();
+                if (!seenNames.has(normName)) {
+                  seenNames.add(normName);
+                  uniqueFeatures.push(f);
+                }
+              });
+              if (uniqueFeatures.length === state.features.length && state.features.length > 0) {
+                const sorted = [...state.features].sort((a, b) => {
+                  const aVal = a.impact === 'low' ? 0 : a.impact === 'medium' ? 1 : 2;
+                  const bVal = b.impact === 'low' ? 0 : b.impact === 'medium' ? 1 : 2;
+                  return aVal - bVal;
+                });
+                uniqueFeatures.pop();
+              }
+              extraState.features = uniqueFeatures;
+              afterText = `${uniqueFeatures.length} Features in backlog (Merged and simplified backlog items)`;
+            } else if (action.type === 'simplify_architecture') {
+              beforeText = `Tech Stack: ${state.techStack.map(t => t.name).join(", ") || "None."}`;
+              if (state.techStack.length > 0) {
+                const sorted = [...state.techStack].sort((a, b) => (b.difficulty || 0) - (a.difficulty || 0));
+                const highestDiff = sorted[0];
+                const newStack = state.techStack.filter(t => t.id !== highestDiff.id);
+                extraState.techStack = newStack;
+                afterText = `Tech Stack: ${newStack.map(t => t.name).join(", ") || "None."} (Removed complex item: ${highestDiff.name})`;
+              } else {
+                afterText = `Tech Stack: None.`;
+              }
+            } else if (action.type === 'upgrade_business_model') {
+              const model = action.payload?.model || "Enterprise B2B SaaS";
+              beforeText = `Business Model: ${state.businessModel || "None."}`;
+              extraState.businessModel = model;
+              afterText = `Business Model: ${model} (Upgraded monetization strategy)`;
+            }
+          }
+
+          const changeSummary = {
+            before: beforeText,
+            after: afterText,
+            reason: choice.outcomeText || choice.description,
+            senderName: message.senderName
+          };
+
+          const updatedMessages = state.teamChatMessages.map(m => {
+            if (m.id === messageId) {
+              return {
+                ...m,
+                changeSummary,
+                discussion: m.discussion ? {
+                  ...m.discussion,
+                  resolved: true,
+                  chosenIndex: choiceIndex
+                } : undefined
+              };
+            }
+            return m;
+          });
+
+          // Log team decisions & ownership
+          const newDecision: TeammateDecision = {
+            teammateName: message.senderName,
+            recommendation: choice.label,
+            status: choice.label.toLowerCase().includes("ignore") ? 'rejected' : 'accepted',
+            resultingChanges: `${choice.outcomeText} (Before: ${beforeText} -> After: ${afterText})`
+          };
+          const nextDecisions = [...(state.teammateDecisions || []), newDecision];
+
+          const timestamp = getSimulatedTime(state.globalTimeRemaining, state.globalTotalTime);
+          const timelineEvent = `${message.senderName}: Resolved debate - "${choice.label}" -> ${choice.outcomeText}`;
+          const nextTimeline = [...state.teamTimeline, {
+            time: timestamp,
+            event: timelineEvent
+          }];
+
+          set({
+            score: nextScore,
+            teamChatMessages: updatedMessages,
+            teammateDecisions: nextDecisions,
+            teamTimeline: nextTimeline,
+            ...extraState
+          }, false, 'team/resolveTeamChatMessageChoice');
+          get().updateTeammateContext();
+        },
+
+        clearUnreadChatCount: () => {
+          set({ unreadChatCount: 0 }, false, 'team/clearUnreadChatCount');
+        },
+
+        triggerTeamChatMessage: (event, payload) => {
+          const state = get();
+          const team = state.team;
+          if (team.length === 0) return;
+
+          const defaultTeammate = getTeammateForEvent(team, event);
+          const timestamp = getSimulatedTime(state.globalTimeRemaining, state.globalTotalTime);
+
+          let messageText = "";
+          let debateChoices: any[] | undefined = undefined;
+          let msgType: 'info' | 'suggestion' | 'warning' | 'disagreement' | 'contribution' | 'action_completed' | 'waiting' = 'info';
+          let isSilent = true;
+
+          const techDifficultySum = state.techStack.reduce((sum, t) => sum + (t.difficulty || 0), 0);
+          const highEffortFeaturesCount = state.features.filter(f => f.effort === 'high').length;
+          const feasibility = Math.max(10, Math.min(100, 95 - (techDifficultySum * 3.5) - (highEffortFeaturesCount * 12)));
+          const hasUsp = !!state.usp;
+          const hasBizModel = !!state.businessModel;
+          const pitchVal = state.pitchDeckScore || state.score.pitch || 45;
+          const viability = Math.round((hasUsp ? 30 : 0) + (hasBizModel ? 30 : 0) + (pitchVal * 0.4));
+
+          const category = state.selectedProblem?.category || "general";
+          const solution = state.solutionDirection || "solution";
+          const techNames = state.techStack.map(t => t.name).join(", ");
+          const uspText = state.usp || "no USP selected yet";
+          const bizModel = state.businessModel || "no business model yet";
+
+          // Helper to fetch teammate by name
+          const getTeammateByName = (name: string, fallback: any) => {
+            return team.find(t => t.name.toLowerCase().includes(name.toLowerCase())) || fallback;
+          };
+
+          const tanmay = getTeammateByName("Tanmay", defaultTeammate);
+          const priya = getTeammateByName("Priya", defaultTeammate);
+          const riya = getTeammateByName("Riya", defaultTeammate);
+          const anjali = getTeammateByName("Anjali", defaultTeammate);
+
+          // Retrieve previous choices for context memory
+          const decisions = state.teammateDecisions || [];
+          const hasPreviouslyRejectedDatabase = decisions.some(d => d.status === 'rejected' && d.recommendation.toLowerCase().includes("database"));
+          const hasPreviouslyAcceptedUX = decisions.some(d => d.status === 'accepted' && d.recommendation.toLowerCase().includes("ux"));
+
+          let teammateToUse = defaultTeammate;
+
+          if (event === 'tech_add') {
+            const addedTech = payload as TechItem;
+            if (!addedTech) return;
+            const techNamesList = state.techStack.map(t => t.name.toLowerCase());
+            const registryIds = state.techStack.map(t => toRegistryId(t.id));
+
+            // Gather specific compatibility metrics
+            const hasNext = registryIds.includes('reg-next') || techNamesList.includes('next.js');
+            const hasVercel = registryIds.includes('reg-vercel') || techNamesList.includes('vercel');
+            const hasPostgres = registryIds.includes('reg-postgres') || techNamesList.includes('postgresql');
+            const hasClerk = registryIds.includes('reg-clerk') || techNamesList.includes('clerk');
+
+            const hasNode = registryIds.includes('reg-node') || techNamesList.includes('node.js') || techNamesList.includes('express');
+            const hasGo = registryIds.includes('reg-go') || techNamesList.includes('go');
+            const hasSpring = registryIds.includes('reg-springboot') || techNamesList.includes('spring boot');
+
+            const hasGemini = registryIds.includes('reg-gemini') || techNamesList.includes('gemini api');
+            const hasOpenAI = registryIds.includes('reg-openai') || techNamesList.includes('openai');
+            const hasClaude = registryIds.includes('reg-claude') || techNamesList.includes('claude');
+
+            const hasFirebase = registryIds.includes('reg-firebase') || techNamesList.includes('firebase');
+            const hasAWS = registryIds.includes('reg-aws') || techNamesList.includes('aws');
+            const hasRailway = registryIds.includes('reg-railway') || techNamesList.includes('railway');
+
+            // Count AI providers
+            let aiCount = 0;
+            if (hasGemini) aiCount++;
+            if (hasOpenAI) aiCount++;
+            if (hasClaude) aiCount++;
+
+            // Count Hostings
+            let hostCount = 0;
+            if (hasFirebase) hostCount++;
+            if (hasAWS) hostCount++;
+            if (hasRailway) hostCount++;
+            if (hasVercel) hostCount++;
+
+            // 1. CONFLICTING STACKS (Node + Go + Spring Boot, or any 3 backends)
+            const backends = state.techStack.filter(t => t.category === 'Backend');
+            if (backends.length >= 3 || (hasNode && hasGo && hasSpring)) {
+              messageText = "What exactly are we building here? We now have three backend philosophies competing with each other. We are overengineering again.";
+              msgType = 'disagreement';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Simplify Architecture",
+                  description: "Remove the most complex backend framework to avoid competition.",
+                  outcomeText: "Simplified backend architecture by removing complex systems.",
+                  modifiers: { execution: 15, innovation: -3 },
+                  action: { type: 'simplify_architecture' }
+                },
+                {
+                  label: "Ignore",
+                  description: "Keep all three backend philosophies in the codebase.",
+                  outcomeText: "Proceeded with multi-philosophy backend chaos.",
+                  modifiers: { execution: -12 }
+                }
+              ];
+              teammateToUse = tanmay;
+            }
+            // 2. MERN + GO
+            else if (hasGo && hasNode) {
+              messageText = "Why are we introducing Go after already committing to Node.js? Are we committing to JavaScript or Go? Both is creating unnecessary complexity.";
+              msgType = 'disagreement';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Remove Go",
+                  description: "Stick to Node.js backend environment.",
+                  outcomeText: "Removed Go. Committed to Node.js backend environment.",
+                  modifiers: { execution: 12, innovation: -4 },
+                  action: { type: 'remove_tech_name', payload: { techName: "Go" } }
+                },
+                {
+                  label: "Keep Both",
+                  description: "Proceed with both Node.js and Go in stack.",
+                  outcomeText: "Proceeded with both Node.js and Go systems.",
+                  modifiers: { execution: -8 }
+                }
+              ];
+              teammateToUse = anjali;
+            }
+            // 3. MULTIPLE MODEL PROVIDERS (Gemini, Claude, OpenAI)
+            else if (aiCount >= 2) {
+              messageText = `We now have ${aiCount} AI providers solving one problem. Calling this AI-powered doesn't make it useful.`;
+              msgType = 'warning';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Consolidate under Gemini",
+                  description: "Remove other AI APIs and rely solely on Google Gemini.",
+                  outcomeText: "Consolidated AI model pipeline under Gemini API.",
+                  modifiers: { execution: 10, innovation: -2 },
+                  action: { type: 'remove_tech_name', payload: { techName: hasOpenAI ? "OpenAI" : "Claude" } }
+                },
+                {
+                  label: "Ignore",
+                  description: "Retain multiple model provider SDKs.",
+                  outcomeText: "Proceeded with redundant AI provider endpoints.",
+                  modifiers: { execution: -6, bonus: 4 }
+                }
+              ];
+              teammateToUse = riya;
+            }
+            // 4. OVER-HOSTING (Firebase, AWS, Railway, Vercel)
+            else if (hostCount >= 3) {
+              messageText = "We're building a hackathon MVP, not Netflix. Firebase, AWS, Railway, and Vercel? This is over-hosting at its finest.";
+              msgType = 'warning';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Simplify Hosting",
+                  description: "Remove the heavy AWS infrastructure layer.",
+                  outcomeText: "Removed AWS from hosting options to simplify deployment pipeline.",
+                  modifiers: { execution: 12, design: 2 },
+                  action: { type: 'remove_tech_name', payload: { techName: "AWS" } }
+                },
+                {
+                  label: "Ignore",
+                  description: "Attempt to deploy across all hosting environments.",
+                  outcomeText: "Proceeded with multi-cloud hosting deployment complexity.",
+                  modifiers: { execution: -10 }
+                }
+              ];
+              teammateToUse = tanmay;
+            }
+            // 5. GOOD STACKS (Next.js + Vercel + PostgreSQL + Clerk)
+            else if (hasNext && hasVercel && hasPostgres && hasClerk) {
+              messageText = "This architecture is surprisingly clean. Love the Next.js choice.";
+              msgType = 'contribution';
+              isSilent = false;
+              teammateToUse = anjali;
+            }
+            // 6. Next.js + Vercel deployment synergy
+            else if (hasNext && hasVercel) {
+              messageText = "Next.js + Vercel is a visual dream. The fast deployments will save our demo. I love this stack choice.";
+              msgType = 'contribution';
+              isSilent = false;
+              teammateToUse = priya;
+            }
+            // 7. Technology Replacement Option: Pusher -> Socket.io
+            else if (techNamesList.includes("pusher")) {
+              messageText = "We currently use Pusher. Socket.io would integrate better with this stack.";
+              msgType = 'suggestion';
+              isSilent = false;
+              const socketioItem = {
+                id: "store-socketio",
+                name: "Socket.io",
+                icon: "layers",
+                category: "Realtime / Messaging" as const,
+                difficulty: 2,
+                synergies: ["reg-node"]
+              };
+              debateChoices = [
+                {
+                  label: "Replace",
+                  description: "Replace Pusher with Socket.io for local backend integration.",
+                  outcomeText: "Replaced Pusher realtime messaging with Socket.io.",
+                  modifiers: { execution: 8, innovation: 4 },
+                  action: {
+                    type: 'replace_tech_directly',
+                    payload: {
+                      removeName: 'Pusher',
+                      addTech: socketioItem
+                    }
+                  }
+                },
+                {
+                  label: "Ignore",
+                  description: "Retain Pusher SaaS integration.",
+                  outcomeText: "Proceeded with Pusher realtime messaging.",
+                  modifiers: { execution: 2 }
+                }
+              ];
+              teammateToUse = anjali;
+            }
+            // 8. Technology Addition: Anjali suggests tRPC
+            else if (hasNext && hasClerk && !techNamesList.includes("trpc")) {
+              messageText = "We already have Next.js and Clerk. Adding tRPC would keep our API layer type-safe.";
+              msgType = 'suggestion';
+              isSilent = false;
+              const trpcItem = {
+                id: "store-trpc",
+                name: "tRPC",
+                icon: "layers",
+                category: "Backend" as const,
+                difficulty: 2,
+                synergies: ["reg-next"]
+              };
+              debateChoices = [
+                {
+                  label: "Apply Addition",
+                  description: "Add tRPC to ensure type-safe endpoints.",
+                  outcomeText: "tRPC added to architecture.",
+                  modifiers: { execution: 10, design: 2 },
+                  action: {
+                    type: 'add_tech_directly',
+                    payload: {
+                      techItem: trpcItem
+                    }
+                  }
+                },
+                {
+                  label: "Ignore",
+                  description: "Stick with native Next.js API routes.",
+                  outcomeText: "Proceeded with native Next.js API routing.",
+                  modifiers: { execution: 4 }
+                }
+              ];
+              teammateToUse = anjali;
+            }
+            // Normal tech add reaction
+            else {
+              const p = tanmay.personality;
+              if (p === 'Builder') {
+                messageText = `${addedTech.name} is added. Let's write the code and ship it.`;
+              } else if (p === 'Perfectionist') {
+                messageText = `${addedTech.name} is added. It works, but the codebase setup still feels messy.`;
+              } else {
+                messageText = `${addedTech.name} is added. Sure, but who is paying for the server hosting?`;
+              }
+              msgType = 'info';
+              isSilent = true;
+              teammateToUse = tanmay;
+            }
+          } else if (event === 'tech_remove') {
+            const removedTech = payload as TechItem;
+            if (!removedTech) return;
+            messageText = `Removed ${removedTech.name} from the stack. Simplifying our dev setup should help with feasibility.`;
+            msgType = 'info';
+            isSilent = true;
+            teammateToUse = tanmay;
+          } else if (event === 'backlog_change') {
+            const highEffort = state.features.filter(f => f.effort === 'high');
+            if (highEffort.length >= 2) {
+              messageText = `Our backlog has multiple high-effort features: ${highEffort.map(f => f.name).join(", ")}. This will destroy our demo readiness. Let's prune our scope.`;
+              msgType = 'warning';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Apply Suggestion",
+                  description: "Trim high complexity features to build a clean working demo.",
+                  outcomeText: "Scope trimmed. Pruned high priority backlog features.",
+                  modifiers: { execution: 12, innovation: -5 },
+                  action: { type: 'reduce_scope_debate' }
+                },
+                {
+                  label: "Ignore",
+                  description: "Keep all features and build an ambitious MVP.",
+                  outcomeText: "Proceeded with large scope MVP features backlog.",
+                  modifiers: { execution: -10 }
+                }
+              ];
+              teammateToUse = priya;
+            } else {
+              const p = priya.personality;
+              if (p === 'Builder') {
+                messageText = `Backlog updated. Let's write the code and ship it.`;
+              } else if (p === 'Perfectionist') {
+                messageText = `Backlog updated. I hope we aren't rushing this. It still feels messy.`;
+              } else {
+                messageText = `Backlog updated. We have ${state.features.length} features prioritized.`;
+              }
+              msgType = 'info';
+              isSilent = true;
+              teammateToUse = priya;
+            }
+          } else if (event === 'usp_change') {
+            const jargonTerms = ["decentralized", "consensus", "orchestration", "multi-threaded", "cryptographic", "microservices", "scalable"];
+            const isJargon = jargonTerms.some(term => uspText.toLowerCase().includes(term)) || uspText.length > 50;
+
+            if (isJargon) {
+              messageText = `This USP sounds technical. A judge won't understand it in 10 seconds. This sounds confusing. Let's simplify the landing page messaging.`;
+              msgType = 'disagreement';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Apply Suggestion",
+                  description: "Simplify USP to consumer-facing messaging.",
+                  outcomeText: "Simplified USP to focus on core user benefit.",
+                  modifiers: { design: 10, pitch: 10, execution: 2 },
+                  action: { type: 'simplify_usp' }
+                },
+                {
+                  label: "Ignore",
+                  description: "Retain our deep technical value proposition.",
+                  outcomeText: "Kept technical USP alignment.",
+                  modifiers: { innovation: 8, pitch: -6 }
+                }
+              ];
+              teammateToUse = priya;
+            } else {
+              const memoryPhrase = hasPreviouslyAcceptedUX ? "Looks like Priya was right about simplifying. " : "";
+              messageText = `${memoryPhrase}That's actually a really clever USP. I love this direction. It could help us stand out in front of the judges.`;
+              msgType = 'contribution';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Apply Suggestion",
+                  description: "Focus our pitch deck slides around this USP.",
+                  outcomeText: "Aligned slide sequencing to showcase core USP.",
+                  modifiers: { pitch: 12 },
+                  action: { type: 'focus_ux' }
+                },
+                {
+                  label: "Ignore",
+                  description: "Keep the standard deck flow.",
+                  outcomeText: "Proceeded with generic pitch deck template.",
+                  modifiers: { pitch: -2 }
+                }
+              ];
+              teammateToUse = anjali;
+            }
+          } else if (event === 'biz_model_change') {
+            if (state.businessModel?.toLowerCase().includes("freemium")) {
+              messageText = `Freemium tier is fine for onboarding, but who is paying for the server hosting? We should target enterprise scale corporate licensing.`;
+              msgType = 'disagreement';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Apply Suggestion",
+                  description: "Pivot to high margin Enterprise B2B SaaS licensing.",
+                  outcomeText: "Shifted business model to Enterprise B2B SaaS licensing.",
+                  modifiers: { pitch: 12, design: -2 },
+                  action: { type: 'enterprise_first' }
+                },
+                {
+                  label: "Ignore",
+                  description: "Stick with freemium client acquisition funnel.",
+                  outcomeText: "Maintained Freemium business model.",
+                  modifiers: { innovation: 6 }
+                }
+              ];
+              teammateToUse = anjali;
+            } else {
+              messageText = `We are discussing our monetization strategy. Enterprise B2B SaaS targeting corporate clients seems high margin. Should we lock it in?`;
+              msgType = 'suggestion';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Apply Suggestion",
+                  description: "Lock Enterprise B2B SaaS licensing strategy.",
+                  outcomeText: "Confirmed Enterprise B2B SaaS model.",
+                  modifiers: { pitch: 10 },
+                  action: { type: 'enterprise_first' }
+                },
+                {
+                  label: "Ignore",
+                  description: "Explore standard freemium pricing options instead.",
+                  outcomeText: "Reverted monetization strategy to Freemium tier modeling.",
+                  modifiers: { design: 6, pitch: -4 },
+                  action: { type: 'freemium_first' }
+                }
+              ];
+              teammateToUse = anjali;
+            }
+          } else if (event === 'mentor_advice') {
+            const advice = payload as AdvisorAdvice;
+            if (!advice) return;
+            messageText = `Our mentor suggested: "${advice.title}". Tradeoffs: ${advice.tradeoffs}. Should we listen to them?`;
+            msgType = 'suggestion';
+            isSilent = false;
+            debateChoices = [
+              {
+                label: "Apply Suggestion",
+                description: "Follow the mentor's recommendation.",
+                outcomeText: `Applied mentor advice for ${advice.title}.`,
+                modifiers: advice.scoreModifiers,
+                action: { type: 'apply_mentor_advice', payload: { adviceId: advice.id } }
+              },
+              {
+                label: "Ignore",
+                description: "Trust our own implementation design.",
+                outcomeText: `Ignored mentor advice for ${advice.title}.`,
+                modifiers: { bonus: -2 }
+              }
+            ];
+            teammateToUse = riya;
+          } else if (event === 'teammate_advice') {
+            messageText = `My advice has been implemented. Let's make sure we review the changes before testing.`;
+            msgType = 'action_completed';
+            isSilent = false;
+            teammateToUse = priya;
+          } else if (event === 'timer_milestone') {
+            const ratio = payload as number;
+            const pct = Math.round(ratio * 100);
+            const triggeredKey = `timer-${pct}`;
+            if (state.triggeredThresholds.includes(triggeredKey)) return;
+
+            if (pct === 50) {
+              messageText = `We are halfway through the hackathon. How is our backend demo looking? We have selected: ${techNames || "no technologies"}. Let's lock it down.`;
+              msgType = 'warning';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Lock Backend",
+                  description: "Freeze backend to prevent volatility.",
+                  outcomeText: "Locked backend architecture.",
+                  modifiers: { execution: 10 },
+                  action: { type: 'lock_backend_milestone' }
+                },
+                {
+                  label: "Upgrade Architecture",
+                  description: "Swap stack or add Redis for database speed.",
+                  outcomeText: "Upgraded stack with Redis caching layer.",
+                  modifiers: { innovation: 5, execution: -4 },
+                  action: { type: 'upgrade_architecture_redis' }
+                }
+              ];
+              teammateToUse = tanmay;
+            } else if (pct === 30) {
+              messageText = `Only 30% time remaining. We should make sure we structure our pitch deck properly. Slide count: ${state.pitchDeck.length}.`;
+              msgType = 'warning';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Focus UX",
+                  description: "Prioritize layout polish and slide drafting.",
+                  outcomeText: "Reordered slide flow to demo first and simplified USP wording.",
+                  modifiers: { pitch: 12 },
+                  action: { type: 'focus_ux' }
+                },
+                {
+                  label: "Focus Market",
+                  description: "Focus on commercial validation and pricing metrics.",
+                  outcomeText: "Emphasized business slides and pricing model.",
+                  modifiers: { design: 8, execution: 4 },
+                  action: { type: 'focus_market' }
+                }
+              ];
+              teammateToUse = priya;
+            } else if (pct === 10) {
+              messageText = `Final stretch. 10% time remaining. Stop all coding. We need to deploy the demo and practice the pitch.`;
+              msgType = 'warning';
+              isSilent = false;
+              debateChoices = [
+                {
+                  label: "Focus Market",
+                  description: "Practice the pitch slides and run scripts.",
+                  outcomeText: "Emphasized business slides and pricing model.",
+                  modifiers: { pitch: 10 },
+                  action: { type: 'focus_market' }
+                },
+                {
+                  label: "Lock Backend",
+                  description: "Push one last hotfix and lock state.",
+                  outcomeText: "Locked backend architecture and pushed hotfix.",
+                  modifiers: { execution: 10, pitch: -4 },
+                  action: { type: 'lock_backend_milestone' }
+                }
+              ];
+              teammateToUse = anjali;
+            }
+
+            set({
+              triggeredThresholds: [...state.triggeredThresholds, triggeredKey]
+            }, false, 'team/triggerTimerThreshold');
+          }
+
+          if (!messageText) return;
+
+          const newMessage: TeamChatMessage = {
+            id: `chat-msg-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            senderId: teammateToUse.id,
+            senderName: teammateToUse.name,
+            senderAvatar: teammateToUse.avatar,
+            text: messageText,
+            timestamp,
+            isRead: isSilent,
+            type: msgType,
+            discussion: debateChoices ? {
+              resolved: false,
+              choices: debateChoices
+            } : undefined
+          };
+
+          set({
+            teamChatMessages: [...state.teamChatMessages, newMessage],
+            unreadChatCount: isSilent ? state.unreadChatCount : state.unreadChatCount + 1
+          }, false, 'team/triggerTeamChatMessage');
+
+          if (!isSilent) {
+            playNotificationSound();
+          }
+        },
+
+        updateTeammateContext: () => {
+          const state = get();
+          const { teamChatMessages, lastContextState } = getUpdatedContextMessages(state);
+          set({ teamChatMessages, lastContextState }, false, 'team/updateTeammateContext');
         },
       }),
       {
@@ -1582,6 +2933,13 @@ export const useGameStore = create<GameState & GameActions>()(
           activeTeammateAdvice: state.activeTeammateAdvice,
           teamAdviceHistory: state.teamAdviceHistory,
           teamContributionLogs: state.teamContributionLogs,
+          teamChatMessages: state.teamChatMessages,
+          unreadChatCount: state.unreadChatCount,
+          teamTimeline: state.teamTimeline,
+          triggeredThresholds: state.triggeredThresholds,
+          teammateDecisions: state.teammateDecisions,
+          lastContextState: state.lastContextState,
+          isBackendLocked: state.isBackendLocked,
         }),
       }
     ),

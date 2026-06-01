@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { useGameStore, STAGE_ORDER, isRoleRelevantForStage } from "@/store/gameStore";
+import { useGameStore, STAGE_ORDER, isRoleRelevantForStage, checkTeammateGating } from "@/store/gameStore";
 import GameLayout from "@/components/game/GameLayout";
 import { Button } from "@/components/ui/button";
 import { PROBLEMS } from "@/data/problems";
@@ -5526,6 +5526,7 @@ function TeamChatMomentModal() {
 }
 
 export default function GamePage() {
+  const state = useGameStore();
   const {
     stage,
     isGameStarted,
@@ -5540,9 +5541,62 @@ export default function GamePage() {
     team,
     playerName,
     playerAvatar,
-  } = useGameStore();
+    teamChatMessages,
+    unreadChatCount,
+    clearUnreadChatCount,
+    resolveTeamChatMessageChoice,
+  } = state;
 
   const [isTeamDrawerOpen, setIsTeamDrawerOpen] = useState(false);
+  const [activeTeamTab, setActiveTeamTab] = useState<'crew' | 'chat'>('crew');
+
+  const getMessageTypeBadge = (type?: string) => {
+    switch (type) {
+      case 'suggestion':
+        return { label: 'Suggestion', icon: '💡', bg: 'bg-purple-50 text-purple-750 border-purple-200' };
+      case 'warning':
+        return { label: 'Warning', icon: '⚠️', bg: 'bg-amber-50 text-amber-750 border-amber-200' };
+      case 'disagreement':
+        return { label: 'Discussion', icon: '💬', bg: 'bg-blue-50 text-blue-750 border-blue-200' };
+      case 'contribution':
+        return { label: 'Contribution', icon: '✅', bg: 'bg-emerald-50 text-emerald-750 border-emerald-250' };
+      case 'action_completed':
+        return { label: 'Action Completed', icon: '🛠️', bg: 'bg-neutral-50 text-neutral-800 border-neutral-300' };
+      case 'info':
+        return { label: 'Info', icon: 'ℹ️', bg: 'bg-sky-50 text-sky-750 border-sky-200' };
+      case 'waiting':
+        return { label: 'Waiting', icon: '⏳', bg: 'bg-neutral-50 text-neutral-500 border-neutral-200' };
+      default:
+        return null;
+    }
+  };
+
+  const getSubtleGatingStatus = (teammate: Teammate) => {
+    const role = (teammate.role || "").toLowerCase();
+    const name = (teammate.name || "").toLowerCase();
+    if (name.includes("tanmay") || role.includes("backend") || role.includes("database")) {
+      return "Watching architecture.";
+    }
+    if (name.includes("priya") || role.includes("designer") || role.includes("design") || role.includes("frontend")) {
+      return "Watching product decisions.";
+    }
+    if (role.includes("strategist") || role.includes("founder") || role.includes("business")) {
+      return "Watching business model.";
+    }
+    if (name.includes("riya") || role.includes("ai") || role.includes("ml")) {
+      return "Watching AI direction.";
+    }
+    if (role.includes("researcher")) {
+      return "Watching project selection.";
+    }
+    return "Watching project details.";
+  };
+
+  useEffect(() => {
+    if (isTeamDrawerOpen && activeTeamTab === 'chat') {
+      clearUnreadChatCount();
+    }
+  }, [isTeamDrawerOpen, activeTeamTab, clearUnreadChatCount]);
 
   useEffect(() => {
     if (!isGameStarted) {
@@ -5631,7 +5685,7 @@ export default function GamePage() {
             onMouseEnter={playSubtleHover}
             className="fixed bottom-8 left-6 z-50 flex items-center gap-1.5 px-3 py-2 rounded-md bg-neutral-950 text-white border border-neutral-850 shadow-lg text-[10px] font-bold uppercase tracking-wider hover:bg-neutral-900 transition-all cursor-pointer font-mono"
           >
-            👥 TEAM ({team.length + 1})
+            👥 TEAM ({team.length + 1}){unreadChatCount > 0 ? " 🔴" : ""}
           </button>
         )}
 
@@ -5664,99 +5718,239 @@ export default function GamePage() {
                     </button>
                   </div>
 
-                  <div className="space-y-4">
-                    {/* Player Card */}
-                    <div className="p-3 border border-neutral-300 rounded bg-neutral-50/50 space-y-1.5">
-                      <div className="flex items-center gap-2">
-                        <span className="text-xl">{playerAvatar}</span>
-                        <div>
-                          <span className="font-bold text-neutral-900 text-xs block leading-none">{playerName}</span>
-                          <span className="text-[9px] text-neutral-450 uppercase">Team Lead (You)</span>
+                  {/* Tab Selector */}
+                  <div className="flex border-b border-neutral-300">
+                    <button
+                      onClick={() => {
+                        playMutedClick();
+                        setActiveTeamTab('crew');
+                      }}
+                      className={`flex-1 py-2 text-center text-xs font-bold uppercase transition-all border-b-2 ${
+                        activeTeamTab === 'crew'
+                          ? 'border-neutral-900 text-neutral-900 bg-neutral-50/50'
+                          : 'border-transparent text-neutral-450 hover:text-neutral-900 bg-transparent'
+                      }`}
+                    >
+                      Crew
+                    </button>
+                    <button
+                      onClick={() => {
+                        playMutedClick();
+                        setActiveTeamTab('chat');
+                      }}
+                      className={`flex-1 py-2 text-center text-xs font-bold uppercase transition-all border-b-2 relative ${
+                        activeTeamTab === 'chat'
+                          ? 'border-neutral-900 text-neutral-900 bg-neutral-50/50'
+                          : 'border-transparent text-neutral-450 hover:text-neutral-900 bg-transparent'
+                      }`}
+                    >
+                      CHAT {unreadChatCount > 0 ? "🔴" : ""}
+                    </button>
+                  </div>
+
+                  {activeTeamTab === 'crew' ? (
+                    <div className="space-y-4">
+                      {/* Player Card */}
+                      <div className="p-3 border border-neutral-300 rounded bg-neutral-50/50 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xl">{playerAvatar}</span>
+                          <div>
+                            <span className="font-bold text-neutral-900 text-xs block leading-none">{playerName}</span>
+                            <span className="text-[9px] text-neutral-450 uppercase">Team Lead (You)</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    {/* Teammates List */}
-                    {team.map((t) => {
-                      const hasAdvice = !!activeTeammateAdvice[t.id];
-                      return (
-                        <div key={t.id} className="p-3 border border-neutral-350 rounded bg-white space-y-2.5">
-                          <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-2">
-                              <span className="text-xl">{t.avatar}</span>
+                      {/* Teammates List */}
+                      {team.map((t) => {
+                        const hasAdvice = !!activeTeammateAdvice[t.id];
+                        const gating = checkTeammateGating(t, state);
+                        return (
+                          <div key={t.id} className="p-3 border border-neutral-350 rounded bg-white space-y-2.5">
+                            <div className="flex items-start justify-between">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xl">{t.avatar}</span>
+                                <div>
+                                  <span className="font-bold text-neutral-900 text-xs block leading-none">{t.name}</span>
+                                  <span className="text-[9px] text-neutral-450 uppercase">{t.role}</span>
+                                </div>
+                              </div>
+                              <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-200 text-neutral-500 uppercase">
+                                {t.personality}
+                              </span>
+                            </div>
+
+                            {/* Contributions Display */}
+                            <div className="grid grid-cols-4 gap-1 border-t border-dashed border-neutral-200 pt-2 text-[8px] text-center font-bold text-neutral-500">
                               <div>
-                                <span className="font-bold text-neutral-900 text-xs block leading-none">{t.name}</span>
-                                <span className="text-[9px] text-neutral-450 uppercase">{t.role}</span>
+                                <span className="block text-neutral-400 uppercase text-[6px]">Innov</span>
+                                <span className={t.contribution.innovation > 0 ? "text-purple-650" : ""}>
+                                  +{t.contribution.innovation}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="block text-neutral-400 uppercase text-[6px]">Exec</span>
+                                <span className={t.contribution.execution > 0 ? "text-blue-650" : ""}>
+                                  +{t.contribution.execution}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="block text-neutral-400 uppercase text-[6px]">Design</span>
+                                <span className={t.contribution.design > 0 ? "text-pink-650" : ""}>
+                                  +{t.contribution.design}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="block text-neutral-400 uppercase text-[6px]">Pitch</span>
+                                <span className={t.contribution.pitch > 0 ? "text-orange-600" : ""}>
+                                  +{t.contribution.pitch}
+                                </span>
                               </div>
                             </div>
-                            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-200 text-neutral-500 uppercase">
-                              {t.personality}
-                            </span>
-                          </div>
 
-                          {/* Contributions Display */}
-                          <div className="grid grid-cols-4 gap-1 border-t border-dashed border-neutral-200 pt-2 text-[8px] text-center font-bold text-neutral-500">
-                            <div>
-                              <span className="block text-neutral-400 uppercase text-[6px]">Innov</span>
-                              <span className={t.contribution.innovation > 0 ? "text-purple-650" : ""}>
-                                +{t.contribution.innovation}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="block text-neutral-400 uppercase text-[6px]">Exec</span>
-                              <span className={t.contribution.execution > 0 ? "text-blue-650" : ""}>
-                                +{t.contribution.execution}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="block text-neutral-400 uppercase text-[6px]">Design</span>
-                              <span className={t.contribution.design > 0 ? "text-pink-650" : ""}>
-                                +{t.contribution.design}
-                              </span>
-                            </div>
-                            <div>
-                              <span className="block text-neutral-400 uppercase text-[6px]">Pitch</span>
-                              <span className={t.contribution.pitch > 0 ? "text-orange-600" : ""}>
-                                +{t.contribution.pitch}
-                              </span>
-                            </div>
-                          </div>
-
-                          {/* Warning message if locked */}
-                          {!t.helpTokenUsed && !isRoleRelevantForStage(t.role, stage) && (
-                            <p className="text-[9px] text-amber-750 bg-amber-50/75 border border-amber-200 rounded px-2.5 py-1.5 leading-normal mt-2">
-                              {t.name} doesn't feel confident advising on this round.
-                            </p>
-                          )}
-
-                          {/* Action buttons */}
-                          <div className="border-t border-neutral-100 pt-2 flex items-center justify-between">
-                            <span className="text-[9px] text-neutral-450 uppercase">
-                              {t.helpTokenUsed ? "Token Used" : "Token Ready"}
-                            </span>
                             {!t.helpTokenUsed && (
-                              <Button
-                                size="xs"
-                                onClick={() => {
-                                  playMutedClick();
-                                  useTeammateHelp(t.id, stage);
-                                }}
-                                disabled={hasAdvice || !isRoleRelevantForStage(t.role, stage)}
-                                className="text-[9px] h-6 px-2 border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none cursor-pointer"
-                              >
-                                {hasAdvice ? "ADVICE PENDING" : "ASK FOR ADVICE"}
-                              </Button>
+                              <p className={cn(
+                                "text-[9px] border rounded px-2.5 py-1.5 leading-normal mt-2 font-mono",
+                                gating.isGated 
+                                  ? "text-neutral-500 bg-neutral-50 border-neutral-250" 
+                                  : "text-emerald-700 bg-emerald-50/20 border-emerald-250"
+                              )}>
+                                <span className="font-bold">Status:</span> {gating.reason}
+                              </p>
                             )}
+
+                            {/* Action buttons */}
+                            <div className="border-t border-neutral-100 pt-2 flex items-center justify-between">
+                              <span className="text-[9px] text-neutral-450 uppercase font-mono">
+                                {t.helpTokenUsed ? "Token Used" : (gating.isGated ? "Watching" : "READY TO REVIEW")}
+                              </span>
+                              {!t.helpTokenUsed && !gating.isGated && (
+                                <Button
+                                  size="xs"
+                                  onClick={() => {
+                                    playMutedClick();
+                                    useTeammateHelp(t.id, stage);
+                                  }}
+                                  disabled={hasAdvice}
+                                  className="text-[9px] h-6 px-2 border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none cursor-pointer"
+                                >
+                                  {hasAdvice ? "ADVICE PENDING" : "ASK FOR ADVICE"}
+                                </Button>
+                              )}
+                            </div>
                           </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                      {teamChatMessages.length === 0 ? (
+                        <div className="text-center py-8 text-neutral-400 text-[10px]">
+                          No messages in terminal log.
                         </div>
-                      );
-                    })}
-                  </div>
+                      ) : (
+                        teamChatMessages.map((msg) => {
+                          const isResolved = msg.discussion?.resolved;
+                          const chosenIdx = msg.discussion?.chosenIndex;
+                          const badge = getMessageTypeBadge(msg.type);
+                          return (
+                            <div key={msg.id} className="p-3 border border-neutral-350 rounded bg-white space-y-2.5">
+                              <div className="flex flex-col gap-1 border-b border-dashed border-neutral-200 pb-1.5">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-1.5">
+                                    <span className="text-sm">{msg.senderAvatar}</span>
+                                    <span className="font-bold text-neutral-900 text-[10px] uppercase">
+                                      {msg.senderName}
+                                    </span>
+                                  </div>
+                                  <span className="text-[8px] text-neutral-400">{msg.timestamp}</span>
+                                </div>
+                                {badge && (
+                                  <div className="flex mt-0.5">
+                                    <span className={cn("text-[7.5px] font-bold px-1.5 py-0.5 rounded border flex items-center gap-1 uppercase tracking-wider", badge.bg)}>
+                                      <span>{badge.icon}</span>
+                                      <span>{badge.label}</span>
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              <p className="text-[10px] text-neutral-700 leading-relaxed font-sans">
+                                {msg.text}
+                              </p>
+                              
+                              {msg.changeSummary && (
+                                <div className="mt-2.5 p-2.5 rounded border border-neutral-355 bg-neutral-50 space-y-2 font-mono text-[9px] text-left">
+                                  <div className="text-[10px] font-bold text-neutral-900 uppercase tracking-wider border-b border-dashed border-neutral-250 pb-1 flex items-center gap-1">
+                                    <span>⚙️</span> TEAM ACTION COMPLETED.
+                                  </div>
+                                  <div className="space-y-1.5">
+                                    <div>
+                                      <span className="font-bold text-neutral-500 uppercase text-[8px] block">Before:</span>
+                                      <div className="pl-2 border-l border-neutral-300 text-neutral-600 font-medium break-all whitespace-pre-wrap">{msg.changeSummary.before}</div>
+                                    </div>
+                                    <div>
+                                      <span className="font-bold text-emerald-650 uppercase text-[8px] block">After:</span>
+                                      <div className="pl-2 border-l border-emerald-500 text-emerald-700 font-bold break-all whitespace-pre-wrap">{msg.changeSummary.after}</div>
+                                    </div>
+                                    {msg.changeSummary.reason && (
+                                      <div>
+                                        <span className="font-bold text-neutral-500 uppercase text-[8px] block">Reason:</span>
+                                        <div className="pl-2 text-neutral-700 font-light">{msg.changeSummary.reason}</div>
+                                      </div>
+                                    )}
+                                    <div className="text-[8px] text-neutral-450 pt-1 border-t border-dashed border-neutral-200">
+                                      Suggested by: <span className="font-bold uppercase text-neutral-600">{msg.changeSummary.senderName || msg.senderName}</span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {msg.discussion && (
+                                <div className="mt-2.5 p-2.5 bg-neutral-50 border border-neutral-200 rounded space-y-2">
+                                  <span className="text-[8px] font-bold text-neutral-450 uppercase block">
+                                    {isResolved ? "▲ Discussion Resolved." : "⚡ Team Debate // Action Required"}
+                                  </span>
+                                  {isResolved && chosenIdx !== undefined && msg.discussion.choices[chosenIdx] && (
+                                    <div className="text-[9px] text-neutral-600 font-sans">
+                                      <div className="font-bold text-neutral-900 mb-0.5">
+                                        Resolution: {msg.discussion.choices[chosenIdx].label}
+                                      </div>
+                                      <p>{msg.discussion.choices[chosenIdx].outcomeText}</p>
+                                    </div>
+                                  )}
+                                  {!isResolved && (
+                                    <div className="flex flex-col gap-1.5 mt-1.5">
+                                      {msg.discussion.choices.map((choice, cIdx) => (
+                                        <button
+                                          key={cIdx}
+                                          onClick={() => {
+                                            playMutedClick();
+                                            resolveTeamChatMessageChoice(msg.id, cIdx);
+                                          }}
+                                          className="text-left p-1.5 border border-neutral-300 rounded hover:bg-neutral-100 text-[9px] transition-all cursor-pointer font-sans"
+                                        >
+                                          <span className="font-bold text-neutral-900 block">{choice.label}</span>
+                                          <span className="text-neutral-500 text-[8px] font-light block leading-tight mt-0.5">{choice.description}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 <div className="border-t border-neutral-200 pt-4 mt-6">
                   <p className="text-[9px] text-neutral-450 leading-relaxed font-sans font-light">
-                    Ask teammates for suggestions to optimize your project stats. Each teammate can only offer advice once per hackathon.
+                    {activeTeamTab === 'crew' 
+                      ? "Ask teammates for suggestions to optimize your project stats. Each teammate can only offer advice once per hackathon."
+                      : "Monitor live team chats and debates. Choose options to resolve discussions and update your prototype strategy."
+                    }
                   </p>
                 </div>
               </motion.div>

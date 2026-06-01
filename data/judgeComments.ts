@@ -405,6 +405,41 @@ export function generateJudgeFeedback(
     }
   }
 
+  let decisions: any[] = [];
+  try {
+    decisions = useGameStore.getState().teammateDecisions || [];
+  } catch (e) {}
+
+  if (decisions.length > 0) {
+    const extraComments: string[] = [];
+    decisions.forEach(dec => {
+      if (dec.status === 'accepted') {
+        const name = dec.teammateName;
+        const rec = (dec.recommendation || "").toLowerCase();
+        
+        if (name.includes("Chloe") || rec.includes("ux") || rec.includes("design") || rec.includes("layout")) {
+          extraComments.push(`Chloe's UX recommendation improved clarity.`);
+        } else if (name.includes("Tanmay") || rec.includes("database") || rec.includes("backend") || rec.includes("architecture")) {
+          extraComments.push(`Tanmay's backend architecture decisions helped stabilize the system.`);
+        } else if (name.includes("Riya") || rec.includes("ai") || rec.includes("model") || rec.includes("pipeline")) {
+          extraComments.push(`Riya's AI direction and stack refinements reduced operational risk.`);
+        } else if (rec.includes("pricing") || rec.includes("revenue") || rec.includes("monetization") || rec.includes("business") || rec.includes("freemium") || rec.includes("enterprise")) {
+          extraComments.push(`${name}'s commercial model recommendations strengthened their pitch viability.`);
+        } else {
+          extraComments.push(`${name}'s strategic contribution aligned the prototype features.`);
+        }
+      }
+    });
+
+    if (extraComments.length > 0) {
+      extraComments.forEach(commentToAdd => {
+        if (result.comment && !result.comment.includes(commentToAdd)) {
+          result.comment = result.comment.trim() + " " + commentToAdd;
+        }
+      });
+    }
+  }
+
   if (result.comment) {
     result.comment = result.comment.replace(/!/g, ".");
   }

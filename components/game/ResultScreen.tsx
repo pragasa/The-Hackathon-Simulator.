@@ -124,6 +124,8 @@ export default function ResultScreen() {
     team,
     teamAdviceHistory,
     teamContributionLogs,
+    teamTimeline,
+    teammateDecisions,
   } = useGameStore();
 
   const [isPrdModalOpen, setIsPrdModalOpen] = useState(false);
@@ -745,6 +747,82 @@ export default function ResultScreen() {
               );
             });
           })()}
+        </div>
+      </motion.div>
+
+      {/* Team Decisions & Ownership ledger */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.82, duration: 0.5 }}
+        className="z-10 w-full max-w-2xl bg-card border border-neutral-350 rounded-lg p-6 space-y-4 text-left font-mono text-xs select-none"
+      >
+        <div className="border-b border-neutral-250 pb-2">
+          <h3 className="text-sm font-black uppercase text-neutral-900">👥 TEAM DECISIONS & OWNERSHIP</h3>
+          <span className="text-[8px] text-neutral-400 uppercase">Ledger of accepted and rejected teammate recommendations.</span>
+        </div>
+
+        <div className="space-y-3">
+          {!teammateDecisions || teammateDecisions.length === 0 ? (
+            <p className="text-neutral-400 text-[10px] italic font-sans font-light">No teammate recommendations were evaluated.</p>
+          ) : (
+            teammateDecisions.map((dec, idx) => {
+              const isAccepted = dec.status === 'accepted';
+              return (
+                <div key={idx} className="p-3 border border-neutral-300 rounded bg-white space-y-1.5 font-sans font-light text-neutral-600">
+                  <div className="flex items-center justify-between border-b border-neutral-100 pb-1.5 font-mono text-xs">
+                    <span className="font-bold text-neon-purple">{dec.teammateName}</span>
+                    <span className={cn(
+                      "text-[9px] font-bold px-1.5 py-0.5 rounded border uppercase",
+                      isAccepted ? "bg-emerald-50 border-emerald-250 text-emerald-700" : "bg-red-50 border-red-200 text-red-650"
+                    )}>
+                      {isAccepted ? "ACCEPTED" : "REJECTED"}
+                    </span>
+                  </div>
+                  <div className="text-[10px] text-neutral-700 font-mono">
+                    <span className="font-bold text-neutral-450 block uppercase text-[8px] tracking-wider">Recommendation:</span>
+                    <span className="block mt-0.5">{dec.recommendation}</span>
+                  </div>
+                  {dec.resultingChanges && (
+                    <div className="text-[10px] text-neutral-600 font-mono border-t border-dashed border-neutral-200 pt-1.5 mt-1.5">
+                      <span className="font-bold text-neutral-450 block uppercase text-[8px] tracking-wider">Resulting Changes:</span>
+                      <span className="block mt-0.5">{dec.resultingChanges}</span>
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </motion.div>
+
+      {/* Team Timeline ledger */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.85, duration: 0.5 }}
+        className="z-10 w-full max-w-2xl bg-card border border-neutral-350 rounded-lg p-6 space-y-4 text-left font-mono text-xs select-none"
+      >
+        <div className="border-b border-neutral-250 pb-2">
+          <h3 className="text-sm font-black uppercase text-neutral-900">👥 TEAM TIMELINE</h3>
+          <span className="text-[8px] text-neutral-400 uppercase">Chronological team events and debates.</span>
+        </div>
+
+        <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+          {!teamTimeline || teamTimeline.length === 0 ? (
+            <p className="text-neutral-400 text-[10px] italic">No significant team events were recorded.</p>
+          ) : (
+            teamTimeline.map((item, idx) => (
+              <div key={idx} className="p-2.5 border border-neutral-300 rounded bg-white flex items-start gap-3">
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-200 text-neutral-500 font-mono whitespace-nowrap">
+                  {item.time}
+                </span>
+                <p className="text-[10px] text-neutral-700 leading-normal font-sans">
+                  {item.event}
+                </p>
+              </div>
+            ))
+          )}
         </div>
       </motion.div>
 
