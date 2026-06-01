@@ -3940,7 +3940,7 @@ function JudgingStage() {
     // Pre-fetch dynamic roast in background during terminal judging phase
     setRoastText("");
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2800); // Strict 2.8s client-side timeout!
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15s client-side timeout to handle standard API latency!
 
     fetch("/api/generate-roast", {
       method: "POST",

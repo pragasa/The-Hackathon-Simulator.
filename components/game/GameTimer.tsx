@@ -121,6 +121,7 @@ export default function GameTimer({
             strokeWidth={stroke}
             strokeLinecap="round"
             strokeDasharray={circumference}
+            initial={{ strokeDashoffset: circumference }}
             animate={{ strokeDashoffset: dashOffset }}
             transition={{ duration: 0.6, ease: 'easeInOut' }}
           />

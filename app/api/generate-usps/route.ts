@@ -1,97 +1,123 @@
-/**
- * @fileoverview Next.js API Route for live AI-powered layman-friendly USP generation.
- * Hooks into OpenAI GPT-4o-mini using standard HTTP fetch to generate
- * 6 highly unique, direct, and non-jargon competitive advantages.
- *
- * @module app/api/generate-usps/route
- */
-
 import { NextResponse } from "next/server";
+import { z } from "zod";
+import { getClientIp, checkRateLimit } from "@/lib/rateLimit";
+import { checkPayloadSize, logSecurityError, fetchWithTimeout, detectPromptInjection, sanitizeInputText } from "@/lib/security";
 import { generateUSPOptions } from "@/lib/projectStrategyGenerator";
-import fs from "fs";
-import path from "path";
 
 export const runtime = "nodejs";
 
-function loadEnvFromFile(): Record<string, string> {
-  const env: Record<string, string> = {};
-  try {
-    let currentDir = process.cwd();
-    let envPath = path.join(currentDir, ".env.local");
-    
-    // Walk up to 4 directories high to locate .env.local
-    for (let i = 0; i < 4; i++) {
-      if (fs.existsSync(envPath)) {
-        break;
-      }
-      const parentDir = path.dirname(currentDir);
-      if (parentDir === currentDir) break;
-      currentDir = parentDir;
-      envPath = path.join(currentDir, ".env.local");
-    }
+// Zod payload validation schema
+const uspsRequestSchema = z.object({
+  selectedProblem: z.object({
+    id: z.string().max(100),
+    title: z.string().max(200),
+    description: z.string().max(2000),
+    category: z.string().max(100),
+    difficulty: z.string().max(50),
+    constraints: z.array(z.string().max(500)).max(5),
+    bonusObjectives: z.array(z.string().max(500)).max(5).optional(),
+    judgingHint: z.string().max(500).optional(),
+  }).passthrough(),
+  solutionDirection: z.string().max(100).optional(),
+  techStack: z.array(
+    z.object({
+      id: z.string().max(100),
+      name: z.string().max(100),
+      category: z.string().max(100).optional(),
+      difficulty: z.union([z.string().max(100), z.number()]).optional(),
+    }).passthrough()
+  ).max(25),
+  gameMode: z.string().max(50).optional(),
+  seed: z.union([z.string().max(100), z.number()]).optional(),
+}).passthrough();
 
-    // Also check standard ".env" as fallback
-    if (!fs.existsSync(envPath)) {
-      currentDir = process.cwd();
-      let fallbackPath = path.join(currentDir, ".env");
-      for (let i = 0; i < 4; i++) {
-        if (fs.existsSync(fallbackPath)) {
-          envPath = fallbackPath;
-          break;
-        }
-        const parentDir = path.dirname(currentDir);
-        if (parentDir === currentDir) break;
-        currentDir = parentDir;
-        fallbackPath = path.join(currentDir, ".env");
-      }
-    }
-
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf-8");
-      content.split(/\r?\n/).forEach((line) => {
-        const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
-          const eqIdx = trimmed.indexOf("=");
-          const key = trimmed.slice(0, eqIdx).trim();
-          let value = trimmed.slice(eqIdx + 1).trim();
-          if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-            value = value.slice(1, -1);
-          }
-          env[key] = value;
-        }
-      });
-    }
-  } catch (err) {
-    console.error("Error reading env file directly:", err);
-  }
-  return env;
-}
 
 export async function POST(req: Request) {
-  try {
-    const payload = await req.json();
+  const contextName = "GenerateUSPsAPI";
+  let payload: any = null;
 
-    if (!payload || !payload.selectedProblem) {
+  try {
+    // 1. Method Validation
+    if (req.method !== "POST") {
+      return NextResponse.json({ error: "Method Not Allowed" }, { status: 405 });
+    }
+
+    // 2. Payload Size Limit check (50KB max)
+    const sizeCheck = checkPayloadSize(req, 50 * 1024);
+    if (!sizeCheck.ok) {
+      return NextResponse.json({ error: sizeCheck.error }, { status: 413 });
+    }
+
+    // 3. IP-based Rate Limiting (10 requests per minute)
+    const clientIp = getClientIp(req);
+    const rateLimit = checkRateLimit(clientIp, 10, 60 * 1000);
+    if (!rateLimit.success) {
+      return NextResponse.json(
+        { error: "Too Many Requests. Please cool down for a minute." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": "60",
+            "X-RateLimit-Limit": String(rateLimit.limit),
+            "X-RateLimit-Remaining": String(rateLimit.remaining),
+            "X-RateLimit-Reset": String(rateLimit.resetTime)
+          }
+        }
+      );
+    }
+
+    // 4. Request Body Parsing & Validation (FIX: Parse exactly ONCE)
+    try {
+      payload = await req.json();
+    } catch (parseErr) {
+      return NextResponse.json({ error: "Malformed JSON payload" }, { status: 400 });
+    }
+
+    if (!payload) {
       return NextResponse.json({ error: "Missing game state payload" }, { status: 400 });
     }
 
-    const { selectedProblem, solutionDirection, techStack, gameMode, seed } = payload;
-    const fileEnv = loadEnvFromFile();
-    
-    const openaiKey = process.env.OPENAI_API_KEY || fileEnv.OPENAI_API_KEY || 
-                      process.env.NEXT_PUBLIC_OPENAI_API_KEY || fileEnv.NEXT_PUBLIC_OPENAI_API_KEY ||
-                      process.env.OPENAI_KEY || fileEnv.OPENAI_KEY;
-                      
-    const openRouterKey = process.env.OPENROUTER_API_KEY || fileEnv.OPENROUTER_API_KEY || 
-                          process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || fileEnv.NEXT_PUBLIC_OPENROUTER_API_KEY;
-                          
-    const geminiKey = process.env.GEMINI_API_KEY || fileEnv.GEMINI_API_KEY || 
-                      process.env.NEXT_PUBLIC_GEMINI_API_KEY || fileEnv.NEXT_PUBLIC_GEMINI_API_KEY;
+    const validation = uspsRequestSchema.safeParse(payload);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid payload parameters", details: validation.error.format() },
+        { status: 400 }
+      );
+    }
 
-    // ─── Direct Fallback to Procedural offline USPs if no API keys configured ───
+    const { selectedProblem, solutionDirection, techStack, gameMode, seed } = validation.data;
+
+    // 5. Prompt Injection Checks on User-Controlled Fields
+    const textToScan = [
+      selectedProblem.title,
+      selectedProblem.description,
+      solutionDirection || "",
+      ...selectedProblem.constraints,
+    ].join(" ");
+
+    if (detectPromptInjection(textToScan)) {
+      logSecurityError(contextName, `Prompt injection attempt blocked: "${clientIp}"`);
+      // Fail gracefully to fallback options instead of failing entirely
+      const offlineUSPs = generateUSPOptions(selectedProblem as any, solutionDirection || null, techStack as any, gameMode || "easy", seed as any);
+      return NextResponse.json({ usps: offlineUSPs, fallbackUsed: true, error: "Suspicious activity detected. Fallback activated." });
+    }
+
+    // Sanitize values to prevent XSS down the line
+    const sanitizedProblem = {
+      ...selectedProblem,
+      title: sanitizeInputText(selectedProblem.title),
+      description: sanitizeInputText(selectedProblem.description),
+    };
+    const sanitizedSolutionDirection = solutionDirection ? sanitizeInputText(solutionDirection) : "web-app";
+
+    // 6. Secure Environment Variables Loading (Server-Only)
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
+
+    // Direct Fallback to Procedural offline USPs if no API keys configured
     if (!openaiKey && !openRouterKey && !geminiKey) {
-      console.log("No AI API keys configured. Using high-fidelity procedural offline USPs fallback.");
-      const offlineUSPs = generateUSPOptions(selectedProblem, solutionDirection, techStack, gameMode, seed);
+      const offlineUSPs = generateUSPOptions(sanitizedProblem as any, sanitizedSolutionDirection, techStack as any, gameMode || "easy", seed as any);
       return NextResponse.json({ usps: offlineUSPs, fallbackUsed: true });
     }
 
@@ -129,17 +155,18 @@ You MUST return a raw, valid JSON array of exactly 6 USP objects. Do not include
 ]`;
 
     const userPrompt = `PROJECT SCENARIO DETAILS:
-- SELECTED CHALLENGE: "${selectedProblem.title}" - "${selectedProblem.description}"
-- CATEGORY: "${selectedProblem.category}"
-- CHALLENGE CONSTRAINTS: ${JSON.stringify(selectedProblem.constraints)}
-- SOLUTION FORMAT: "${solutionDirection || "web-app"}"
-- SELECTED TECH STACK: ${JSON.stringify(techStack.slice(0, 4).map((t: any) => t.name))}
+- SELECTED CHALLENGE: "${sanitizedProblem.title}" - "${sanitizedProblem.description}"
+- CATEGORY: "${sanitizedProblem.category}"
+- CHALLENGE CONSTRAINTS: ${JSON.stringify(sanitizedProblem.constraints)}
+- SOLUTION FORMAT: "${sanitizedSolutionDirection}"
+- SELECTED TECH STACK: ${JSON.stringify(techStack.slice(0, 4).map(t => t.name))}
 Please output exactly 6 highly creative, layman-friendly USPs matching this context in strict JSON format. Select 6 distinct keys from the allowed list.`;
 
     let responseText = "";
 
+    // 7. AI Completion with strict timeout limits (3000ms)
     if (openaiKey) {
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+      const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -154,18 +181,16 @@ Please output exactly 6 highly creative, layman-friendly USPs matching this cont
           temperature: 0.8,
           max_tokens: 1000
         })
-      });
+      }, 10000);
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error("OpenAI USP Generation API error:", errText);
-        throw new Error(`OpenAI API responded with status ${response.status}`);
+        throw new Error(`OpenAI responded with status ${response.status}`);
       }
 
       const data = await response.json();
       responseText = data.choices?.[0]?.message?.content || "";
     } else if (openRouterKey) {
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      const response = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -182,39 +207,38 @@ Please output exactly 6 highly creative, layman-friendly USPs matching this cont
           temperature: 0.8,
           max_tokens: 1000
         })
-      });
+      }, 10000);
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error("OpenRouter USP Generation API error:", errText);
-        throw new Error(`OpenRouter API responded with status ${response.status}`);
+        throw new Error(`OpenRouter responded with status ${response.status}`);
       }
 
       const data = await response.json();
       responseText = data.choices?.[0]?.message?.content || "";
     } else if (geminiKey) {
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+      const response = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { 
+          "Content-Type": "application/json",
+          "x-goog-api-key": geminiKey
+        },
         body: JSON.stringify({
           contents: [{
             parts: [{ text: `${systemPrompt}\n\nHere are the details:\n${userPrompt}` }]
           }],
           generationConfig: { temperature: 0.8, maxOutputTokens: 1000 }
         })
-      });
+      }, 10000);
 
       if (!response.ok) {
-        const errText = await response.text();
-        console.error("Gemini USP Generation API error:", errText);
-        throw new Error(`Gemini API responded with status ${response.status}`);
+        throw new Error(`Gemini responded with status ${response.status}`);
       }
 
       const data = await response.json();
       responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
     }
 
-    // Clean JSON response (remove markdown wrap if present)
+    // Clean JSON response
     let cleanedText = responseText.trim();
     if (cleanedText.startsWith("```json")) {
       cleanedText = cleanedText.slice(7);
@@ -227,26 +251,39 @@ Please output exactly 6 highly creative, layman-friendly USPs matching this cont
     }
     cleanedText = cleanedText.trim();
 
-    try {
-      const usps = JSON.parse(cleanedText);
-      if (Array.isArray(usps) && usps.length > 0) {
-        return NextResponse.json({ usps, fallbackUsed: false });
-      }
-      throw new Error("Invalid structure returned from AI model");
-    } catch (parseErr) {
-      console.error("JSON parsing of AI USP failed, falling back.", parseErr, cleanedText);
-      const offlineUSPs = generateUSPOptions(selectedProblem, solutionDirection, techStack, gameMode, seed);
-      return NextResponse.json({ usps: offlineUSPs, fallbackUsed: true });
+    // 8. Safely parse and sanitize LLM response array
+    const usps = JSON.parse(cleanedText);
+    if (Array.isArray(usps) && usps.length > 0) {
+      const sanitizedUsps = usps.map((u: any) => ({
+        key: typeof u.key === "string" ? u.key.replace(/[<>]/g, "") : "Fastest",
+        name: typeof u.name === "string" ? sanitizeInputText(u.name) : "USP Advantage",
+        desc: typeof u.desc === "string" ? sanitizeInputText(u.desc) : "Simple description.",
+        innovation: typeof u.innovation === "number" ? Math.max(35, Math.min(90, u.innovation)) : 60,
+        execution: typeof u.execution === "number" ? Math.max(35, Math.min(90, u.execution)) : 60,
+        design: typeof u.design === "number" ? Math.max(35, Math.min(90, u.design)) : 60,
+        pitch: typeof u.pitch === "number" ? Math.max(35, Math.min(90, u.pitch)) : 60,
+        advantages: typeof u.advantages === "string" ? sanitizeInputText(u.advantages) : "High advantage",
+        challenges: typeof u.challenges === "string" ? sanitizeInputText(u.challenges) : "Low execution friction",
+      })).slice(0, 6);
+
+      return NextResponse.json({ usps: sanitizedUsps, fallbackUsed: false });
     }
-  } catch (err: any) {
-    console.error("USP API error, falling back:", err);
-    // Graceful fallback to avoid crash
+    throw new Error("Invalid structure returned from AI model");
+  } catch (parseErr) {
+    logSecurityError(contextName, parseErr);
+    
+    // Safely trigger offline fallback using cached payload variables
     try {
-      const payload = await req.json();
-      const offlineUSPs = generateUSPOptions(payload.selectedProblem, payload.solutionDirection, payload.techStack, payload.gameMode, payload.seed);
-      return NextResponse.json({ usps: offlineUSPs, fallbackUsed: true, error: err.message });
-    } catch {
-      return NextResponse.json({ error: "Failed to generate USPs entirely" }, { status: 500 });
+      const offlineUSPs = generateUSPOptions(
+        (payload?.selectedProblem || {}) as any,
+        payload?.solutionDirection || "web-app",
+        (payload?.techStack || []) as any,
+        payload?.gameMode,
+        payload?.seed as any
+      );
+      return NextResponse.json({ usps: offlineUSPs, fallbackUsed: true, error: "Parsed LLM content was invalid, falling back." });
+    } catch (fallbackErr) {
+      return NextResponse.json({ error: "Failed to generate USPs securely." }, { status: 500 });
     }
   }
 }

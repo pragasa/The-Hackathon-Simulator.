@@ -1,71 +1,34 @@
 /**
  * @fileoverview Next.js API Route for live AI-powered Project Roast / Commentary.
- * Compiles a hilarious, context-aware 2-paragraph + punchline roast utilizing
+ * Compiles a context-aware 2-paragraph + punchline roast utilizing
  * the player's manifest selections and the selected judge's personality.
  * Includes a premium, lightning-fast local procedural generator fallback.
+ * Hardened with Zod validation, rate limiting, and timeout protections.
  *
  * @module app/api/generate-roast/route
  */
 
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { z } from "zod";
+import { getClientIp, checkRateLimit } from "@/lib/rateLimit";
+import { checkPayloadSize, logSecurityError, fetchWithTimeout, detectPromptInjection, sanitizeInputText } from "@/lib/security";
 
 export const runtime = "nodejs";
 
-function loadEnvFromFile(): Record<string, string> {
-  const env: Record<string, string> = {};
-  try {
-    let currentDir = process.cwd();
-    let envPath = path.join(currentDir, ".env.local");
-    
-    // Walk up to 4 directories high to locate .env.local
-    for (let i = 0; i < 4; i++) {
-      if (fs.existsSync(envPath)) {
-        break;
-      }
-      const parentDir = path.dirname(currentDir);
-      if (parentDir === currentDir) break;
-      currentDir = parentDir;
-      envPath = path.join(currentDir, ".env.local");
-    }
-
-    // Also check standard ".env" as fallback
-    if (!fs.existsSync(envPath)) {
-      currentDir = process.cwd();
-      let fallbackPath = path.join(currentDir, ".env");
-      for (let i = 0; i < 4; i++) {
-        if (fs.existsSync(fallbackPath)) {
-          envPath = fallbackPath;
-          break;
-        }
-        const parentDir = path.dirname(currentDir);
-        if (parentDir === currentDir) break;
-        currentDir = parentDir;
-        fallbackPath = path.join(currentDir, ".env");
-      }
-    }
-
-    if (fs.existsSync(envPath)) {
-      const content = fs.readFileSync(envPath, "utf-8");
-      content.split(/\r?\n/).forEach((line) => {
-        const trimmed = line.trim();
-        if (trimmed && !trimmed.startsWith("#") && trimmed.includes("=")) {
-          const eqIdx = trimmed.indexOf("=");
-          const key = trimmed.slice(0, eqIdx).trim();
-          let value = trimmed.slice(eqIdx + 1).trim();
-          if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
-            value = value.slice(1, -1);
-          }
-          env[key] = value;
-        }
-      });
-    }
-  } catch (err) {
-    console.error("Error reading env file directly:", err);
-  }
-  return env;
-}
+// Zod schema for input validation
+const roastRequestSchema = z.object({
+  problemStatement: z.string().max(2000).optional(),
+  solutionDirection: z.string().max(200).optional(),
+  techStack: z.array(z.string().max(100)).max(25),
+  usp: z.string().max(2000).optional(),
+  businessModel: z.string().max(1000).optional(),
+  mustHaveFeatures: z.array(z.string().max(200)).max(25),
+  judge: z.string().max(100),
+  judgePersonality: z.string().max(500),
+  archetype: z.string().max(100),
+  grade: z.string().max(10),
+  score: z.number().int().min(0).max(100),
+});
 
 function cleanAndHumanizeRoast(text: string): string {
   if (!text) return "";
@@ -74,7 +37,7 @@ function cleanAndHumanizeRoast(text: string): string {
   let cleaned = text.replace(/—/g, ", ");
   cleaned = cleaned.replace(/--/g, ", ");
 
-  // 2. Remove emojis entirely (ensure no smiley faces, rockets, fire, etc.)
+  // 2. Remove emojis entirely
   cleaned = cleaned.replace(/[\u{1F300}-\u{1F9FF}]|[\u{2600}-\u{27BF}]|[\u{1F600}-\u{1F64F}]|[\u{1F680}-\u{1F6FF}]|[\u{1F1E6}-\u{1F1FF}]|[\u{1F900}-\u{1F9FF}]|[\u{1F018}-\u{1F0F5}]|[\u{1F900}-\u{1F9FF}]/gu, '');
 
   // 3. Consistently use straight quotes only (convert curly quotes)
@@ -114,7 +77,7 @@ Punchline: It's an MVP, but the 'V' stands for barely Viable.`;
   if (judge.includes("Nishika")) {
     return `Looking at this "${arch}" prototype, my eyes are slightly watering. You decided to implement features like ${payload.mustHaveFeatures?.slice(0, 2).join(" and ") || "complex dashboards"} with a stack of ${tech}. It is technically a functioning piece of software, but from a product design and user onboarding perspective, it's a labyrinth of friction. The UX flow feels less like a product and more like a logic puzzle designed to keep users out.
 
-Also, declaring "${usp}" as your primary USP while backing it with a business model of "${model}" is bold. It's a classic case of engineering-driven design where the interface is just an afterthought of database tables.
+Also, declaring "${usp}" as your primary USP while backing it with a business model of "${model}" is bold. It's a case of engineering-driven design where the interface is just an afterthought of database tables.
 
 Punchline: I've seen command-line utilities with more user-friendly onboarding paths.`;
   }
@@ -138,58 +101,103 @@ Punchline: A great engineering exercise, but a highly challenging business prosp
   if (judge.includes("Sejal")) {
     return `Evaluating the financial viability of this "${arch}" reveals some classic startup economic fallacies. A business model of "${model}" with a USP of "${usp}" creates an extremely fragile path to profitability. Stacking high-overhead technologies like ${tech} means your operational expenses will outpace your customer lifetime value before you even finish onboarding.
 
-Your execution score of ${score}/100 shows some dev capabilities, but the unit economics just do not check out. Unless you have a secret pool of unlimited venture capital, this pricing and scoping strategy will bleed cash within a month.
+Your execution score of ${score}/100 shows some dev capabilities, but the unit economics just do not check out. Unless you have a secret pool of unlimited venture capital, this pricing strategy will bleed cash within a month.
 
 Punchline: Your burn rate will be the only thing scaling exponentially.`;
   }
 
-  // Fallback generic roast
   return `So you built a "${arch}" using ${tech} to address the problem of "${payload.problemStatement || "this sector"}". With a business model of "${model}" and a USP of "${usp}", the concept has some high-level ambition, but the execution quality suffers from significant scope bloat. The jury believes the implementation could benefit from a much tighter validation loop and more focused product design.
 
 Punchline: It works on my machine, but it might not work in the market.`;
 }
 
-/**
- * Fetch wrapper with strict timeout support.
- */
-async function fetchWithTimeout(url: string, options: any, timeoutMs = 2200): Promise<Response> {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const response = await fetch(url, {
-      ...options,
-      signal: controller.signal
-    });
-    clearTimeout(id);
-    return response;
-  } catch (err) {
-    clearTimeout(id);
-    throw err;
-  }
-}
-
 export async function POST(req: Request) {
+  const contextName = "GenerateRoastAPI";
+  let payload: any = null;
+
   try {
-    const payload = await req.json();
+    // 1. Method Validation
+    if (req.method !== "POST") {
+      return NextResponse.json({ error: "Method Not Allowed" }, { status: 405 });
+    }
+
+    // 2. Payload Size Limit check (50KB max)
+    const sizeCheck = checkPayloadSize(req, 50 * 1024);
+    if (!sizeCheck.ok) {
+      return NextResponse.json({ error: sizeCheck.error }, { status: 413 });
+    }
+
+    // 3. IP-based Rate Limiting (10 requests per minute)
+    const clientIp = getClientIp(req);
+    const rateLimit = checkRateLimit(clientIp, 10, 60 * 1000);
+    if (!rateLimit.success) {
+      // Return rate-limited header response
+      return NextResponse.json(
+        { error: "Too Many Requests. Please cool down for a minute." },
+        { 
+          status: 429,
+          headers: {
+            "Retry-After": "60",
+            "X-RateLimit-Limit": String(rateLimit.limit),
+            "X-RateLimit-Remaining": String(rateLimit.remaining),
+            "X-RateLimit-Reset": String(rateLimit.resetTime)
+          }
+        }
+      );
+    }
+
+    // 4. Request Body Validation
+    try {
+      payload = await req.json();
+    } catch (parseErr) {
+      return NextResponse.json({ error: "Malformed JSON payload" }, { status: 400 });
+    }
 
     if (!payload || !payload.archetype) {
       return NextResponse.json({ error: "Missing game state payload" }, { status: 400 });
     }
 
-    const fileEnv = loadEnvFromFile();
-    
-    const openaiKey = process.env.OPENAI_API_KEY || fileEnv.OPENAI_API_KEY || 
-                      process.env.NEXT_PUBLIC_OPENAI_API_KEY || fileEnv.NEXT_PUBLIC_OPENAI_API_KEY ||
-                      process.env.OPENAI_KEY || fileEnv.OPENAI_KEY;
-                      
-    const openRouterKey = process.env.OPENROUTER_API_KEY || fileEnv.OPENROUTER_API_KEY || 
-                          process.env.NEXT_PUBLIC_OPENROUTER_API_KEY || fileEnv.NEXT_PUBLIC_OPENROUTER_API_KEY;
-                          
-    const geminiKey = process.env.GEMINI_API_KEY || fileEnv.GEMINI_API_KEY || 
-                      process.env.NEXT_PUBLIC_GEMINI_API_KEY || fileEnv.NEXT_PUBLIC_GEMINI_API_KEY;
+    const validation = roastRequestSchema.safeParse(payload);
+    if (!validation.success) {
+      return NextResponse.json(
+        { error: "Invalid payload parameters", details: validation.error.format() },
+        { status: 400 }
+      );
+    }
+
+    const validatedPayload = validation.data;
 
     // Generate local fallback roast immediately as safety backup
-    const localRoastText = generateLocalRoast(payload);
+    const localRoastText = generateLocalRoast(validatedPayload);
+
+    // 5. Prompt Injection Checks on User-Controlled Fields
+    const textToScan = [
+      validatedPayload.problemStatement || "",
+      validatedPayload.solutionDirection || "",
+      validatedPayload.usp || "",
+      validatedPayload.businessModel || "",
+      ...validatedPayload.techStack,
+      ...validatedPayload.mustHaveFeatures
+    ].join(" ");
+
+    if (detectPromptInjection(textToScan)) {
+      logSecurityError(contextName, `Prompt injection attempt blocked: "${clientIp}"`);
+      return NextResponse.json({ roast: localRoastText, fallbackUsed: true, error: "Suspicious text patterns detected." });
+    }
+
+    // Sanitize user inputs
+    const sanitizedPayload = {
+      ...validatedPayload,
+      problemStatement: validatedPayload.problemStatement ? sanitizeInputText(validatedPayload.problemStatement) : "",
+      solutionDirection: validatedPayload.solutionDirection ? sanitizeInputText(validatedPayload.solutionDirection) : "",
+      usp: validatedPayload.usp ? sanitizeInputText(validatedPayload.usp) : "",
+      businessModel: validatedPayload.businessModel ? sanitizeInputText(validatedPayload.businessModel) : "",
+    };
+
+    // 6. Secure Environment Variables Loading (Server-Only, No NEXT_PUBLIC_)
+    const openaiKey = process.env.OPENAI_API_KEY;
+    const openRouterKey = process.env.OPENROUTER_API_KEY;
+    const geminiKey = process.env.GEMINI_API_KEY;
 
     // Skip external fetch if key is a known fake placeholder or entirely missing
     const isMockOpenaiKey = !openaiKey || openaiKey.includes("YOUR_KEY") || openaiKey.includes("placeholder") || openaiKey === "your-api-key" || openaiKey.length < 20;
@@ -216,20 +224,21 @@ CRITICAL ANTI-AI WRITING RULES:
 5. Make sure the critique is deeply specific to their exact tech stack, problem, features, USP, and business model. Give a raw, human, reactive opinion.`;
 
     const userPrompt = `PROJECT MANIFEST:
-- Problem: "${payload.problemStatement}"
-- Solution Direction: "${payload.solutionDirection}"
-- Selected Tech Stack: ${JSON.stringify(payload.techStack)}
-- USP: "${payload.usp}"
-- Business Model: "${payload.businessModel}"
-- Must-Have Features: ${JSON.stringify(payload.mustHaveFeatures)}
-- Selected Judge: "${payload.judge}"
-- Judge Personality: "${payload.judgePersonality}"
-- Project Archetype: "${payload.archetype}"
-- Score: ${payload.score}/100
-- Grade: "${payload.grade}"`;
+- Problem: "${sanitizedPayload.problemStatement}"
+- Solution Direction: "${sanitizedPayload.solutionDirection}"
+- Selected Tech Stack: ${JSON.stringify(sanitizedPayload.techStack)}
+- USP: "${sanitizedPayload.usp}"
+- Business Model: "${sanitizedPayload.businessModel}"
+- Must-Have Features: ${JSON.stringify(sanitizedPayload.mustHaveFeatures)}
+- Selected Judge: "${sanitizedPayload.judge}"
+- Judge Personality: "${sanitizedPayload.judgePersonality}"
+- Project Archetype: "${sanitizedPayload.archetype}"
+- Score: ${sanitizedPayload.score}/100
+- Grade: "${sanitizedPayload.grade}"`;
 
     let generatedText = "";
 
+    // 7. External AI Fetch Calls with strict timeout protection (3000ms)
     try {
       if (openaiKey && !isMockOpenaiKey) {
         const response = await fetchWithTimeout("https://api.openai.com/v1/chat/completions", {
@@ -247,7 +256,7 @@ CRITICAL ANTI-AI WRITING RULES:
             temperature: 0.85,
             max_tokens: 300
           })
-        }, 2200);
+        }, 10000);
 
         if (!response.ok) {
           throw new Error(`OpenAI responded with status ${response.status}`);
@@ -273,7 +282,7 @@ CRITICAL ANTI-AI WRITING RULES:
             temperature: 0.85,
             max_tokens: 300
           })
-        }, 2200);
+        }, 10000);
 
         if (!response.ok) {
           throw new Error(`OpenRouter responded with status ${response.status}`);
@@ -282,16 +291,19 @@ CRITICAL ANTI-AI WRITING RULES:
         const data = await response.json();
         generatedText = data.choices?.[0]?.message?.content || "";
       } else if (geminiKey) {
-        const response = await fetchWithTimeout(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+        const response = await fetchWithTimeout("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { 
+            "Content-Type": "application/json",
+            "x-goog-api-key": geminiKey
+          },
           body: JSON.stringify({
             contents: [{
               parts: [{ text: `${systemPrompt}\n\nHere is the manifest to review:\n${userPrompt}` }]
             }],
             generationConfig: { temperature: 0.85, maxOutputTokens: 300 }
           })
-        }, 2200);
+        }, 10000);
 
         if (!response.ok) {
           throw new Error(`Gemini responded with status ${response.status}`);
@@ -307,11 +319,12 @@ CRITICAL ANTI-AI WRITING RULES:
 
       return NextResponse.json({ roast: cleanAndHumanizeRoast(generatedText) });
     } catch (apiErr) {
-      console.warn("External AI call failed or timed out. Falling back to local roast:", apiErr);
+      logSecurityError(contextName, apiErr);
       return NextResponse.json({ roast: localRoastText, fallbackUsed: true });
     }
   } catch (err: any) {
-    console.error("Critical Roast API error:", err);
-    return NextResponse.json({ error: err.message || "Failed to generate AI roast" }, { status: 500 });
+    logSecurityError(contextName, err);
+    // Secure fallback: never throw raw internal exceptions to user
+    return NextResponse.json({ error: "Failed to generate AI roast securely." }, { status: 500 });
   }
 }
