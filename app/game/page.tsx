@@ -5560,19 +5560,19 @@ function PersistentTeamPanel({
 
     if (bonusPts === 2) {
       return (
-        <span className="text-[7.5px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-1 py-0.5 rounded uppercase tracking-wider animate-[pulse_2s_infinite]">
+        <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 border border-emerald-200 px-2 py-1 rounded uppercase tracking-wider animate-[pulse_2s_infinite]">
           ▲ +2 PTS FIT BONUS
         </span>
       );
     } else if (bonusPts === -1) {
       return (
-        <span className="text-[7.5px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-1 py-0.5 rounded uppercase tracking-wider animate-[pulse_1s_infinite]">
+        <span className="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-200 px-2 py-1 rounded uppercase tracking-wider animate-[pulse_1s_infinite]">
           ▼ -1 PTS BAD CHOICE
         </span>
       );
     } else {
       return (
-        <span className="text-[7.5px] font-bold text-neutral-500 bg-neutral-50 border border-neutral-200 px-1 py-0.5 rounded uppercase tracking-wider">
+        <span className="text-[9px] font-bold text-neutral-500 bg-neutral-50 border border-neutral-200 px-2 py-1 rounded uppercase tracking-wider">
           ● +0 PTS GENERAL FIT
         </span>
       );
@@ -5678,7 +5678,7 @@ function PersistentTeamPanel({
           <div className="flex border-b border-neutral-200 flex-shrink-0">
             <button
               onClick={() => { playMutedClick(); setActiveTeamTab('crew'); }}
-              className={`flex-1 py-1.5 text-center text-[9px] font-bold uppercase transition-all border-b-2 ${
+              className={`flex-1 py-2.5 text-center text-[11px] font-black uppercase tracking-wider transition-all border-b-2 ${
                 activeTeamTab === 'crew'
                   ? 'border-neutral-900 text-neutral-900 bg-neutral-50'
                   : 'border-transparent text-neutral-400 hover:text-neutral-900 bg-transparent'
@@ -5688,7 +5688,7 @@ function PersistentTeamPanel({
             </button>
             <button
               onClick={() => { playMutedClick(); setActiveTeamTab('chat'); }}
-              className={`flex-1 py-1.5 text-center text-[9px] font-bold uppercase transition-all border-b-2 relative ${
+              className={`flex-1 py-2.5 text-center text-[11px] font-black uppercase tracking-wider transition-all border-b-2 relative ${
                 activeTeamTab === 'chat'
                   ? 'border-neutral-900 text-neutral-900 bg-neutral-50'
                   : 'border-transparent text-neutral-400 hover:text-neutral-900 bg-transparent'
@@ -5701,14 +5701,14 @@ function PersistentTeamPanel({
           {/* Scrollable Content */}
           <div className="flex-1 overflow-y-auto">
             {activeTeamTab === 'crew' ? (
-              <div className="p-2 space-y-2">
+              <div className="p-3 space-y-3">
                 {/* Player Card */}
-                <div className="p-2 border border-neutral-200 rounded bg-neutral-50 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-base">{playerAvatar}</span>
+                <div className="p-3 border border-neutral-200 rounded-md bg-neutral-50 space-y-1.5 shadow-sm">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">{playerAvatar}</span>
                     <div>
-                      <span className="font-bold text-neutral-900 text-[10px] block leading-none">{playerName}</span>
-                      <span className="text-[8px] text-neutral-450 uppercase">Team Lead (You)</span>
+                      <span className="font-bold text-neutral-900 text-xs block leading-none">{playerName}</span>
+                      <span className="text-[9px] text-neutral-450 uppercase tracking-wider mt-0.5 block leading-none">Team Lead (You)</span>
                     </div>
                   </div>
                 </div>
@@ -5718,37 +5718,37 @@ function PersistentTeamPanel({
                   const hasAdvice = !!activeTeammateAdvice[t.id];
                   const gating = checkTeammateGating(t, state);
                   return (
-                    <div key={t.id} className="p-2 border border-neutral-200 rounded bg-white space-y-2">
+                    <div key={t.id} className="p-3 border border-neutral-200 rounded-md bg-white space-y-3 shadow-sm">
                       <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-base">{t.avatar}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-lg">{t.avatar}</span>
                           <div>
-                            <span className="font-bold text-neutral-900 text-[10px] block leading-none">{t.name}</span>
-                            <span className="text-[8px] text-neutral-450 uppercase leading-none">{t.role}</span>
+                            <span className="font-bold text-neutral-900 text-xs block leading-none">{t.name}</span>
+                            <span className="text-[9px] text-neutral-450 uppercase tracking-wider mt-0.5 block leading-none">{t.role}</span>
                           </div>
                         </div>
-                        <span className="text-[7px] font-bold px-1 py-0.5 rounded bg-neutral-100 border border-neutral-200 text-neutral-500 uppercase flex-shrink-0">
+                        <span className="text-[8.5px] font-bold px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-200 text-neutral-500 uppercase flex-shrink-0">
                           {t.personality}
                         </span>
                       </div>
 
                       {/* Compact contribution grid */}
-                      <div className="grid grid-cols-4 gap-0.5 border-t border-dashed border-neutral-150 pt-1 text-[7px] text-center font-bold text-neutral-500">
+                      <div className="grid grid-cols-4 gap-1 border-t border-dashed border-neutral-200 pt-2 text-[9px] text-center font-bold text-neutral-600">
                         <div>
-                          <span className="block text-neutral-400 uppercase text-[6px]">INN</span>
-                          <span className={t.contribution.innovation > 0 ? "text-purple-600" : ""}>+{t.contribution.innovation}</span>
+                          <span className="block text-neutral-400 uppercase text-[8px] tracking-wider mb-0.5">INN</span>
+                          <span className={cn("text-[10px] font-extrabold", t.contribution.innovation > 0 ? "text-purple-600" : "")}>+{t.contribution.innovation}</span>
                         </div>
                         <div>
-                          <span className="block text-neutral-400 uppercase text-[6px]">EXE</span>
-                          <span className={t.contribution.execution > 0 ? "text-blue-600" : ""}>+{t.contribution.execution}</span>
+                          <span className="block text-neutral-400 uppercase text-[8px] tracking-wider mb-0.5">EXE</span>
+                          <span className={cn("text-[10px] font-extrabold", t.contribution.execution > 0 ? "text-blue-600" : "")}>+{t.contribution.execution}</span>
                         </div>
                         <div>
-                          <span className="block text-neutral-400 uppercase text-[6px]">DES</span>
-                          <span className={t.contribution.design > 0 ? "text-pink-600" : ""}>+{t.contribution.design}</span>
+                          <span className="block text-neutral-400 uppercase text-[8px] tracking-wider mb-0.5">DES</span>
+                          <span className={cn("text-[10px] font-extrabold", t.contribution.design > 0 ? "text-pink-600" : "")}>+{t.contribution.design}</span>
                         </div>
                         <div>
-                          <span className="block text-neutral-400 uppercase text-[6px]">PIT</span>
-                          <span className={t.contribution.pitch > 0 ? "text-orange-600" : ""}>+{t.contribution.pitch}</span>
+                          <span className="block text-neutral-400 uppercase text-[8px] tracking-wider mb-0.5">PIT</span>
+                          <span className={cn("text-[10px] font-extrabold", t.contribution.pitch > 0 ? "text-orange-600" : "")}>+{t.contribution.pitch}</span>
                         </div>
                       </div>
 
@@ -5760,10 +5760,10 @@ function PersistentTeamPanel({
                       )}
 
                       {/* Status + Action */}
-                      <div className="flex items-center justify-between border-t border-neutral-100 pt-1.5">
+                      <div className="flex items-center justify-between border-t border-neutral-150 pt-2">
                         {!t.helpTokenUsed ? (
                           gating.isGated ? (
-                            <span className="text-[7px] text-neutral-400 uppercase font-mono">{getSubtleGatingStatus?.(t) || "Watching..."}</span>
+                            <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider font-mono">{getSubtleGatingStatus?.(t) || "Watching..."}</span>
                           ) : (
                             <Button
                               size="xs"
@@ -5773,13 +5773,13 @@ function PersistentTeamPanel({
                                 setActiveTeamTab('chat');
                               }}
                               disabled={hasAdvice}
-                              className="text-[8px] h-5 px-1.5 w-full border border-neutral-900 cursor-pointer disabled:opacity-50"
+                              className="text-[10px] h-7 px-2.5 w-full border border-neutral-900 cursor-pointer disabled:opacity-50 font-bold tracking-wider"
                             >
                               {hasAdvice ? "PENDING..." : "ASK ADVICE"}
                             </Button>
                           )
                         ) : (
-                          <span className="text-[7px] text-neutral-400 uppercase font-mono">Token used</span>
+                          <span className="text-[10px] text-neutral-400 font-bold uppercase tracking-wider font-mono">Token used</span>
                         )}
                       </div>
                     </div>
@@ -5798,62 +5798,62 @@ function PersistentTeamPanel({
                     const chosenIdx = msg.discussion?.chosenIndex;
                     const badge = getMessageTypeBadge(msg.type);
                     return (
-                      <div key={msg.id} className="p-2 border border-neutral-200 rounded bg-white space-y-1.5">
-                        <div className="flex items-center justify-between border-b border-dashed border-neutral-150 pb-1">
-                          <div className="flex items-center gap-1">
-                            <span className="text-sm">{msg.senderAvatar}</span>
-                            <span className="font-bold text-neutral-900 text-[9px] uppercase leading-none">{msg.senderName}</span>
+                      <div key={msg.id} className="p-3 border border-neutral-200 rounded-md bg-white space-y-2 shadow-sm">
+                        <div className="flex items-center justify-between border-b border-dashed border-neutral-150 pb-1.5">
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-base">{msg.senderAvatar}</span>
+                            <span className="font-bold text-neutral-900 text-[11px] uppercase leading-none">{msg.senderName}</span>
                           </div>
-                          <span className="text-[7px] text-neutral-400 flex-shrink-0">{msg.timestamp}</span>
+                          <span className="text-[9px] text-neutral-400 flex-shrink-0">{msg.timestamp}</span>
                         </div>
 
                         {badge && (
-                          <span className={cn("inline-flex items-center gap-0.5 text-[7px] font-bold px-1 py-0.5 rounded border uppercase tracking-wide", badge.bg)}>
+                          <span className={cn("inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded border uppercase tracking-wide", badge.bg)}>
                             {badge.icon} {badge.label}
                           </span>
                         )}
 
                         {msg.type === 'poll' && msg.pollDetails ? (
-                          <div className="p-2 border border-emerald-500/30 bg-emerald-950/90 text-white rounded space-y-2 mt-1 text-[9px] leading-relaxed font-mono shadow-inner select-none">
-                            <div className="flex items-center justify-between border-b border-emerald-800 pb-1 uppercase tracking-wider text-[8px] text-emerald-400">
+                          <div className="p-3 border border-emerald-500/30 bg-emerald-950/90 text-white rounded-md space-y-3 mt-1 text-[11px] leading-relaxed font-mono shadow-inner select-none">
+                            <div className="flex items-center justify-between border-b border-emerald-800 pb-1.5 uppercase tracking-wider text-[10px] text-emerald-400">
                               <span>🗳️ CREW POLL RESOLUTION</span>
-                              <span className="text-[7.5px] bg-emerald-900/50 text-emerald-300 px-1 py-0.2 rounded font-sans tracking-normal font-bold">
+                              <span className="text-[9px] bg-emerald-900 text-emerald-200 px-2 py-0.5 rounded font-sans tracking-normal font-bold">
                                 {msg.pollDetails.subjectDesc.toUpperCase()}
                               </span>
                             </div>
                             <div className="space-y-1">
-                              <span className="text-neutral-400 text-[8px] uppercase block tracking-widest leading-none font-bold">PROPOSED STRATEGY:</span>
-                              <span className="text-emerald-100 font-bold block text-[10px] border-b border-emerald-900 pb-1 leading-tight font-sans">
+                              <span className="text-neutral-400 text-[9px] uppercase block tracking-widest leading-none font-bold">PROPOSED STRATEGY:</span>
+                              <span className="text-emerald-100 font-bold block text-[11px] border-b border-emerald-900 pb-1.5 leading-tight font-sans">
                                 {msg.pollDetails.subjectTitle}
                               </span>
                             </div>
-                            <div className="space-y-1 text-[8.5px] font-sans">
-                              <span className="text-neutral-400 text-[8px] uppercase block tracking-widest leading-none font-mono font-bold">VOTE LEDGER:</span>
-                              <div className="space-y-1 max-h-[140px] overflow-y-auto pr-0.5">
+                            <div className="space-y-1.5 text-[10.5px] font-sans">
+                              <span className="text-neutral-400 text-[9px] uppercase block tracking-widest leading-none font-mono font-bold">VOTE LEDGER:</span>
+                              <div className="space-y-1.5 max-h-[140px] overflow-y-auto pr-0.5">
                                 {msg.pollDetails.votesList.map((v: any, vIdx: number) => (
-                                  <div key={vIdx} className="p-1 rounded bg-neutral-900/60 border border-neutral-850 flex flex-col gap-0.5 leading-normal">
-                                    <div className="flex items-center justify-between text-[8px]">
+                                  <div key={vIdx} className="p-1.5 rounded bg-neutral-900/60 border border-neutral-850 flex flex-col gap-1 leading-normal">
+                                    <div className="flex items-center justify-between text-[9px]">
                                       <span className="font-bold text-white uppercase">{v.avatar} {v.name} ({v.role})</span>
                                       <span className={cn(
-                                        "px-1 py-0.2 rounded text-[7px] font-mono font-black uppercase",
+                                        "px-1.5 py-0.2 rounded text-[8px] font-mono font-black uppercase",
                                         v.vote === 'YES' ? "bg-emerald-900 text-emerald-300" : "bg-red-900 text-red-300"
                                       )}>{v.vote}</span>
                                     </div>
-                                    <p className="text-[7.5px] text-neutral-350 italic font-light font-sans">"{v.rationale}"</p>
+                                    <p className="text-[9.5px] text-neutral-350 italic font-light font-sans">"{v.rationale}"</p>
                                   </div>
                                 ))}
                               </div>
                             </div>
-                            <div className="border-t border-emerald-800/80 pt-1.5 space-y-1 mt-1 text-center">
-                              <div className="flex justify-between items-center text-[8.5px]">
-                                <span className="text-neutral-400 uppercase font-mono text-[7.5px]">CONSENSUS RATIO:</span>
+                            <div className="border-t border-emerald-800/80 pt-2 space-y-1.5 mt-1.5 text-center">
+                              <div className="flex justify-between items-center text-[10.5px]">
+                                <span className="text-neutral-400 uppercase font-mono text-[9px]">CONSENSUS RATIO:</span>
                                 <span className="font-bold text-white">{msg.pollDetails.yesCount} YES / {msg.pollDetails.noCount} NO ({msg.pollDetails.consensusPct}% Alignment)</span>
                               </div>
                               <div className="w-full bg-emerald-950 border border-emerald-900 rounded-full h-1.5 overflow-hidden">
                                 <div className="bg-emerald-400 h-full rounded-full" style={{ width: `${msg.pollDetails.consensusPct}%` }} />
                               </div>
                               <div className={cn(
-                                "p-1 rounded text-center font-bold text-[8.5px] uppercase mt-1.5 font-mono tracking-wider flex items-center justify-center gap-1 leading-none border",
+                                "p-1.5 rounded text-center font-bold text-[10px] uppercase mt-1.5 font-mono tracking-wider flex items-center justify-center gap-1 leading-none border",
                                 msg.pollDetails.approved 
                                   ? "bg-emerald-950/40 text-emerald-400 border-emerald-900/60" 
                                   : "bg-red-950/40 text-red-400 border-red-900/60"
@@ -5867,76 +5867,76 @@ function PersistentTeamPanel({
                             </div>
                           </div>
                         ) : msg.type === 'suggestion' && msg.adviceDetails ? (
-                          <div className="p-2 border border-purple-200 bg-purple-50/40 rounded space-y-2 mt-1 text-[9px] leading-relaxed">
-                            <div className="font-bold text-purple-900 border-b border-purple-150 pb-0.5 uppercase tracking-wide font-mono text-[8px] flex items-center justify-between">
+                          <div className="p-3 border border-purple-200 bg-purple-50/50 rounded-md space-y-2.5 mt-1 text-[11px] leading-relaxed">
+                            <div className="font-bold text-purple-900 border-b border-purple-150 pb-1 uppercase tracking-wide font-mono text-[10px] flex items-center justify-between">
                               <span>💡 TEAMMATE PROPOSAL</span>
-                              <span className="text-[7.5px] bg-purple-100 text-purple-800 px-1 py-0.2 rounded font-normal font-sans tracking-normal select-none">
+                              <span className="text-[9px] bg-purple-100 text-purple-800 px-2 py-0.5 rounded font-normal font-sans tracking-normal select-none">
                                 {msg.adviceDetails.title}
                               </span>
                             </div>
                             <div className="space-y-1.5 font-sans text-neutral-750">
                               <div>
-                                <strong className="font-mono text-neutral-500 text-[8px] uppercase block tracking-wider leading-tight">Observation:</strong> 
-                                <span className="font-light">{msg.adviceDetails.observation}</span>
+                                <strong className="font-mono text-neutral-500 text-[9.5px] uppercase block tracking-wider leading-tight">Observation:</strong> 
+                                <span className="font-light text-[11px]">{msg.adviceDetails.observation}</span>
                               </div>
                               <div>
-                                <strong className="font-mono text-neutral-500 text-[8px] uppercase block tracking-wider leading-tight">Concern:</strong> 
-                                <span className="font-light">{msg.adviceDetails.concern}</span>
+                                <strong className="font-mono text-neutral-500 text-[9.5px] uppercase block tracking-wider leading-tight">Concern:</strong> 
+                                <span className="font-light text-[11px]">{msg.adviceDetails.concern}</span>
                               </div>
                               <div>
-                                <strong className="font-mono text-purple-950 text-[8px] uppercase block tracking-wider leading-tight">Recommendation:</strong> 
-                                <span className="font-semibold text-purple-900">{msg.adviceDetails.recommendation}</span>
+                                <strong className="font-mono text-purple-950 text-[9.5px] uppercase block tracking-wider leading-tight">Recommendation:</strong> 
+                                <span className="font-semibold text-purple-900 text-[11.5px]">{msg.adviceDetails.recommendation}</span>
                               </div>
                               <div>
-                                <strong className="font-mono text-neutral-500 text-[8px] uppercase block tracking-wider leading-tight">Expected Outcome:</strong> 
-                                <span className="font-light">{msg.adviceDetails.expectedImpact}</span>
+                                <strong className="font-mono text-neutral-500 text-[9.5px] uppercase block tracking-wider leading-tight">Expected Outcome:</strong> 
+                                <span className="font-light text-[11px]">{msg.adviceDetails.expectedImpact}</span>
                               </div>
                               {msg.adviceDetails.tradeoffs && (
                                 <div>
-                                  <strong className="font-mono text-neutral-500 text-[8px] uppercase block tracking-wider leading-tight">Tradeoffs:</strong> 
-                                  <span className="font-light italic text-neutral-550">{msg.adviceDetails.tradeoffs}</span>
+                                  <strong className="font-mono text-neutral-500 text-[9.5px] uppercase block tracking-wider leading-tight">Tradeoffs:</strong> 
+                                  <span className="font-light italic text-neutral-550 text-[11px]">{msg.adviceDetails.tradeoffs}</span>
                                 </div>
                               )}
                             </div>
                           </div>
                         ) : (
-                          <p className="text-[9px] text-neutral-700 leading-relaxed font-sans">{msg.text}</p>
+                          <p className="text-[11.5px] text-neutral-800 leading-relaxed font-sans tracking-wide">{msg.text}</p>
                         )}
 
                         {msg.changeSummary && (
-                          <div className="p-1.5 rounded border border-neutral-200 bg-neutral-50 font-mono text-[8px] space-y-1">
-                            <div className="font-bold text-neutral-900 uppercase text-[7px] border-b border-dashed border-neutral-200 pb-0.5">⚙ ACTION COMPLETED</div>
+                          <div className="p-2 rounded border border-neutral-200 bg-neutral-50 font-mono text-[10px] space-y-1.5 shadow-sm">
+                            <div className="font-bold text-neutral-900 uppercase text-[9px] border-b border-dashed border-neutral-200 pb-1">⚙ ACTION COMPLETED</div>
                             <div>
-                              <span className="text-neutral-500 uppercase text-[6px] block">After:</span>
-                              <div className="text-emerald-700 font-bold break-all">{msg.changeSummary.after}</div>
+                              <span className="text-neutral-500 uppercase text-[8px] block">After:</span>
+                              <div className="text-emerald-700 font-black break-all text-[10.5px]">{msg.changeSummary.after}</div>
                             </div>
                             {msg.changeSummary.reason && (
-                              <div className="text-neutral-500 text-[7px]">{msg.changeSummary.reason}</div>
+                              <div className="text-neutral-500 text-[9px]">{msg.changeSummary.reason}</div>
                             )}
                           </div>
                         )}
 
                         {msg.discussion && (
-                          <div className="p-1.5 bg-neutral-50 border border-neutral-200 rounded space-y-1">
-                            <span className="text-[7px] font-bold text-neutral-500 uppercase block">
+                          <div className="p-2.5 bg-neutral-50 border border-neutral-200 rounded space-y-1.5 shadow-sm">
+                            <span className="text-[9px] font-bold text-neutral-500 uppercase block">
                               {isResolved ? "✓ Resolved" : "⚡ Action Required"}
                             </span>
                             {isResolved && chosenIdx !== undefined && msg.discussion.choices[chosenIdx] && (
-                              <div className="text-[8px] text-neutral-600 font-sans">
-                                <span className="font-bold">{msg.discussion.choices[chosenIdx].label}:</span>{" "}
+                              <div className="text-[10px] text-neutral-600 font-sans leading-relaxed">
+                                <span className="font-bold text-neutral-800">{msg.discussion.choices[chosenIdx].label}:</span>{" "}
                                 {msg.discussion.choices[chosenIdx].outcomeText}
                               </div>
                             )}
                             {!isResolved && (
-                              <div className="flex flex-col gap-1">
+                              <div className="flex flex-col gap-1.5">
                                 {msg.discussion.choices.map((choice: any, cIdx: number) => (
                                   <button
                                     key={cIdx}
                                     onClick={() => { playMutedClick(); resolveTeamChatMessageChoice(msg.id, cIdx); }}
-                                    className="text-left p-1 border border-neutral-300 rounded hover:bg-neutral-100 text-[8px] transition-all cursor-pointer font-sans"
+                                    className="text-left p-2 border border-neutral-300 rounded hover:bg-neutral-100 text-[10px] transition-all cursor-pointer font-sans"
                                   >
-                                    <span className="font-bold text-neutral-900 block">{choice.label}</span>
-                                    <span className="text-neutral-500 text-[7px] font-light leading-tight">{choice.description}</span>
+                                    <span className="font-bold text-neutral-900 text-[10.5px] block">{choice.label}</span>
+                                    <span className="text-neutral-500 text-[8.5px] font-light leading-tight block mt-0.5">{choice.description}</span>
                                   </button>
                                 ))}
                               </div>
