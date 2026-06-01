@@ -209,7 +209,7 @@ export default function LandingPage() {
       </nav>
 
       {/* Main Container */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-4 max-w-4xl mx-auto w-full space-y-6">
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 max-md:py-2 py-4 max-w-4xl mx-auto w-full max-md:space-y-4 space-y-6">
         
         {/* Core Elevator Section */}
         <motion.div
@@ -227,7 +227,7 @@ export default function LandingPage() {
 
           <motion.h1
             variants={itemVariants}
-            className="text-3xl sm:text-4xl font-black font-sans tracking-tight text-neutral-900 uppercase leading-none"
+            className="text-2xl sm:text-4xl font-black font-sans tracking-tight text-neutral-900 uppercase leading-none"
           >
             BUILD. SHIP. <span className="text-neutral-500 font-light">SURVIVE.</span>
           </motion.h1>
@@ -247,14 +247,14 @@ export default function LandingPage() {
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="w-full max-w-md bg-white border-2 border-neutral-800 rounded-md p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.08)] text-left select-none relative overflow-hidden space-y-5"
+          className="w-full max-w-md bg-white border-2 border-neutral-800 rounded-md max-md:p-4 p-6 shadow-[4px_4px_0px_rgba(0,0,0,0.08)] text-left select-none relative overflow-hidden max-md:space-y-3 space-y-5"
         >
           <div className="absolute top-1.5 right-2.5 font-mono text-[8px] text-neutral-400 font-bold select-none">
             GAME RUNNER V2.4
           </div>
 
-          <div className="space-y-4 font-mono">
-            <div className="flex items-center gap-2 border-b border-neutral-200 pb-2">
+          <div className="max-md:space-y-2 space-y-4 font-mono">
+            <div className="flex items-center gap-2 border-b border-neutral-200 max-md:pb-1 pb-2">
               <Clock className="w-4 h-4 text-neutral-850 animate-pulse" />
               <span className="font-bold text-xs uppercase text-neutral-900">THE REAL GAME SEQUENCE</span>
             </div>
@@ -321,7 +321,7 @@ export default function LandingPage() {
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
-          className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 w-full max-w-3xl select-none"
+          className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 w-full max-w-3xl select-none"
         >
           {/* Card 1 */}
           <motion.div

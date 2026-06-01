@@ -99,9 +99,9 @@ function GameplayStageCard({
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -12 }}
       transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className="flex flex-col items-center justify-center min-h-[75vh] max-w-4xl mx-auto px-4 py-8"
+      className="flex flex-col items-center justify-center min-h-[75vh] max-w-4xl mx-auto px-4 md:px-6 py-8"
     >
-      <div className="w-full bg-card border border-border rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.015)] p-6 sm:p-8 text-center relative overflow-hidden">
+      <div className="w-full bg-card border border-border rounded-lg shadow-[0_1px_3px_rgba(0,0,0,0.015)] max-sm:p-4 p-6 sm:p-8 text-center relative overflow-hidden">
         {/* Stage metadata tags */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-border/85">
           <div className="flex items-center gap-2">
@@ -190,7 +190,7 @@ function GameplayStageCard({
               }}
               onMouseEnter={playSubtleHover}
               disabled={stageKey === 'results'}
-              className="font-mono text-xs h-8 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none cursor-pointer"
+              className="font-mono text-[10px] sm:text-xs h-11 sm:h-8 px-4 flex items-center justify-center focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none cursor-pointer"
             >
               &lt; BACK
             </Button>
@@ -204,7 +204,7 @@ function GameplayStageCard({
                   setIsAbortOpen(true);
                 }}
                 onMouseEnter={playSubtleHover}
-                className="font-mono text-xs h-8 bg-red-50/50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 hover:border-red-600 transition-all duration-150 cursor-pointer"
+                className="font-mono text-[10px] sm:text-xs h-11 sm:h-8 px-4 flex items-center justify-center bg-red-50/50 hover:bg-red-600 text-red-600 hover:text-white border border-red-200 hover:border-red-600 transition-all duration-150 cursor-pointer"
               >
                 GIVE UP
               </Button>
@@ -234,7 +234,7 @@ function GameplayStageCard({
             }}
             onMouseEnter={playSubtleHover}
             disabled={currentIndex === STAGE_ORDER.length - 1 || !difficulty || disableNext}
-            className="font-mono text-xs h-8 border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none cursor-pointer"
+            className="font-mono text-[10px] sm:text-xs h-11 sm:h-8 px-4 flex items-center justify-center border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none cursor-pointer"
           >
             NEXT ROUND &gt;
           </Button>
@@ -473,7 +473,7 @@ function TeamFormationStage() {
                       type="text"
                       value={playerName}
                       onChange={(e) => setPlayerName(e.target.value)}
-                      className="w-full px-2 py-1.5 border border-neutral-300 rounded focus:border-neutral-900 focus:outline-none bg-white font-sans text-xs"
+                      className="w-full px-2 py-1.5 border border-neutral-300 rounded focus:border-neutral-900 focus:outline-none bg-white font-sans text-xs max-md:text-[16px]"
                       placeholder="Enter name"
                     />
                   </div>
@@ -535,7 +535,7 @@ function TeamFormationStage() {
                             onChange={(e) => {
                               setTeammates(prev => prev.map(item => item.id === t.id ? { ...item, name: e.target.value } : item));
                             }}
-                            className="w-full px-2 py-1.5 border border-neutral-300 rounded focus:border-neutral-900 focus:outline-none bg-white font-sans text-xs"
+                            className="w-full px-2 py-1.5 border border-neutral-300 rounded focus:border-neutral-900 focus:outline-none bg-white font-sans text-xs max-md:text-[16px]"
                             placeholder="Teammate name"
                           />
                         </div>
@@ -1428,7 +1428,7 @@ function TechStackStage() {
           )}
 
           {/* Category Tabs */}
-          <div className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2">
+          <div className="flex flex-nowrap overflow-x-auto no-scrollbar scroll-smooth gap-1 border-b border-neutral-200 pb-2 w-full whitespace-nowrap py-1">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -1457,7 +1457,7 @@ function TechStackStage() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="SEARCH TECHNOLOGIES..."
-                className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-[10px] font-mono uppercase tracking-wider focus:outline-none focus:border-neutral-900 transition-colors"
+                className="w-full px-2.5 py-1.5 bg-white border border-neutral-200 rounded text-[10px] font-mono uppercase tracking-wider focus:outline-none focus:border-neutral-900 transition-colors max-md:text-[16px]"
               />
             </div>
             
@@ -1514,7 +1514,7 @@ function TechStackStage() {
                         handleToggleTech(tech);
                       }}
                       onMouseEnter={playSubtleHover}
-                      className={`w-full text-left flex flex-col p-2.5 rounded-md border transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none ${
+                      className={`w-full text-left flex flex-col p-2.5 rounded-md border transition-all duration-200 transform hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.03)] focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none min-h-[44px] ${
                         isSelected
                           ? "border-neutral-900 bg-neutral-50 shadow-sm font-bold animate-[pulse_3s_infinite]"
                           : "border-neutral-200 hover:border-neutral-300 bg-white"
@@ -1661,7 +1661,7 @@ function TechStackStage() {
                             </button>
                           </motion.div>
                         ) : (
-                          <div className="text-[9.5px] py-1.5 flex items-center justify-between px-2 w-full select-none text-neutral-450">
+                          <div className="text-[9.5px] py-1.5 flex items-center justify-between px-2 w-full select-none text-neutral-450 min-h-[44px]">
                             <span className="truncate">{slot.emptyGuidance}</span>
                             {getPriorityBadge(slot.priority)}
                           </div>
@@ -2234,7 +2234,7 @@ function FeaturesStage() {
                   currentCount={items.length}
                   hideDefaultEmpty={false}
                   emptyLabel={col.empty}
-                  className="bg-neutral-50/20 rounded-lg p-2 h-[460px] overflow-y-auto pr-1.5 border border-transparent hover:border-neutral-200/40 transition-colors"
+                  className="bg-neutral-50/20 rounded-lg p-2 max-md:h-[320px] md:h-[460px] overflow-y-auto pr-1.5 border border-transparent hover:border-neutral-200/40 transition-colors"
                 >
                   <div className="space-y-1.5 py-1 select-none">
                     {items.map((feat) => (
@@ -2461,10 +2461,10 @@ function PitchDeckStage() {
         subtitle="Prepare your story before facing the judges. Drag slide cards into your pitch storyboard positions. A cohesive narrative structure will win over the jury."
         disableNext={disableNext}
       >
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-5xl mx-auto text-left font-mono text-[11px]">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 max-w-5xl mx-auto text-left font-mono text-[11px]">
           
           {/* Left Panel: Available Components with Search & Tabs (5 cols) */}
-          <div className="lg:col-span-5 space-y-3 flex flex-col">
+          <div className="col-span-1 md:col-span-5 lg:col-span-5 space-y-3 flex flex-col">
             <div className="flex items-center justify-between">
               <span className="text-neutral-400 block text-[9px] uppercase tracking-wider font-bold">SLIDE LIBRARY:</span>
               <span className="text-[8px] bg-neutral-100 border border-neutral-250 px-1 py-0.5 rounded text-neutral-600 font-bold uppercase tracking-tight select-none">
@@ -2478,11 +2478,11 @@ function PitchDeckStage() {
               placeholder="SEARCH SLIDES..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-neutral-50 border border-neutral-250 text-neutral-800 text-[10px] p-2 rounded focus:outline-none focus:border-neutral-400 font-mono"
+              className="w-full bg-neutral-50 border border-neutral-250 text-neutral-800 text-[10px] p-2 rounded focus:outline-none focus:border-neutral-400 font-mono max-md:text-[16px]"
             />
 
             {/* Visual Tabs */}
-            <div className="flex flex-wrap gap-1 border-b border-neutral-200 pb-2 select-none">
+            <div className="flex flex-nowrap overflow-x-auto no-scrollbar scroll-smooth gap-1 border-b border-neutral-200 pb-2 select-none w-full whitespace-nowrap py-1">
               {tabs.map((tab) => (
                 <button
                   key={tab.id}
@@ -2547,7 +2547,7 @@ function PitchDeckStage() {
           </div>
 
           {/* Center Panel: Storytelling Positions Board (4 cols) */}
-          <div className="lg:col-span-4 space-y-3">
+          <div className="col-span-1 md:col-span-7 lg:col-span-4 space-y-3">
             <span className="text-neutral-400 block text-[9px] uppercase tracking-wider font-bold">YOUR PITCH STORYBOARD:</span>
             
             <div className="grid grid-cols-1 gap-2 border border-neutral-200 p-2.5 rounded bg-white max-h-[480px] overflow-y-auto">
@@ -2620,7 +2620,7 @@ function PitchDeckStage() {
           </div>
 
           {/* Right Status Panel: Storytelling HUD & Real-Time Terminal (3 cols) */}
-          <div className="lg:col-span-3 space-y-4 flex flex-col">
+          <div className="col-span-1 md:col-span-12 lg:col-span-3 space-y-4 md:space-y-0 lg:space-y-4 flex flex-col md:grid md:grid-cols-3 lg:flex lg:flex-col gap-4">
             
             {/* Checklist HUD (Non-blocking visual aids) */}
             <div className="p-3 border border-neutral-300 rounded bg-white space-y-2.5 shadow-sm">
@@ -2890,16 +2890,16 @@ function MentorStage() {
                     </div>
 
                     {adv.status === 'pending' && (
-                      <div className="flex gap-2 pt-1 border-t border-dashed border-neutral-100 mt-1">
+                      <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t border-dashed border-neutral-100 mt-1">
                         <button
                           onClick={() => {
                             playScoreChord();
                             applyAdvisorAdvice(adv.id);
                           }}
                           onMouseEnter={playSubtleHover}
-                          className="px-3 py-1 border border-neutral-900 bg-neutral-900 text-white rounded text-[9px] uppercase tracking-wider font-bold hover:bg-neutral-800 transition cursor-pointer"
+                          className="w-full sm:w-auto h-11 sm:h-auto px-4 py-2 flex items-center justify-center border border-neutral-900 bg-neutral-900 text-white rounded text-[10px] sm:text-[9px] uppercase tracking-wider font-bold hover:bg-neutral-850 transition cursor-pointer active:scale-95 transition-all duration-150"
                         >
-                          [FOLLOW ADVICE]
+                          FOLLOW ADVICE
                         </button>
                         <button
                           onClick={() => {
@@ -2907,9 +2907,9 @@ function MentorStage() {
                             rejectAdvisorAdvice(adv.id);
                           }}
                           onMouseEnter={playSubtleHover}
-                          className="px-3 py-1 border border-neutral-300 bg-white text-neutral-600 rounded text-[9px] uppercase tracking-wider font-bold hover:border-neutral-500 hover:text-neutral-800 transition cursor-pointer"
+                          className="w-full sm:w-auto h-11 sm:h-auto px-4 py-2 flex items-center justify-center border border-neutral-300 bg-white text-neutral-600 rounded text-[10px] sm:text-[9px] uppercase tracking-wider font-bold hover:border-neutral-500 hover:text-neutral-800 transition cursor-pointer active:scale-95 transition-all duration-150"
                         >
-                          [IGNORE ADVICE]
+                          IGNORE ADVICE
                         </button>
                       </div>
                     )}
@@ -3271,7 +3271,7 @@ function PitchPrepStage() {
             value={pitchText}
             onChange={(e) => setPitchText(e.target.value)}
             rows={6}
-            className="w-full p-3 bg-white border border-neutral-900 rounded-md font-sans text-xs text-neutral-800 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none leading-relaxed shadow-inner mt-1"
+            className="w-full p-3 bg-white border border-neutral-900 rounded-md font-sans text-xs text-neutral-800 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none leading-relaxed shadow-inner mt-1 max-md:text-[16px]"
             placeholder="Write your custom elevator pitch..."
           />
         </div>
@@ -3359,8 +3359,8 @@ function JudgeSpinStage() {
       subtitle="Face the panel. Spin the wheel to draw your lead judge. Each judge has distinct expertise and grades your project using different criteria weights."
     >
       <div className="max-w-lg mx-auto flex flex-col items-center justify-center font-mono text-[11px] space-y-6">
-        {/* SVG Wheel Roulette Container — bigger, with avatar images */}
-        <div className="relative w-[360px] h-[360px] flex items-center justify-center">
+        {/* SVG Wheel Roulette Container — responsive aspect-square */}
+        <div className="relative w-full max-w-[320px] sm:max-w-[360px] aspect-square flex items-center justify-center">
           {/* Top Pointer */}
           <div className="absolute -top-3 z-10 w-0 h-0 border-l-[12px] border-l-transparent border-r-[12px] border-r-transparent border-t-[18px] border-t-neutral-900 drop-shadow-sm" />
 
@@ -4895,7 +4895,7 @@ function ResultsStage() {
             }}
             initial="hidden"
             animate="show"
-            className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[10px]"
+            className="grid grid-cols-2 gap-2 text-[10px]"
           >
             {ACHIEVEMENTS_LIST.map((ac) => {
               const isUnlocked = unlockedAchievements.includes(ac.id);
@@ -5167,7 +5167,7 @@ function DevDebugPanel() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-8 right-6 z-50 flex items-center gap-1.5 px-3 py-2 rounded-md bg-neutral-950 text-white border border-neutral-850 shadow-lg text-[10px] font-bold uppercase tracking-wider hover:bg-neutral-900 transition-all cursor-pointer font-mono"
+        className="fixed bottom-8 right-6 xl:bottom-8 xl:right-6 max-xl:bottom-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] max-xl:right-4 z-50 flex items-center gap-1.5 px-3 py-2 rounded-md bg-neutral-950 text-white border border-neutral-850 shadow-lg text-[10px] font-bold uppercase tracking-wider hover:bg-neutral-900 transition-all cursor-pointer font-mono"
       >
         🛠️ TIME MACHINE & STATS
       </button>
@@ -5175,7 +5175,7 @@ function DevDebugPanel() {
   }
 
   return (
-    <div className="fixed bottom-8 right-6 z-50 w-72 bg-card border border-neutral-400 rounded-lg shadow-xl p-4 font-mono text-xs">
+    <div className="fixed bottom-8 right-6 xl:bottom-8 xl:right-6 max-xl:bottom-[calc(env(safe-area-inset-bottom,0px)+4.25rem)] max-xl:right-4 z-50 w-72 max-sm:w-[calc(100vw-2rem)] max-sm:max-w-[280px] bg-card border border-neutral-400 rounded-lg shadow-xl p-4 font-mono text-xs">
       <div className="flex items-center justify-between border-b border-border pb-2 mb-2 font-bold text-neutral-900">
         <span>🛠️ TIME PORTAL & STATS</span>
         <button onClick={() => setIsOpen(false)} className="hover:text-red-500 font-bold cursor-pointer">[X]</button>
@@ -5555,7 +5555,7 @@ function ProjectHealthDashboard() {
         <span className="text-neutral-400 font-bold uppercase tracking-wider">▲ PROJECT HEALTH MONITOR</span>
         <span className="text-neutral-500 text-[8px] animate-pulse">● LIVE TELEMETRY</span>
       </div>
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-2 md:gap-3">
         {metrics.map((m) => {
           const active = activeStatus[m.label as keyof typeof activeStatus];
           const analyzing = analyzingCategories[m.label];
@@ -5566,7 +5566,7 @@ function ProjectHealthDashboard() {
             <div
               key={m.label}
               className={cn(
-                "p-2 bg-neutral-950 rounded border transition-all duration-300 space-y-1",
+                "p-2 bg-neutral-950 rounded border transition-all duration-300 flex md:flex-col items-center md:items-start justify-between md:justify-start gap-2 md:space-y-1",
                 highlighted ? "border-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.3)]" : "border-neutral-800",
                 analyzing ? "border-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.2)] animate-pulse" : ""
               )}
@@ -5600,7 +5600,7 @@ function PersistentTeamPanel({
   team, playerName, playerAvatar, activeTeamTab, setActiveTeamTab,
   teamChatMessages, unreadChatCount, activeTeammateAdvice, clearUnreadChatCount,
   resolveTeamChatMessageChoice, useTeammateHelp, stage, state, getMessageTypeBadge,
-  isMinimized, setIsMinimized
+  isMinimized, setIsMinimized, isTeamDrawerOpen, setIsTeamDrawerOpen
 }: any) {
   const { applyTeammateAdvice, rejectTeammateAdvice } = useGameStore();
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -5707,7 +5707,9 @@ function PersistentTeamPanel({
     <div
       className={cn(
         "fixed left-0 top-14 bottom-8 z-40 flex flex-col bg-white border-r border-neutral-200 shadow-lg font-mono select-none transition-all duration-300",
-        isMinimized ? "w-10" : "w-[460px]"
+        isMinimized ? "xl:w-10" : "xl:w-[460px]",
+        "max-xl:top-0 max-xl:bottom-0 max-xl:h-full max-xl:w-full max-xl:max-w-md max-xl:z-50 max-xl:border-r-0 max-xl:shadow-2xl",
+        isTeamDrawerOpen ? "max-xl:translate-x-0" : "max-xl:-translate-x-full"
       )}
     >
       {/* Panel Header */}
@@ -5731,21 +5733,29 @@ function PersistentTeamPanel({
           </>
         ) : (
           <>
-            <div className="flex items-center gap-1.5">
-              <span className="text-sm">👥</span>
-              <div>
-                <span className="text-[10px] font-black uppercase tracking-wider block leading-none">CREW</span>
-                <span className="text-[8px] text-neutral-400 uppercase">{team.length + 1} members</span>
+            <div className="flex items-center justify-between w-full xl:w-auto">
+              <div className="flex items-center gap-1.5">
+                <span className="text-sm">👥</span>
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider block leading-none">CREW</span>
+                  <span className="text-[8px] text-neutral-400 uppercase">{team.length + 1} members</span>
+                </div>
+                {unreadChatCount > 0 && (
+                  <span className="text-[8px] font-bold text-white bg-red-600 rounded-full px-1.5 py-0.5 ml-1">
+                    {unreadChatCount}
+                  </span>
+                )}
               </div>
-              {unreadChatCount > 0 && (
-                <span className="text-[8px] font-bold text-white bg-red-600 rounded-full px-1.5 py-0.5 ml-1">
-                  {unreadChatCount}
-                </span>
-              )}
+              <button
+                onClick={() => { playMutedClick(); setIsTeamDrawerOpen(false); }}
+                className="xl:hidden text-neutral-400 hover:text-white text-[10px] px-2 py-1 border border-neutral-800 rounded font-bold cursor-pointer transition-colors"
+              >
+                CLOSE ✕
+              </button>
             </div>
             <button
               onClick={() => { playMutedClick(); setIsMinimized(true); }}
-              className="text-neutral-400 hover:text-white text-[10px] transition-colors"
+              className="hidden xl:block text-neutral-400 hover:text-white text-[10px] transition-colors"
               title="Minimize team panel"
             >
               ◀
@@ -6453,8 +6463,8 @@ export default function GamePage() {
   const showTeamPanel = selectedProblem && stage !== 'results' && stage !== 'teamFormation';
 
   const contentPaddingClass = showTeamPanel 
-    ? (isTeamMinimized ? "pl-14 pr-4" : "pl-[480px] pr-8")
-    : "px-4";
+    ? (isTeamMinimized ? "px-4 md:px-6 xl:pl-14 xl:pr-4" : "px-4 md:px-6 xl:pl-[480px] xl:pr-8")
+    : "px-4 md:px-6";
 
   return (
     <GameLayout>
@@ -6470,6 +6480,26 @@ export default function GamePage() {
         <AnimatePresence>
           {activeChaosEvent && <ChaosEventOverlay />}
         </AnimatePresence>
+
+        {/* Backdrop overlay for mobile sidebar drawer */}
+        {showTeamPanel && isTeamDrawerOpen && (
+          <div 
+            className="fixed inset-0 bg-black/40 z-30 xl:hidden backdrop-blur-xs transition-opacity duration-300"
+            onClick={() => { playMutedClick(); setIsTeamDrawerOpen(false); }}
+          />
+        )}
+
+        {/* Floating team sidebar toggle button for mobile/tablet */}
+        {showTeamPanel && (
+          <div className="fixed bottom-[calc(env(safe-area-inset-bottom,0px)+1rem)] right-4 z-40 xl:hidden">
+            <Button
+              onClick={() => { playMutedClick(); setIsTeamDrawerOpen(true); }}
+              className="rounded-full shadow-lg bg-neutral-900 border border-neutral-900 hover:bg-neutral-800 text-white text-xs h-10 px-4 flex items-center gap-1.5 active:scale-95 transition-transform cursor-pointer"
+            >
+              👥 TEAM {unreadChatCount > 0 && <span className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse"></span>}
+            </Button>
+          </div>
+        )}
 
         {/* Persistent Left Team Panel */}
         {showTeamPanel && (
@@ -6490,6 +6520,8 @@ export default function GamePage() {
             getMessageTypeBadge={getMessageTypeBadge}
             isMinimized={isTeamMinimized}
             setIsMinimized={setIsTeamMinimized}
+            isTeamDrawerOpen={isTeamDrawerOpen}
+            setIsTeamDrawerOpen={setIsTeamDrawerOpen}
           />
         )}
 

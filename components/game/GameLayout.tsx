@@ -49,9 +49,15 @@ export default function GameLayout({ children }: GameLayoutProps) {
   const currentIndex = PHASES.findIndex((p) => p.key === phase);
 
   return (
-    <div className="animated-gradient-bg grid-pattern relative flex h-screen flex-col overflow-hidden">
+    <div 
+      className="animated-gradient-bg grid-pattern relative flex h-screen flex-col overflow-hidden"
+      style={{
+        paddingTop: 'env(safe-area-inset-top, 0px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 0px)'
+      }}
+    >
       {/* ── Top Header Bar ─────────────────────────────────────────────── */}
-      <header className="glass-card-strong relative z-20 flex items-center justify-between rounded-none border-x-0 border-t-0 px-4 py-2 sm:px-6">
+      <header className="glass-card-strong relative z-20 flex items-center justify-between mx-4 mt-3 mb-1 rounded-lg border px-4 py-2 sm:px-6 md:mx-6 md:mt-4 md:mb-2 md:px-6 xl:mx-0 xl:mt-0 xl:mb-0 xl:rounded-none xl:border-x-0 xl:border-t-0 xl:px-6">
         {/* Left — Logo */}
         <Link 
           href="/"
@@ -101,11 +107,36 @@ export default function GameLayout({ children }: GameLayoutProps) {
           })}
         </nav>
 
-        {/* Center fallback for mobile — current phase only */}
-        <div className="md:hidden">
-          <Badge className="bg-neutral-900 text-neutral-100 border border-neutral-900 font-bold">
-            {PHASES[currentIndex]?.label ?? phase}
-          </Badge>
+        {/* Center fallback for mobile — horizontal scroll chips */}
+        <div className="md:hidden flex-1 overflow-x-auto mx-2 flex items-center gap-1.5 scroll-smooth py-1 no-scrollbar select-none" aria-label="Game phase mobile">
+          {PHASES.map((p, i) => {
+            const isCurrent = p.key === phase;
+            const isCompleted = i < currentIndex;
+
+            return (
+              <div key={p.key} className="flex items-center shrink-0">
+                {i > 0 && (
+                  <div
+                    className={`mx-1 h-px w-2 transition-colors ${
+                      isCompleted ? 'bg-neutral-800/40' : 'bg-neutral-200'
+                    }`}
+                  />
+                )}
+                <Badge
+                  variant={isCurrent ? 'default' : 'secondary'}
+                  className={`whitespace-nowrap text-[9px] py-0.5 px-2 font-bold transition-all duration-150 ${
+                    isCurrent
+                      ? 'bg-neutral-900 text-neutral-100 border border-neutral-900 ring-1 ring-neutral-900'
+                      : isCompleted
+                        ? 'bg-neutral-100 text-neutral-600 border border-neutral-200 opacity-60'
+                        : 'opacity-30 bg-transparent text-neutral-400 border border-transparent'
+                  }`}
+                >
+                  {p.label}
+                </Badge>
+              </div>
+            );
+          })}
         </div>
 
         {/* Right — Timer & Volume */}
@@ -131,9 +162,7 @@ export default function GameLayout({ children }: GameLayoutProps) {
               totalTime={totalTime}
               size="sm"
             />
-          ) : (
-            <div className="h-8 w-20" /> /* spacer when no timer */
-          )}
+          ) : null}
         </div>
       </header>
 
