@@ -860,6 +860,10 @@ const getNextTeamChatMoment = (history: string[], team: any[]): TeamChatMoment |
   const idx = Math.floor(Math.random() * available.length);
   const moment = { ...available[idx] };
 
+  // Snapshot the original placeholder names from the template before overwriting
+  const originalNameA = moment.teammateA.name;
+  const originalNameB = moment.teammateB.name;
+
   const tA = team[1] || team[0];
   moment.teammateA = {
     name: tA.name,
@@ -873,6 +877,17 @@ const getNextTeamChatMoment = (history: string[], team: any[]): TeamChatMoment |
     avatar: tB.avatar,
     statement: moment.teammateB.statement
   };
+
+  // Replace hardcoded template names in choice labels and descriptions with actual teammate names
+  moment.choices = moment.choices.map((choice: any) => ({
+    ...choice,
+    label: choice.label
+      .replace(new RegExp(originalNameA, 'gi'), tA.name)
+      .replace(new RegExp(originalNameB, 'gi'), tB.name),
+    description: choice.description
+      .replace(new RegExp(originalNameA, 'gi'), tA.name)
+      .replace(new RegExp(originalNameB, 'gi'), tB.name),
+  }));
 
   return moment;
 };

@@ -44,9 +44,28 @@ function generateJudgeFeedbackInternal(
   } catch (e) {}
 
   const hasTeammates = team.length > 0;
-  const primaryDev = team.find(t => t.role?.toLowerCase().includes("dev") || t.role?.toLowerCase().includes("engineer"))?.name || "the developer";
-  const primaryDesigner = team.find(t => t.role?.toLowerCase().includes("design"))?.name || "the designer";
-  const primaryStrategist = team.find(t => t.role?.toLowerCase().includes("strategist") || t.role?.toLowerCase().includes("founder"))?.name || "the strategist";
+
+  // Smart role-category detection (mirrors getRoleCategory in gameStore.ts)
+  const detectRoleCategory = (role: string) => {
+    const r = role.toLowerCase();
+    if (r.includes('backend') || r.includes('database') || r.includes('full stack') || r.includes('fullstack') || r.includes('developer') || r.includes(' dev') || r.startsWith('dev')) return 'backend';
+    if (r.includes('ai engineer') || r.includes('ai specialist') || r.includes('ml engineer') || r.includes('data scientist') || r.includes('machine learning') || (r.includes('ai') && !r.includes('assistant'))) return 'ai';
+    if (r.includes('designer') || r.includes('ux') || r.includes('ui ') || r.includes('product design') || r.includes('frontend') || r.includes('front-end') || r.includes('front end')) return 'designer';
+    if (r.includes('strategist') || r.includes('founder') || r.includes('business') || r.includes('co-founder') || r.includes('analyst')) return 'strategist';
+    if (r.includes('pitch') || r.includes('marketing') || r.includes('sales')) return 'pitch';
+    return 'general';
+  };
+
+  // Helper: get first teammate name for a given role category, fallback to generic label
+  const getTeammateForRole = (category: string, fallback: string): string => {
+    const found = team.find(t => detectRoleCategory(t.role || '') === category);
+    return found?.name || fallback;
+  };
+
+  const primaryDev = getTeammateForRole('backend', 'the backend developer');
+  const primaryDesigner = getTeammateForRole('designer', 'the designer');
+  const primaryStrategist = getTeammateForRole('strategist', 'the strategist');
+  const primaryAI = getTeammateForRole('ai', 'the AI engineer');
 
   const techIds = new Set(state.techStack.map((t) => t.id));
   const featureIds = new Set(state.features.map((f) => f.id));
@@ -92,8 +111,11 @@ function generateJudgeFeedbackInternal(
     }
 
     if (appliedAdvice.length > 0 && Math.random() > 0.4) {
+      const hasDev = primaryDev !== 'the backend developer';
       return {
-        comment: hasTeammates ? `The team clearly listened to strategic co-founder feedback. Structuring your feature prioritization around active recommendations helped ${primaryDev} and the team secure a highly stable prototype build.` : "The team clearly listened to strategic co-founder feedback. Structuring your feature prioritization around active recommendations helped secure a highly stable prototype build.",
+        comment: hasDev
+          ? `The team clearly listened to strategic co-founder feedback. ${primaryDev}'s architecture decisions and feature prioritization helped secure a highly stable prototype build.`
+          : "The team clearly listened to strategic co-founder feedback. Structuring your feature prioritization around active recommendations helped secure a highly stable prototype build.",
         highlight: "Refined backlog based on co-founder advice."
       };
     }
@@ -124,20 +146,22 @@ function generateJudgeFeedbackInternal(
 
     if (score >= 90) {
       if (isMinimalist) {
+        const devRef = primaryDev !== 'the backend developer' ? ` ${primaryDev} shipped it lean and clean.` : '';
         return {
-          comment: "I love this minimalist approach! Good founders ship before they feel ready. You solved the core user pain point with exactly two features and a super clean deployment. Real users can start validating this tomorrow morning.",
+          comment: `I love this minimalist approach! Good founders ship before they feel ready.${devRef} You solved the core user pain point with exactly two features and a super clean deployment. Real users can start validating this tomorrow morning.`,
           highlight: "Masterful minimalist execution with high speed-to-market focus."
         };
       }
+      const devRef = primaryDev !== 'the backend developer' ? `${primaryDev} built the '${state.features[0]?.name || 'core feature'}' properly` : `The '${state.features[0]?.name || 'core feature'}' is built properly`;
       return {
-        comment: `Excellent hackathon execution! The MVP is highly practical, extremely responsive, and focuses entirely on solving a real problem. The '${state.features[0]?.name || 'core feature'}' is built properly with zero fluff.`,
+        comment: `Excellent hackathon execution! ${devRef} with zero fluff. The MVP is highly practical and focused entirely on solving a real problem.`,
         highlight: "Practical product scoping with high speed-to-market value."
       };
     }
     if (score >= 70) {
       if (isOverengineered) {
         return {
-          comment: "You spent too much time designing architecture and not enough time solving the user's pain. Why do you need multi-cloud clusters and complex databases for a simple prototype? Real users care about utility, not your docker registries.",
+          comment: `You spent too much time designing architecture and not enough time solving the user's pain. Why do you need multi-cloud clusters and complex databases for a simple prototype? Real users care about utility, not your docker registries.`,
           highlight: "Prototypes held back by early architectural overengineering."
         };
       }
@@ -172,13 +196,17 @@ function generateJudgeFeedbackInternal(
     }
     if (score >= 90) {
       if (state.usp) {
+        const stratRef = primaryStrategist !== 'the strategist' ? ` ${primaryStrategist}'s business alignment on this was sharp.` : '';
         return {
-          comment: `This is a venture-scale startup opportunity! The dynamic USP centering on '${state.usp}' is highly differentiated and solves a genuine customer pain point with an organic acquisition hook.`,
+          comment: `This is a venture-scale startup opportunity!${stratRef} The dynamic USP centering on '${state.usp}' is highly differentiated and solves a genuine customer pain point with an organic acquisition hook.`,
           highlight: `Outstanding, highly differentiated value proposition: ${state.usp}`
         };
       }
+      const stratRef = primaryStrategist !== 'the strategist';
       return {
-        comment: hasTeammates ? `Outstanding product strategy! Spearheaded by ${primaryStrategist} on business alignment, you've identified a massive customer pain point, validated it with a highly focused MVP, and formulated a clear growth path.` : "Outstanding product strategy! You've identified a massive customer pain point, validated it with a highly focused MVP, and formulated a clear growth path. This can absolutely become a real company.",
+        comment: stratRef
+          ? `Outstanding product strategy! ${primaryStrategist} spearheaded the business alignment — you've identified a massive customer pain point, validated it with a highly focused MVP, and formulated a clear growth path. This can absolutely become a real company.`
+          : "Outstanding product strategy! You've identified a massive customer pain point, validated it with a highly focused MVP, and formulated a clear growth path. This can absolutely become a real company.",
         highlight: "Superb product-market fit and large initial addressable market."
       };
     }
@@ -217,8 +245,11 @@ function generateJudgeFeedbackInternal(
     }
     if (score >= 90) {
       const featureName = state.features[0]?.name || 'MVP modules';
+      const hasRealDesigner = primaryDesigner !== 'the designer';
       return {
-        comment: hasTeammates ? `A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the screens designed by ${primaryDesigner} for the '${featureName}' feature feel accessible and delightful.` : `A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the screens for the '${featureName}' feature feel accessible and delightful.`,
+        comment: hasRealDesigner
+          ? `A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the screens ${primaryDesigner} designed for the '${featureName}' feature feel accessible and delightful.`
+          : `A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the screens for the '${featureName}' feature feel accessible and delightful.`,
         highlight: `Pixel-perfect visual design and frictionless workflow for ${featureName}.`
       };
     }
