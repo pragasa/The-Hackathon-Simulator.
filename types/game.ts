@@ -20,6 +20,7 @@ export type GamePhase =
 /** All possible stages of the hackathon simulation conditional engine */
 export type GameStage =
   | 'difficulty'
+  | 'teamFormation'
   | 'problemReveal'
   | 'solutionDirection'
   | 'techStack'
@@ -332,6 +333,16 @@ export interface GameState {
   judgeDecisionMemory: JudgeDecisionMemory | null;
   /** The dynamic roast text compiled for the Results screen */
   roastText: string;
+
+  // Update v2.0: Team System variables
+  playerName: string;
+  playerAvatar: string;
+  team: Teammate[];
+  activeTeamChatMoment: TeamChatMoment | null;
+  teamChatHistory: string[];
+  activeTeammateAdvice: Record<string, any>;
+  teamAdviceHistory: { teammateId: string; adviceId: string; title: string; stage: string; status: 'applied' | 'rejected'; modifiers?: Record<string, number>; }[];
+  teamContributionLogs: string[];
 }
 
 /** Actions the player (or system) can dispatch to mutate game state */
@@ -424,6 +435,52 @@ export interface GameActions {
   toggleSound: () => void;
   /** Resolve the active chaos event with selected choice */
   resolveChaosEvent: (choiceIndex: number) => void;
+
+  // Update v2.0: Team System actions
+  setupTeam: (playerName: string, playerAvatar: string, teammates: Teammate[]) => void;
+  useTeammateHelp: (teammateId: string, currentStage: string) => void;
+  applyTeammateAdvice: (teammateId: string) => void;
+  rejectTeammateAdvice: (teammateId: string) => void;
+  resolveTeamChatMoment: (choiceIndex: number) => void;
+}
+
+// ─── Teammate & Team Chat Moments ──────────────────────────────────────────
+
+export interface Teammate {
+  id: string;
+  name: string;
+  avatar: string; // emoji character
+  gender: 'male' | 'female' | 'nonbinary';
+  role: string | null;
+  personality: 'Builder' | 'Perfectionist' | 'Dreamer' | 'Founder' | 'Designer';
+  helpTokenUsed: boolean;
+  contribution: {
+    innovation: number;
+    execution: number;
+    design: number;
+    pitch: number;
+  };
+}
+
+export interface TeamChatMomentChoice {
+  label: string;
+  description: string;
+  outcomeText: string;
+  modifiers: {
+    innovation?: number;
+    execution?: number;
+    design?: number;
+    pitch?: number;
+    bonus?: number;
+  };
+}
+
+export interface TeamChatMoment {
+  id: string;
+  title: string;
+  teammateA: { name: string; avatar: string; statement: string; };
+  teammateB: { name: string; avatar: string; statement: string; };
+  choices: TeamChatMomentChoice[];
 }
 
 // ─── Chaos Events Update v1.1 ───────────────────────────────────────────

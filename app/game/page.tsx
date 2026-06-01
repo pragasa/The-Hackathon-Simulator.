@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { useGameStore, STAGE_ORDER } from "@/store/gameStore";
+import { useGameStore, STAGE_ORDER, isRoleRelevantForStage } from "@/store/gameStore";
 import GameLayout from "@/components/game/GameLayout";
 import { Button } from "@/components/ui/button";
 import { PROBLEMS } from "@/data/problems";
@@ -44,7 +44,7 @@ import {
   Lightbulb,
   Check,
 } from "lucide-react";
-import type { GameStage, Problem, TechItem, Feature } from "@/types/game";
+import type { GameStage, Problem, TechItem, Feature, Teammate } from "@/types/game";
 import { AVAILABLE_SLIDES, evaluatePitchDeck } from "@/lib/pitchDeckEvaluator";
 import { CHAOS_EVENTS } from "@/data/chaosEvents";
 import { MODIFIERS } from "@/data/modifiers";
@@ -289,6 +289,387 @@ function GameplayStageCard({
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+// --- Preset Data for Team System -------------------------------------------
+
+const AVATAR_PRESETS = [
+  { emoji: "👨‍💻", gender: "male" as const, label: "Male Developer" },
+  { emoji: "👩‍💻", gender: "female" as const, label: "Female Developer" },
+  { emoji: "🧑‍💻", gender: "nonbinary" as const, label: "Nonbinary Developer" },
+  { emoji: "👨‍🎨", gender: "male" as const, label: "Male Designer" },
+  { emoji: "👩‍🎨", gender: "female" as const, label: "Female Designer" },
+  { emoji: "🧑‍🎨", gender: "nonbinary" as const, label: "Nonbinary Designer" },
+  { emoji: "👨‍💼", gender: "male" as const, label: "Male Founder" },
+  { emoji: "👩‍💼", gender: "female" as const, label: "Female Founder" },
+  { emoji: "🧑‍💼", gender: "nonbinary" as const, label: "Nonbinary Founder" },
+  { emoji: "👨‍🔬", gender: "male" as const, label: "Male Researcher" },
+  { emoji: "👩‍🔬", gender: "female" as const, label: "Female Researcher" },
+  { emoji: "🧑‍🔬", gender: "nonbinary" as const, label: "Nonbinary Researcher" },
+];
+
+const ROLE_PRESETS = [
+  "Backend Developer",
+  "Frontend Developer",
+  "UI/UX Designer",
+  "Product Strategist",
+  "User Researcher",
+  "Pitch Specialist",
+  "Chaiwala"
+];
+
+const PERSONALITY_PRESETS = [
+  "Builder",
+  "Perfectionist",
+  "Dreamer",
+  "Founder",
+  "Designer"
+] as const;
+
+function TeamFormationStage() {
+  const { setupTeam, nextStage } = useGameStore();
+
+  const [playerName, setPlayerName] = useState("Lead Builder");
+  const [playerAvatar, setPlayerAvatar] = useState("🧑‍💻");
+  
+  const [teammates, setTeammates] = useState<Teammate[]>([
+    {
+      id: "teammate-1",
+      name: "Anjali",
+      avatar: "👩‍💻",
+      gender: "female",
+      role: "Backend Developer",
+      personality: "Builder",
+      helpTokenUsed: false,
+      contribution: { innovation: 0, execution: 0, design: 0, pitch: 0 }
+    }
+  ]);
+
+  const [errorMsg, setErrorMsg] = useState("");
+
+  const handleAddTeammate = () => {
+    if (teammates.length >= 5) {
+      setErrorMsg("Maximum team size is 6 members including yourself.");
+      return;
+    }
+    setErrorMsg("");
+    
+    const randomAvatar = AVATAR_PRESETS[Math.floor(Math.random() * AVATAR_PRESETS.length)];
+    const randomRole = ROLE_PRESETS[Math.floor(Math.random() * ROLE_PRESETS.length)];
+    const randomPersonality = PERSONALITY_PRESETS[Math.floor(Math.random() * PERSONALITY_PRESETS.length)];
+    const NAMES = ["Dev", "Alex", "Sam", "Zoe", "Vikram", "Yuki", "Chloe", "Sarah", "Raj", "Nisha"];
+    const randomName = NAMES[Math.floor(Math.random() * NAMES.length)];
+
+    setTeammates(prev => [
+      ...prev,
+      {
+        id: `teammate-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        name: randomName,
+        avatar: randomAvatar.emoji,
+        gender: randomAvatar.gender,
+        role: randomRole,
+        personality: randomPersonality,
+        helpTokenUsed: false,
+        contribution: { innovation: 0, execution: 0, design: 0, pitch: 0 }
+      }
+    ]);
+    playMutedClick();
+  };
+
+  const handleRemoveTeammate = (id: string) => {
+    if (teammates.length <= 1) {
+      setErrorMsg("Minimum team size is 2 members including yourself.");
+      return;
+    }
+    setErrorMsg("");
+    setTeammates(prev => prev.filter(t => t.id !== id));
+    playMutedClick();
+  };
+
+  const handleAssembleTeam = () => {
+    if (!playerName.trim()) {
+      setErrorMsg("Please enter your name.");
+      return;
+    }
+    const hasInvalidTeammate = teammates.some(t => !t.name.trim() || !t.role || !t.avatar);
+    if (hasInvalidTeammate) {
+      setErrorMsg("All teammates must have a name, role, and avatar assigned.");
+      return;
+    }
+
+    setupTeam(playerName, playerAvatar, teammates);
+    nextStage();
+  };
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    if (activeId.startsWith("avatar-preset-") && overId === "avatar-drop-player") {
+      const idx = parseInt(activeId.replace("avatar-preset-", ""));
+      const preset = AVATAR_PRESETS[idx];
+      if (preset) {
+        setPlayerAvatar(preset.emoji);
+        playSnapSound();
+      }
+    } else if (activeId.startsWith("avatar-preset-") && overId.startsWith("avatar-drop-")) {
+      const idx = parseInt(activeId.replace("avatar-preset-", ""));
+      const teammateId = overId.replace("avatar-drop-", "");
+      const preset = AVATAR_PRESETS[idx];
+      if (preset) {
+        setTeammates(prev => prev.map(t => t.id === teammateId ? { ...t, avatar: preset.emoji, gender: preset.gender } : t));
+        playSnapSound();
+      }
+    } else if (activeId.startsWith("role-preset-") && overId.startsWith("role-drop-")) {
+      const idx = parseInt(activeId.replace("role-preset-", ""));
+      const teammateId = overId.replace("role-drop-", "");
+      const roleName = ROLE_PRESETS[idx];
+      if (roleName) {
+        setTeammates(prev => prev.map(t => t.id === teammateId ? { ...t, role: roleName } : t));
+        playSnapSound();
+      }
+    }
+  };
+
+  return (
+    <DndContext collisionDetection={closestCenter} sensors={sensors} onDragEnd={handleDragEnd}>
+      <GameplayStageCard
+        stageKey="teamFormation"
+        title="Assemble Your Hackathon Crew"
+        subtitle="Every successful startup begins with a balanced team. Assign avatars, roles, and personalities. Drag presets onto slots or use dropdown selectors."
+      >
+        <div className="space-y-6 max-w-4xl mx-auto text-left font-mono text-xs">
+          
+          {errorMsg && (
+            <div className="p-3 border border-red-200 bg-red-50 text-red-750 rounded font-bold uppercase text-[10px] tracking-wider select-none text-center">
+              ⚠️ {errorMsg}
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Left: Teammates List */}
+            <div className="md:col-span-2 space-y-4">
+              
+              {/* Player Card */}
+              <div className="p-4 border-2 border-neutral-900 rounded-md bg-neutral-50/50 space-y-3 relative">
+                <span className="absolute top-2 right-2 text-[8px] bg-neutral-900 text-white px-1.5 py-0.5 rounded font-bold uppercase tracking-wider animate-pulse">
+                  TEAM LEAD
+                </span>
+                
+                <h4 className="font-bold text-neutral-950 uppercase text-[10px]">Leader Profile</h4>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-neutral-450 uppercase block font-bold">Your Name</label>
+                    <input
+                      type="text"
+                      value={playerName}
+                      onChange={(e) => setPlayerName(e.target.value)}
+                      className="w-full px-2 py-1.5 border border-neutral-300 rounded focus:border-neutral-900 focus:outline-none bg-white font-sans text-xs"
+                      placeholder="Enter name"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[9px] text-neutral-450 uppercase block font-bold">Avatar</label>
+                    <DropZone id="avatar-drop-player" hideDefaultEmpty emptyLabel="AVATAR" currentCount={1} capacity={1}>
+                      <div className="w-12 h-12 flex items-center justify-center text-2xl border border-neutral-350 bg-white rounded relative hover:bg-neutral-50 transition-colors cursor-pointer">
+                        {playerAvatar}
+                        <select
+                          value={playerAvatar}
+                          onChange={(e) => setPlayerAvatar(e.target.value)}
+                          className="absolute inset-0 opacity-0 cursor-pointer"
+                        >
+                          {AVATAR_PRESETS.map((av, idx) => (
+                            <option key={idx} value={av.emoji}>{av.emoji} ({av.label})</option>
+                          ))}
+                        </select>
+                      </div>
+                    </DropZone>
+                  </div>
+                </div>
+              </div>
+
+              {/* Added Teammates List */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between border-b border-neutral-200 pb-1.5">
+                  <h4 className="font-bold text-neutral-950 uppercase text-[10px]">Crew Roster ({teammates.length + 1}/6)</h4>
+                  <Button
+                    size="xs"
+                    onClick={handleAddTeammate}
+                    disabled={teammates.length >= 5}
+                    className="h-7 text-[9px] border border-neutral-900"
+                  >
+                    + ADD MEMBER
+                  </Button>
+                </div>
+
+                <div className="space-y-3">
+                  {teammates.map((t, index) => (
+                    <div key={t.id} className="p-4 border border-neutral-300 rounded bg-white relative space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-neutral-950 uppercase text-[9px]">Crew Member #{index + 1}</span>
+                        <button
+                          onClick={() => handleRemoveTeammate(t.id)}
+                          className="text-red-650 hover:text-red-700 text-[10px] font-bold"
+                        >
+                          [REMOVE]
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {/* Name input */}
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-neutral-450 uppercase block font-bold">Name</label>
+                          <input
+                            type="text"
+                            value={t.name}
+                            onChange={(e) => {
+                              setTeammates(prev => prev.map(item => item.id === t.id ? { ...item, name: e.target.value } : item));
+                            }}
+                            className="w-full px-2 py-1.5 border border-neutral-300 rounded focus:border-neutral-900 focus:outline-none bg-white font-sans text-xs"
+                            placeholder="Teammate name"
+                          />
+                        </div>
+
+                        {/* Avatar dropzone */}
+                        <div className="space-y-1">
+                          <label className="text-[9px] text-neutral-450 uppercase block font-bold">Avatar</label>
+                          <DropZone id={`avatar-drop-${t.id}`} hideDefaultEmpty emptyLabel="AVATAR" currentCount={t.avatar ? 1 : 0} capacity={1}>
+                            <div className="w-12 h-12 flex items-center justify-center text-2xl border border-neutral-300 rounded bg-white relative hover:bg-neutral-50 transition-colors cursor-pointer">
+                              {t.avatar}
+                              <select
+                                value={t.avatar}
+                                onChange={(e) => {
+                                  const av = AVATAR_PRESETS.find(a => a.emoji === e.target.value);
+                                  if (av) {
+                                    setTeammates(prev => prev.map(item => item.id === t.id ? { ...item, avatar: av.emoji, gender: av.gender } : item));
+                                  }
+                                }}
+                                className="absolute inset-0 opacity-0 cursor-pointer"
+                              >
+                                {AVATAR_PRESETS.map((av, idx) => (
+                                  <option key={idx} value={av.emoji}>{av.emoji} ({av.label})</option>
+                                ))}
+                              </select>
+                            </div>
+                          </DropZone>
+                        </div>
+
+                        {/* Role and Personality */}
+                        <div className="space-y-3">
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-neutral-450 uppercase block font-bold">Role</label>
+                            <DropZone id={`role-drop-${t.id}`} hideDefaultEmpty emptyLabel="ROLE" currentCount={t.role ? 1 : 0} capacity={1}>
+                              <div className="relative border border-neutral-300 rounded bg-white p-1 text-[10px] uppercase font-mono text-center cursor-pointer hover:bg-neutral-50 transition-colors">
+                                {t.role || "Assign Role"}
+                                <select
+                                  value={t.role || ""}
+                                  onChange={(e) => {
+                                    setTeammates(prev => prev.map(item => item.id === t.id ? { ...item, role: e.target.value } : item));
+                                  }}
+                                  className="absolute inset-0 opacity-0 cursor-pointer"
+                                >
+                                  <option value="" disabled>Select Role</option>
+                                  {ROLE_PRESETS.map((role, idx) => (
+                                    <option key={idx} value={role}>{role}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </DropZone>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9px] text-neutral-450 uppercase block font-bold">Personality</label>
+                            <div className="relative border border-neutral-300 rounded bg-white p-1.5 text-[10px] uppercase font-mono text-center">
+                              {t.personality}
+                              <select
+                                value={t.personality}
+                                onChange={(e) => {
+                                  setTeammates(prev => prev.map(item => item.id === t.id ? { ...item, personality: e.target.value as any } : item));
+                                }}
+                                className="absolute inset-0 opacity-0 cursor-pointer text-center"
+                              >
+                                {PERSONALITY_PRESETS.map((p, idx) => (
+                                  <option key={idx} value={p}>{p}</option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Drag & Drop Preset Banks */}
+            <div className="space-y-5 p-4 border border-neutral-250 rounded-md bg-neutral-50/50">
+              
+              {/* Role Presets Bank */}
+              <div className="space-y-2">
+                <span className="text-[9px] text-neutral-450 uppercase font-bold tracking-wider block border-b border-neutral-200 pb-1">
+                  DRAGGABLE ROLES
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {ROLE_PRESETS.map((role, idx) => (
+                    <DraggableCard
+                      key={`role-${idx}`}
+                      id={`role-preset-${idx}`}
+                      className="border border-neutral-300 bg-white hover:bg-neutral-50 px-2 py-1 text-[9px] font-mono uppercase select-none rounded cursor-grab"
+                    >
+                      {role}
+                    </DraggableCard>
+                  ))}
+                </div>
+              </div>
+
+              {/* Avatar Presets Bank */}
+              <div className="space-y-2">
+                <span className="text-[9px] text-neutral-450 uppercase font-bold tracking-wider block border-b border-neutral-200 pb-1">
+                  DRAGGABLE AVATARS
+                </span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {AVATAR_PRESETS.map((av, idx) => (
+                    <DraggableCard
+                      key={`avatar-${idx}`}
+                      id={`avatar-preset-${idx}`}
+                      className="border border-neutral-300 bg-white hover:bg-neutral-50 p-1.5 text-base text-center select-none rounded flex items-center justify-center cursor-grab"
+                    >
+                      {av.emoji}
+                    </DraggableCard>
+                  ))}
+                </div>
+              </div>
+
+              <div className="border-t border-neutral-250 pt-3 text-[9px] text-neutral-400 leading-normal font-sans font-light">
+                Drag roles or avatars directly onto your teammates to assign them, or click them to select from dropdown lists.
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-4 border-t border-neutral-200">
+            <Button
+              onClick={handleAssembleTeam}
+              className="font-mono text-xs h-9 px-6 bg-neutral-900 text-white border border-neutral-900 hover:bg-neutral-800 cursor-pointer"
+            >
+              ASSEMBLE TEAM &gt;
+            </Button>
+          </div>
+
+        </div>
+      </GameplayStageCard>
+    </DndContext>
   );
 }
 
@@ -4467,15 +4848,15 @@ function DevDebugPanel() {
     return (
       <button
         onClick={() => setIsOpen(true)}
-        className="fixed bottom-12 right-4 z-50 p-1.5 px-2.5 text-[9px] font-mono uppercase bg-neutral-900 text-white rounded shadow border border-neutral-800 hover:bg-neutral-800 transition-all cursor-pointer opacity-80 hover:opacity-100"
+        className="fixed bottom-8 right-6 z-50 flex items-center gap-1.5 px-3 py-2 rounded-md bg-neutral-950 text-white border border-neutral-850 shadow-lg text-[10px] font-bold uppercase tracking-wider hover:bg-neutral-900 transition-all cursor-pointer font-mono"
       >
-        [DEV_DEBUG_PANEL]
+        🛠️ DEV_DEBUG_PANEL
       </button>
     );
   }
 
   return (
-    <div className="fixed bottom-12 right-4 z-50 w-72 bg-card border border-neutral-400 rounded-lg shadow-xl p-4 font-mono text-xs">
+    <div className="fixed bottom-8 right-6 z-50 w-72 bg-card border border-neutral-400 rounded-lg shadow-xl p-4 font-mono text-xs">
       <div className="flex items-center justify-between border-b border-border pb-2 mb-2 font-bold text-neutral-900">
         <span>DEV_DEBUG_PANEL</span>
         <button onClick={() => setIsOpen(false)} className="hover:text-red-500 font-bold cursor-pointer">[X]</button>
@@ -4886,8 +5267,282 @@ function ProjectHealthDashboard() {
 
 // --- Main Conditional Stage Orchestrator / GamePage ---------------------------
 
+function TeammateAdviceNotification() {
+  const { activeTeammateAdvice, team, applyTeammateAdvice, rejectTeammateAdvice } = useGameStore();
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+
+  const adviceList = Object.entries(activeTeammateAdvice);
+  if (adviceList.length === 0) return null;
+
+  const toggleExpand = (id: string) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+    playMutedClick();
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto px-4 mt-2 space-y-2 text-left font-mono text-[11px]">
+      {adviceList.map(([teammateId, advice]) => {
+        const teammate = team.find(t => t.id === teammateId);
+        if (!teammate) return null;
+
+        if (advice.isNotConfident) {
+          return (
+            <div key={teammateId} className="border border-neutral-350 bg-amber-50/75 rounded px-3 py-2 shadow-sm flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-1.5 text-neutral-900 font-medium">
+                <span className="text-sm">{teammate.avatar}</span>
+                <span>{advice.explanation}</span>
+              </div>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => {
+                  playMutedClick();
+                  rejectTeammateAdvice(teammateId);
+                }}
+                className="text-[10px] h-6 cursor-pointer border-neutral-400 text-neutral-800 hover:bg-neutral-100"
+              >
+                DISMISS
+              </Button>
+            </div>
+          );
+        }
+
+        const isExpanded = expandedIds.has(teammateId);
+
+        if (!isExpanded) {
+          return (
+            <div key={teammateId} className="border border-neutral-350 bg-amber-50/75 rounded px-3 py-2 shadow-sm flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-1.5 text-neutral-900 font-medium">
+                <span className="text-sm">{teammate.avatar}</span>
+                <span>{teammate.name} ({teammate.role}) has a suggestion.</span>
+              </div>
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => toggleExpand(teammateId)}
+                className="text-[10px] h-6 cursor-pointer border-neutral-400 text-neutral-800 hover:bg-neutral-100"
+              >
+                ASK FOR OPINION
+              </Button>
+            </div>
+          );
+        }
+
+        return (
+          <div key={teammateId} className="border-2 border-neutral-900 bg-amber-50 rounded p-4 shadow-[3px_3px_0px_rgba(0,0,0,1)] space-y-3 animate-fade-in">
+            <div className="flex items-start justify-between border-b border-neutral-250 pb-2">
+              <div className="flex items-center gap-1.5 font-bold text-neutral-900">
+                <span className="text-base">{teammate.avatar}</span>
+                <div>
+                  <span className="block leading-none text-xs">{teammate.name} ({teammate.role})</span>
+                  <span className="text-[9px] text-neutral-450 font-normal uppercase tracking-wider">TEAMMATE RECOMMENDATION</span>
+                </div>
+              </div>
+              <button
+                onClick={() => toggleExpand(teammateId)}
+                className="text-neutral-455 hover:text-neutral-900 text-[10px] font-bold"
+              >
+                [COLLAPSE]
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="text-neutral-900 font-bold uppercase text-[11px] font-mono leading-tight">
+                {advice.title}
+              </h4>
+              <p className="text-neutral-700 font-sans font-light leading-relaxed text-[11px] bg-neutral-50/50 border border-neutral-200 rounded p-2.5 italic">
+                {advice.explanation}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t border-neutral-200/50 text-[10px] text-neutral-650 font-sans font-light">
+              <div className="space-y-0.5">
+                <strong className="font-mono uppercase text-[9px] block text-neutral-700">OBSERVATION:</strong>
+                <p>{advice.observation}</p>
+              </div>
+              <div className="space-y-0.5">
+                <strong className="font-mono uppercase text-[9px] block text-neutral-700">CONCERN:</strong>
+                <p>{advice.concern}</p>
+              </div>
+              <div className="space-y-0.5">
+                <strong className="font-mono uppercase text-[9px] block text-neutral-700">RECOMMENDATION:</strong>
+                <p>{advice.recommendation}</p>
+              </div>
+              <div className="space-y-0.5">
+                <strong className="font-mono uppercase text-[9px] block text-neutral-700">EXPECTED OUTCOME:</strong>
+                <p>{advice.expectedImpact}</p>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-neutral-200/50">
+              <Button
+                size="xs"
+                variant="outline"
+                onClick={() => {
+                  playMutedClick();
+                  rejectTeammateAdvice(teammateId);
+                }}
+                className="text-[10px] h-7 cursor-pointer"
+              >
+                REJECT ADVICE
+              </Button>
+              <Button
+                size="xs"
+                onClick={() => {
+                  playMutedClick();
+                  applyTeammateAdvice(teammateId);
+                }}
+                className="bg-neutral-900 text-white hover:bg-neutral-800 border border-neutral-900 text-[10px] h-7 cursor-pointer"
+              >
+                APPLY ADVICE
+              </Button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TeamChatMomentModal() {
+  const { activeTeamChatMoment, resolveTeamChatMoment } = useGameStore();
+  const [selectedChoiceIdx, setSelectedChoiceIdx] = useState<number | null>(null);
+  const [showOutcome, setShowOutcome] = useState(false);
+
+  if (!activeTeamChatMoment) return null;
+
+  const currentChoice = selectedChoiceIdx !== null ? activeTeamChatMoment.choices[selectedChoiceIdx] : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fade-in font-mono text-xs select-none">
+      <div className="w-full max-w-lg bg-card border-2 border-neutral-900 rounded-lg shadow-[4px_4px_0px_rgba(0,0,0,1)] p-6 text-left relative overflow-hidden">
+        
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-neutral-250 pb-2 mb-4">
+          <span className="text-[9px] text-neutral-450 uppercase font-bold tracking-wider">💬 Team Chat Moment</span>
+          <span className="text-[9px] px-1.5 py-0.5 rounded bg-neutral-900 text-white font-bold uppercase">DISCORD_CHAT</span>
+        </div>
+
+        <h3 className="text-sm font-black uppercase text-neutral-900 mb-4">
+          {activeTeamChatMoment.title}
+        </h3>
+
+        {/* Chat dialogue bubbles */}
+        <div className="space-y-3 mb-6 bg-neutral-50 border border-neutral-200 rounded p-4 max-h-[220px] overflow-y-auto">
+          {/* Teammate A bubble */}
+          <div className="flex gap-2">
+            <span className="text-xl shrink-0 mt-0.5">{activeTeamChatMoment.teammateA.avatar}</span>
+            <div className="space-y-0.5">
+              <span className="font-bold text-neutral-900 text-[10px] block leading-none">{activeTeamChatMoment.teammateA.name}</span>
+              <p className="text-[11px] text-neutral-700 bg-white border border-neutral-200 rounded-r-md rounded-bl-md px-2.5 py-1.5 font-sans font-light leading-relaxed">
+                {activeTeamChatMoment.teammateA.statement}
+              </p>
+            </div>
+          </div>
+
+          {/* Teammate B bubble */}
+          <div className="flex gap-2 justify-end">
+            <div className="space-y-0.5 text-right flex flex-col items-end">
+              <span className="font-bold text-neutral-900 text-[10px] block leading-none">{activeTeamChatMoment.teammateB.name}</span>
+              <p className="text-[11px] text-neutral-700 bg-white border border-neutral-200 rounded-l-md rounded-br-md px-2.5 py-1.5 font-sans font-light leading-relaxed text-left animate-fade-in">
+                {activeTeamChatMoment.teammateB.statement}
+              </p>
+            </div>
+            <span className="text-xl shrink-0 mt-0.5">{activeTeamChatMoment.teammateB.avatar}</span>
+          </div>
+        </div>
+
+        {!showOutcome ? (
+          /* Choices phase */
+          <div className="space-y-2">
+            <p className="text-[9px] text-neutral-450 uppercase mb-1 font-bold">CHOOSE A RESOLUTION:</p>
+            {activeTeamChatMoment.choices.map((choice, idx) => (
+              <button
+                key={idx}
+                onClick={() => {
+                  playMutedClick();
+                  setSelectedChoiceIdx(idx);
+                  setShowOutcome(true);
+                }}
+                className="w-full text-left p-3 rounded border border-neutral-200 hover:border-neutral-900 bg-white hover:bg-neutral-50 transition-all cursor-pointer font-sans"
+              >
+                <strong className="font-mono text-xs uppercase block text-neutral-900 tracking-wide mb-0.5">
+                  {choice.label}
+                </strong>
+                <span className="text-[10px] text-neutral-600 font-light leading-tight block">
+                  {choice.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        ) : (
+          /* Outcome phase */
+          <div className="space-y-4">
+            <div className="p-4 rounded border border-neutral-900 bg-neutral-50/50 space-y-2">
+              <span className="text-[9px] text-neutral-450 uppercase font-bold font-mono">RESOLVED DECISION OUTCOME</span>
+              <p className="text-neutral-800 font-sans font-light leading-relaxed text-[11px]">
+                {currentChoice?.outcomeText}
+              </p>
+
+              {/* Modifier summary */}
+              {currentChoice?.modifiers && (
+                <div className="flex flex-wrap gap-2 pt-2 border-t border-dashed border-neutral-250 select-none">
+                  {Object.entries(currentChoice.modifiers).map(([stat, val]) => {
+                    if (!val) return null;
+                    return (
+                      <span key={stat} className="px-1.5 py-0.5 rounded bg-neutral-900 text-white font-mono text-[9px] font-bold uppercase">
+                        {stat}: {val > 0 ? `+${val}` : val}
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <Button
+              onClick={() => {
+                playMutedClick();
+                if (selectedChoiceIdx !== null) {
+                  resolveTeamChatMoment(selectedChoiceIdx);
+                }
+              }}
+              className="w-full font-mono text-xs h-9 bg-neutral-900 text-white border border-neutral-900 hover:bg-neutral-800 cursor-pointer"
+            >
+              RESUME WORK
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function GamePage() {
-  const { stage, isGameStarted, startGame, tickTimer, isTimerPaused, activeChaosEvent, selectedProblem } = useGameStore();
+  const {
+    stage,
+    isGameStarted,
+    startGame,
+    tickTimer,
+    isTimerPaused,
+    activeChaosEvent,
+    selectedProblem,
+    activeTeamChatMoment,
+    useTeammateHelp,
+    activeTeammateAdvice,
+    team,
+    playerName,
+    playerAvatar,
+  } = useGameStore();
+
+  const [isTeamDrawerOpen, setIsTeamDrawerOpen] = useState(false);
 
   useEffect(() => {
     if (!isGameStarted) {
@@ -4915,6 +5570,8 @@ export default function GamePage() {
     switch (stage) {
       case "difficulty":
         return <DifficultyStage key="difficulty" />;
+      case "teamFormation":
+        return <TeamFormationStage key="teamFormation" />;
       case "problemReveal":
         return <ProblemRevealStage key="problemReveal" />;
       case "solutionDirection":
@@ -4950,14 +5607,168 @@ export default function GamePage() {
     }
   };
 
+  const showTeamButton = selectedProblem && stage !== 'results' && stage !== 'teamFormation';
+
   return (
     <GameLayout>
-      <div className="relative w-full h-full min-h-screen">
+      <div className="relative w-full h-full min-h-screen pb-16">
         {selectedProblem && stage !== 'results' && <ProjectHealthDashboard />}
+        {selectedProblem && stage !== 'results' && <TeammateAdviceNotification />}
+        
         <AnimatePresence mode="wait">{renderStageContent()}</AnimatePresence>
+        
         <AnimatePresence>
           {activeChaosEvent && <ChaosEventOverlay />}
         </AnimatePresence>
+
+        {/* Floating Team Button */}
+        {showTeamButton && (
+          <button
+            onClick={() => {
+              playMutedClick();
+              setIsTeamDrawerOpen(true);
+            }}
+            onMouseEnter={playSubtleHover}
+            className="fixed bottom-8 left-6 z-50 flex items-center gap-1.5 px-3 py-2 rounded-md bg-neutral-950 text-white border border-neutral-850 shadow-lg text-[10px] font-bold uppercase tracking-wider hover:bg-neutral-900 transition-all cursor-pointer font-mono"
+          >
+            👥 TEAM ({team.length + 1})
+          </button>
+        )}
+
+        {/* Team Drawer Overlay */}
+        <AnimatePresence>
+          {isTeamDrawerOpen && (
+            <div className="fixed inset-0 z-50 overflow-hidden font-mono select-none">
+              <div 
+                className="absolute inset-0 bg-black/40 backdrop-blur-[1px]" 
+                onClick={() => setIsTeamDrawerOpen(false)}
+              />
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: 'spring', damping: 25, stiffness: 220 }}
+                className="absolute right-0 top-0 bottom-0 w-full max-w-sm bg-card border-l border-neutral-350 shadow-2xl p-6 flex flex-col justify-between overflow-y-auto text-left"
+              >
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between border-b border-neutral-250 pb-3">
+                    <div>
+                      <h3 className="text-sm font-black uppercase text-neutral-900">👥 Hackathon Crew</h3>
+                      <span className="text-[9px] text-neutral-450 uppercase">Active Roster</span>
+                    </div>
+                    <button
+                      onClick={() => setIsTeamDrawerOpen(false)}
+                      className="text-neutral-455 hover:text-neutral-900 text-xs"
+                    >
+                      [CLOSE]
+                    </button>
+                  </div>
+
+                  <div className="space-y-4">
+                    {/* Player Card */}
+                    <div className="p-3 border border-neutral-300 rounded bg-neutral-50/50 space-y-1.5">
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{playerAvatar}</span>
+                        <div>
+                          <span className="font-bold text-neutral-900 text-xs block leading-none">{playerName}</span>
+                          <span className="text-[9px] text-neutral-450 uppercase">Team Lead (You)</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Teammates List */}
+                    {team.map((t) => {
+                      const hasAdvice = !!activeTeammateAdvice[t.id];
+                      return (
+                        <div key={t.id} className="p-3 border border-neutral-350 rounded bg-white space-y-2.5">
+                          <div className="flex items-start justify-between">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xl">{t.avatar}</span>
+                              <div>
+                                <span className="font-bold text-neutral-900 text-xs block leading-none">{t.name}</span>
+                                <span className="text-[9px] text-neutral-450 uppercase">{t.role}</span>
+                              </div>
+                            </div>
+                            <span className="text-[8px] font-bold px-1.5 py-0.5 rounded bg-neutral-100 border border-neutral-200 text-neutral-500 uppercase">
+                              {t.personality}
+                            </span>
+                          </div>
+
+                          {/* Contributions Display */}
+                          <div className="grid grid-cols-4 gap-1 border-t border-dashed border-neutral-200 pt-2 text-[8px] text-center font-bold text-neutral-500">
+                            <div>
+                              <span className="block text-neutral-400 uppercase text-[6px]">Innov</span>
+                              <span className={t.contribution.innovation > 0 ? "text-purple-650" : ""}>
+                                +{t.contribution.innovation}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-neutral-400 uppercase text-[6px]">Exec</span>
+                              <span className={t.contribution.execution > 0 ? "text-blue-650" : ""}>
+                                +{t.contribution.execution}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-neutral-400 uppercase text-[6px]">Design</span>
+                              <span className={t.contribution.design > 0 ? "text-pink-650" : ""}>
+                                +{t.contribution.design}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="block text-neutral-400 uppercase text-[6px]">Pitch</span>
+                              <span className={t.contribution.pitch > 0 ? "text-orange-600" : ""}>
+                                +{t.contribution.pitch}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Warning message if locked */}
+                          {!t.helpTokenUsed && !isRoleRelevantForStage(t.role, stage) && (
+                            <p className="text-[9px] text-amber-750 bg-amber-50/75 border border-amber-200 rounded px-2.5 py-1.5 leading-normal mt-2">
+                              {t.name} doesn't feel confident advising on this round.
+                            </p>
+                          )}
+
+                          {/* Action buttons */}
+                          <div className="border-t border-neutral-100 pt-2 flex items-center justify-between">
+                            <span className="text-[9px] text-neutral-450 uppercase">
+                              {t.helpTokenUsed ? "Token Used" : "Token Ready"}
+                            </span>
+                            {!t.helpTokenUsed && (
+                              <Button
+                                size="xs"
+                                onClick={() => {
+                                  playMutedClick();
+                                  useTeammateHelp(t.id, stage);
+                                }}
+                                disabled={hasAdvice || !isRoleRelevantForStage(t.role, stage)}
+                                className="text-[9px] h-6 px-2 border border-neutral-900 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none cursor-pointer"
+                              >
+                                {hasAdvice ? "ADVICE PENDING" : "ASK FOR ADVICE"}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <div className="border-t border-neutral-200 pt-4 mt-6">
+                  <p className="text-[9px] text-neutral-450 leading-relaxed font-sans font-light">
+                    Ask teammates for suggestions to optimize your project stats. Each teammate can only offer advice once per hackathon.
+                  </p>
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* Team Chat Moment Modal */}
+        <AnimatePresence>
+          {activeTeamChatMoment && <TeamChatMomentModal />}
+        </AnimatePresence>
+        
         <DevDebugPanel />
       </div>
     </GameLayout>

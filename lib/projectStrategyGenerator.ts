@@ -1,5 +1,6 @@
 import type { Problem, Feature, TechItem, GeneratedBusinessModel, AdvisorAdvice } from '@/types/game';
 import { toRegistryId, toStoreId } from '@/data/techRegistry';
+import { useGameStore } from '@/store/gameStore';
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -498,6 +499,15 @@ export function generateAdvisorAdvice(
   businessModel?: string | null,
   generatedBusinessModels?: GeneratedBusinessModel[]
 ): AdvisorAdvice[] {
+  let team: any[] = [];
+  try {
+    team = useGameStore.getState().team || [];
+  } catch (e) {}
+  const hasTeammates = team.length > 0;
+  const primaryDev = team.find(t => t.role?.toLowerCase().includes("dev") || t.role?.toLowerCase().includes("engineer"))?.name || "the developer";
+  const primaryDesigner = team.find(t => t.role?.toLowerCase().includes("design"))?.name || "the designer";
+  const primaryStrategist = team.find(t => t.role?.toLowerCase().includes("strategist") || t.role?.toLowerCase().includes("founder"))?.name || "the strategist";
+
   const seed = runSeed || (problem ? problem.id : "adv") + gameMode + (usp || "standard");
   const rand = createSeededRandom(seed);
 
@@ -514,7 +524,7 @@ export function generateAdvisorAdvice(
     adviceList.push({
       id: "adv-replace-tech",
       title: "Simplify Bloated Tech Stack",
-      explanation: `You selected Spring Boot, PostgreSQL, Kafka, or Kubernetes for a student-focused campus project. You're building enterprise infrastructure instead of a product. Switch to FastAPI or Node.js and deploy to Vercel or Supabase to spend the saved time actually improving your product demo.`,
+      explanation: hasTeammates ? `You selected Spring Boot, PostgreSQL, Kafka, or Kubernetes. As ${primaryDev} points out, we are building enterprise infrastructure instead of a product. We should switch to FastAPI or Node.js to save setup time.` : `You selected Spring Boot, PostgreSQL, Kafka, or Kubernetes for a student-focused campus project. You're building enterprise infrastructure instead of a product. Switch to FastAPI or Node.js and deploy to Vercel or Supabase to spend the saved time actually improving your product demo.`,
       expectedImpact: "Improves build feasibility and removes runtime setup bottlenecks.",
       tradeoffs: "Strong boost to technical feasibility, slight impact on innovation metrics.",
       status: 'pending',
@@ -541,7 +551,7 @@ export function generateAdvisorAdvice(
     adviceList.push({
       id: "adv-reduce-scope",
       title: "Prune Bloated MVP Backlog",
-      explanation: `Your backlog has ${features.length} features, including multiple high-effort tasks. This is a 24-hour hackathon, not a multi-month VC-backed startup milestone. Let's prune the low-impact Nice-to-Have features and consolidate your scope to secure demo stability.`,
+      explanation: hasTeammates ? `Our backlog has ${features.length} features. As ${primaryDesigner} suggests, this is a 24-hour hackathon. Let's prune the low-impact Nice-to-Have features to secure demo stability.` : `Your backlog has ${features.length} features, including multiple high-effort tasks. This is a 24-hour hackathon, not a multi-month VC-backed startup milestone. Let's prune the low-impact Nice-to-Have features and consolidate your scope to secure demo stability.`,
       expectedImpact: "Reduces visual clutter and increases execution stability.",
       tradeoffs: "Improves execution complexity, slightly reduces broad feature scope.",
       status: 'pending',

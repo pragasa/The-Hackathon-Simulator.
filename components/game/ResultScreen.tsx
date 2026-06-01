@@ -121,6 +121,9 @@ export default function ResultScreen() {
     resetGame,
     roastText,
     setRoastText,
+    team,
+    teamAdviceHistory,
+    teamContributionLogs,
   } = useGameStore();
 
   const [isPrdModalOpen, setIsPrdModalOpen] = useState(false);
@@ -258,6 +261,7 @@ export default function ResultScreen() {
     return "F";
   };
   const grade = getGrade(finalScore100);
+  const allMale = team.length > 0 && team.every((t) => t.gender === 'male');
 
   useEffect(() => {
     if (!feedback) return;
@@ -599,6 +603,148 @@ export default function ResultScreen() {
               </Badge>
             </motion.div>
           ))}
+        </div>
+      </motion.div>
+
+      {/* Team Performance Report */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.75, duration: 0.5 }}
+        className="z-10 w-full max-w-2xl bg-card border border-neutral-350 rounded-lg p-6 space-y-4 text-left font-mono text-xs select-none"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-neutral-250 pb-2">
+          <div>
+            <h3 className="text-sm font-black uppercase text-neutral-900">👥 Crew Contribution Ledger</h3>
+            <span className="text-[8px] text-neutral-400 uppercase">Individual Performance Ledger</span>
+          </div>
+          <div className={`text-[9px] px-2 py-0.5 rounded font-bold ${
+            allMale ? "bg-red-50 text-red-650 border border-red-200" : "bg-emerald-50 text-emerald-700 border border-emerald-250"
+          }`}>
+            {allMale ? "⚠ Team Diversity Warning: Your team may be missing perspectives." : "✓ Diverse Team Assembled."}
+          </div>
+        </div>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          {team.length === 0 ? (
+            <p className="text-neutral-400 text-[10px] italic">No active teammates assembled for this project.</p>
+          ) : (
+            team.map((t) => {
+              return (
+                <div key={t.id} className="p-3 border border-neutral-300 rounded bg-white space-y-2 font-sans font-light text-neutral-600">
+                  <div className="flex items-center justify-between border-b border-neutral-100 pb-1.5 font-mono text-xs">
+                    <div className="flex items-center gap-1.5 font-bold text-neutral-900">
+                      <span className="text-base font-normal">{t.avatar}</span>
+                      <span>{t.name} ({t.role})</span>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-[10px] border-b border-dashed border-neutral-200 pb-2">
+                    <div>
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-neutral-450 block">Innovation:</span>
+                      <span className={t.contribution.innovation > 0 ? "text-purple-600 font-bold" : t.contribution.innovation < 0 ? "text-red-650 font-bold" : ""}>
+                        {t.contribution.innovation > 0 ? `+${t.contribution.innovation}` : t.contribution.innovation} pts
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-neutral-450 block">Execution:</span>
+                      <span className={t.contribution.execution > 0 ? "text-blue-600 font-bold" : t.contribution.execution < 0 ? "text-red-650 font-bold" : ""}>
+                        {t.contribution.execution > 0 ? `+${t.contribution.execution}` : t.contribution.execution} pts
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-neutral-450 block">Design:</span>
+                      <span className={t.contribution.design > 0 ? "text-pink-600 font-bold" : t.contribution.design < 0 ? "text-red-650 font-bold" : ""}>
+                        {t.contribution.design > 0 ? `+${t.contribution.design}` : t.contribution.design} pts
+                      </span>
+                    </div>
+                    <div>
+                      <span className="font-mono text-[8px] uppercase tracking-wider text-neutral-450 block">Pitch:</span>
+                      <span className={t.contribution.pitch > 0 ? "text-orange-650 font-bold" : t.contribution.pitch < 0 ? "text-red-650 font-bold" : ""}>
+                        {t.contribution.pitch > 0 ? `+${t.contribution.pitch}` : t.contribution.pitch} pts
+                      </span>
+                    </div>
+                  </div>
+
+                  {(() => {
+                    const teammateHistory = teamAdviceHistory ? teamAdviceHistory.filter((h) => h.teammateId === t.id) : [];
+                    if (teammateHistory.length > 0) {
+                      return (
+                        <div className="mt-2 space-y-1.5 border-t border-neutral-100 pt-2 font-mono text-[9px]">
+                          <span className="text-[8px] text-neutral-450 uppercase tracking-wider block">Decision History:</span>
+                          {teammateHistory.map((h, idx) => {
+                            const statusColor = h.status === 'applied' ? 'text-emerald-700' : 'text-red-650';
+                            const statusLabel = h.status === 'applied' ? 'Applied' : 'Rejected';
+                            const modsList = h.modifiers ? Object.entries(h.modifiers)
+                              .filter(([_, val]) => val !== 0)
+                              .map(([stat, val]) => `${stat}: ${val > 0 ? `+${val}` : val}`)
+                              .join(', ') : '';
+                            
+                            return (
+                              <div key={idx} className="flex flex-col gap-0.5 leading-tight">
+                                <div className="flex justify-between">
+                                  <span className="text-neutral-800 font-semibold">{h.title}</span>
+                                  <span className={`font-bold uppercase ${statusColor}`}>{statusLabel}</span>
+                                </div>
+                                {modsList && (
+                                  <span className="text-neutral-450">
+                                    Effect: {modsList}.
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    }
+                    return (
+                      <p className="text-[9px] text-neutral-500 font-mono italic">
+                        {t.helpTokenUsed 
+                          ? "💡 Contributed strategic suggestions and feedback during hackathon execution."
+                          : "💤 Remained passive during build milestones without using advice token."
+                        }
+                      </p>
+                    );
+                  })()}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </motion.div>
+
+      {/* Team Contributions Accepted Log */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8, duration: 0.5 }}
+        className="z-10 w-full max-w-2xl bg-card border border-neutral-350 rounded-lg p-6 space-y-4 text-left font-mono text-xs select-none"
+      >
+        <div className="border-b border-neutral-250 pb-2">
+          <h3 className="text-sm font-black uppercase text-neutral-900">👥 TEAM CONTRIBUTIONS</h3>
+          <span className="text-[8px] text-neutral-400 uppercase">Accepted teammate interventions.</span>
+        </div>
+
+        <div className="space-y-3">
+          {(() => {
+            const appliedHistory = teamAdviceHistory ? teamAdviceHistory.filter(h => h.status === 'applied') : [];
+            if (appliedHistory.length === 0) {
+              return (
+                <p className="text-neutral-400 text-[10px] italic">No teammate interventions were applied to the project.</p>
+              );
+            }
+
+            return appliedHistory.map((h, idx) => {
+              const teammate = team.find(t => t.id === h.teammateId);
+              const name = teammate ? teammate.name : "Teammate";
+              return (
+                <div key={idx} className="p-3 border border-neutral-300 rounded bg-white font-mono text-xs leading-normal">
+                  <div className="font-bold text-neutral-900 uppercase">{name}</div>
+                  <div className="text-[10px] text-neutral-600 mt-1">{h.title}</div>
+                </div>
+              );
+            });
+          })()}
         </div>
       </motion.div>
 

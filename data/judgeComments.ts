@@ -7,6 +7,7 @@
 
 import type { TechItem, Feature, Problem } from "@/types/game";
 import { AVAILABLE_SLIDES } from "@/lib/pitchDeckEvaluator";
+import { useGameStore } from "@/store/gameStore";
 
 export interface ContextState {
   techStack: TechItem[];
@@ -32,11 +33,21 @@ export interface CommentResult {
  * Enhanced Comments Generator for v1.4 Custom Judges Pass.
  * Features 5 distinct professional profiles: Uday Sharma, Nishika, Jitu, Bart, and Sejal.
  */
-export function generateJudgeFeedback(
+function generateJudgeFeedbackInternal(
   judgeId: string,
   score: number,
   state: ContextState
 ): CommentResult {
+  let team: any[] = [];
+  try {
+    team = useGameStore.getState().team || [];
+  } catch (e) {}
+
+  const hasTeammates = team.length > 0;
+  const primaryDev = team.find(t => t.role?.toLowerCase().includes("dev") || t.role?.toLowerCase().includes("engineer"))?.name || "the developer";
+  const primaryDesigner = team.find(t => t.role?.toLowerCase().includes("design"))?.name || "the designer";
+  const primaryStrategist = team.find(t => t.role?.toLowerCase().includes("strategist") || t.role?.toLowerCase().includes("founder"))?.name || "the strategist";
+
   const techIds = new Set(state.techStack.map((t) => t.id));
   const featureIds = new Set(state.features.map((f) => f.id));
   const isOverengineered = techIds.size >= 4 && state.features.length >= 4;
@@ -82,7 +93,7 @@ export function generateJudgeFeedback(
 
     if (appliedAdvice.length > 0 && Math.random() > 0.4) {
       return {
-        comment: "The team clearly listened to strategic co-founder feedback. Structuring your feature prioritization around active recommendations helped secure a highly stable prototype build.",
+        comment: hasTeammates ? `The team clearly listened to strategic co-founder feedback. Structuring your feature prioritization around active recommendations helped ${primaryDev} and the team secure a highly stable prototype build.` : "The team clearly listened to strategic co-founder feedback. Structuring your feature prioritization around active recommendations helped secure a highly stable prototype build.",
         highlight: "Refined backlog based on co-founder advice."
       };
     }
@@ -167,7 +178,7 @@ export function generateJudgeFeedback(
         };
       }
       return {
-        comment: "Outstanding product strategy! You've identified a massive customer pain point, validated it with a highly focused MVP, and formulated a clear growth path. This can absolutely become a real company.",
+        comment: hasTeammates ? `Outstanding product strategy! Spearheaded by ${primaryStrategist} on business alignment, you've identified a massive customer pain point, validated it with a highly focused MVP, and formulated a clear growth path.` : "Outstanding product strategy! You've identified a massive customer pain point, validated it with a highly focused MVP, and formulated a clear growth path. This can absolutely become a real company.",
         highlight: "Superb product-market fit and large initial addressable market."
       };
     }
@@ -207,7 +218,7 @@ export function generateJudgeFeedback(
     if (score >= 90) {
       const featureName = state.features[0]?.name || 'MVP modules';
       return {
-        comment: `A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the screens for the '${featureName}' feature feel accessible and delightful.`,
+        comment: hasTeammates ? `A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the screens designed by ${primaryDesigner} for the '${featureName}' feature feel accessible and delightful.` : `A visual masterpiece! The typography scale is perfectly cohesive, interactive containers are beautifully responsive, and the screens for the '${featureName}' feature feel accessible and delightful.`,
         highlight: `Pixel-perfect visual design and frictionless workflow for ${featureName}.`
       };
     }
@@ -353,4 +364,53 @@ export function generateJudgeFeedback(
     comment: `Decent project demo. The concept is interesting, and the dynamic USP centering on '${state.usp || 'this concept'}' shows potential but requires deeper validation of features.`,
     highlight: "Standard hackathon project with balanced execution."
   };
+}
+
+export function generateJudgeFeedback(
+  judgeId: string,
+  score: number,
+  state: ContextState
+): CommentResult {
+  const result = generateJudgeFeedbackInternal(judgeId, score, state);
+
+  let contributionLogs: string[] = [];
+  try {
+    contributionLogs = useGameStore.getState().teamContributionLogs || [];
+  } catch (e) {}
+
+  if (contributionLogs.length > 0) {
+    const extraComments: string[] = [];
+    contributionLogs.forEach(log => {
+      const name = log.split(" ")[0];
+      if (log.includes("MongoDB") || log.includes("database")) {
+        extraComments.push(`${name}'s database change improved feasibility.`);
+      } else if (log.includes("pitch structure") || log.includes("pitch deck") || log.includes("slide flow") || log.includes("elevator pitch")) {
+        extraComments.push(`${name}'s pitch restructuring made the story easier to follow.`);
+      } else if (log.includes("AI pipeline") || log.includes("AI layer")) {
+        extraComments.push(`${name}'s simplification of the AI pipeline reduced integration risk.`);
+      } else if (log.includes("monetization") || log.includes("Local Sponsorship")) {
+        extraComments.push(`${name}'s pivot to Local Sponsorship made the business model highly realistic.`);
+      } else if (log.includes("UI scope") || log.includes("design") || log.includes("features")) {
+        extraComments.push(`${name}'s UI scope adjustments made the interface cleaner.`);
+      } else if (log.includes("chai") || log.includes("morale")) {
+        extraComments.push(`The tea break organized by ${name} clearly kept the team's energy high.`);
+      }
+    });
+
+    if (extraComments.length > 0) {
+      const commentToAdd = extraComments[0];
+      if (result.comment && !result.comment.includes(commentToAdd)) {
+        result.comment = result.comment.trim() + " " + commentToAdd;
+      }
+    }
+  }
+
+  if (result.comment) {
+    result.comment = result.comment.replace(/!/g, ".");
+  }
+  if (result.highlight) {
+    result.highlight = result.highlight.replace(/!/g, ".");
+  }
+
+  return result;
 }
