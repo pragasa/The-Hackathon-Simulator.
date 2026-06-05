@@ -1,0 +1,29 @@
+# Environment variables
+.env.local
+.env.*.local
+
+# Next.js
+.next/
+out/
+
+# Build output
+build/
+dist/
+
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Deployment
+.vercel/
