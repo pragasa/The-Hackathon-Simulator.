@@ -1,6 +1,6 @@
 /**
  * @file Curated Database of exactly 10 premium, highly realistic Chaos Events for Update v1.2.
- * Includes authentic trade-offs affecting score categories and global timer pressure.
+ * Includes authentic trade-offs affecting score categories and project trade-offs.
  *
  * @module data/chaosEvents
  */

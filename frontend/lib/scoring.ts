@@ -153,27 +153,8 @@ export function calculateTechSynergy(techStack: TechItem[]): number {
 // ─── Time Bonus ─────────────────────────────────────────────────────────────────
 
 /**
- * Calculate bonus points awarded for finishing with time to spare.
- *
- * @param timeRemaining - Seconds left on the clock
- * @param totalTime - Total seconds that were allocated
- * @returns A bonus score (0-20 range)
- *
- * TODO: Implement real time bonus curve:
- *   - Award more points for significant time remaining (e.g., > 25% left)
- *   - Diminishing returns — finishing with 90% time left is suspicious, not impressive
- *   - Factor in difficulty: harder problems should grant higher bonuses for finishing early
- *   - Possibly penalize if zero time remaining (rushed submission)
+ * Time-based bonuses are disabled in relaxed mode; returns 0.
  */
-export function calculateTimeBonus(
-  timeRemaining: number,
-  totalTime: number
-): number {
-  if (totalTime <= 0) return 0;
-
-  const ratio = timeRemaining / totalTime;
-
-  // Placeholder: linear bonus up to 20 points, capped at 50% time remaining
-  const effectiveRatio = Math.min(ratio, 0.5);
-  return Math.round(effectiveRatio * 40); // 0-20 range
+export function calculateTimeBonus(): number {
+  return 0;
 }

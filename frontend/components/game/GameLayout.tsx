@@ -3,7 +3,7 @@
 /**
  * @file GameLayout — Main game layout wrapper
  * @description Full-screen container with grid-pattern overlay, top header bar
- * (logo, phase stepper, timer), scrollable content area with AnimatePresence,
+ * (logo, phase stepper), scrollable content area with AnimatePresence,
  * and a bottom status bar showing the current score.
  */
 
@@ -13,7 +13,6 @@ import { Terminal, Volume2, VolumeX } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { useGameStore } from '@/store/gameStore';
-import GameTimer from './GameTimer';
 import type { GamePhase } from '@/types/game';
 import { playMutedClick } from '@/lib/sound';
 
@@ -40,8 +39,6 @@ interface GameLayoutProps {
 
 export default function GameLayout({ children }: GameLayoutProps) {
   const phase = useGameStore((s) => s.phase);
-  const timeRemaining = useGameStore((s) => s.timeRemaining);
-  const totalTime = useGameStore((s) => s.totalTime);
   const score = useGameStore((s) => s.score);
   const soundEnabled = useGameStore((s) => s.soundEnabled);
   const toggleSound = useGameStore((s) => s.toggleSound);
@@ -139,7 +136,6 @@ export default function GameLayout({ children }: GameLayoutProps) {
           })}
         </div>
 
-        {/* Right — Timer & Volume */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => {
@@ -156,13 +152,6 @@ export default function GameLayout({ children }: GameLayoutProps) {
               <VolumeX className="h-4 w-4 text-neutral-400 animate-pulse" />
             )}
           </button>
-          {totalTime > 0 ? (
-            <GameTimer
-              timeRemaining={timeRemaining}
-              totalTime={totalTime}
-              size="sm"
-            />
-          ) : null}
         </div>
       </header>
 

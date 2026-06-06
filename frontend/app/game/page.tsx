@@ -30,7 +30,6 @@ import {
 } from "@dnd-kit/core";
 import {
   Terminal,
-  Clock,
   Trophy,
   Sparkles,
   Zap,
@@ -83,15 +82,9 @@ function GameplayStageCard({
   disableNext?: boolean;
 }) {
   const router = useRouter();
-  const { nextStage, previousStage, difficulty, globalTimeRemaining, activeModifiers, gameMode, resetGame } = useGameStore();
+  const { nextStage, previousStage, difficulty, activeModifiers, gameMode, resetGame } = useGameStore();
   const currentIndex = STAGE_ORDER.indexOf(stageKey);
   const [isAbortOpen, setIsAbortOpen] = useState(false);
-
-  const formatTime = (sec: number) => {
-    const mins = Math.floor(sec / 60);
-    const secs = sec % 60;
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
 
   return (
     <motion.div
@@ -134,12 +127,6 @@ function GameplayStageCard({
             {difficulty && (
               <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-neutral-100 border border-neutral-200 text-neutral-600 uppercase font-bold">
                 PACE: {difficulty}
-              </span>
-            )}
-            {difficulty && (
-              <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-neutral-900 border border-neutral-900 text-white font-bold flex items-center gap-1">
-                <Clock className="w-3 h-3" />
-                {formatTime(globalTimeRemaining)}
               </span>
             )}
           </div>
@@ -679,17 +666,17 @@ function DifficultyStage() {
   const { setDifficulty, difficulty, gameMode } = useGameStore();
 
   const options = [
-    { key: "easy", name: "RELAXED BUILD (EASY)", desc: gameMode === 'speedrun' ? "3-minute countdown // 1.0x score multiplier" : "10-minute countdown // 1.0x score multiplier. Perfect for planning and exploring." },
-    { key: "medium", name: "STANDARD HACK (MEDIUM)", desc: gameMode === 'speedrun' ? "3-minute countdown // 1.15x score multiplier" : "7-minute countdown // 1.15x score multiplier. The classic high-pressure hackathon pace." },
-    { key: "hard", name: "CRUNCH TIME (HARD)", desc: gameMode === 'speedrun' ? "3-minute countdown // 1.30x score multiplier" : "5-minute countdown // 1.30x score multiplier. Quick decisions and maximum intensity." },
-    { key: "dev", name: "SPEED BUILD (DEV)", desc: gameMode === 'speedrun' ? "3-minute countdown // 1.00x score multiplier" : "60-second countdown // 1.00x score multiplier. Developer test run pace." },
+    { key: "easy", name: "RELAXED BUILD (EASY)", desc: "Gentle pacing with full planning freedom and a balanced score multiplier." },
+    { key: "medium", name: "STANDARD HACK (MEDIUM)", desc: "Balanced pacing with steady progress and a solid score multiplier." },
+    { key: "hard", name: "CRUNCH TIME (HARD)", desc: "Faster pacing for high-pressure decision-making and a boosted score multiplier." },
+    { key: "dev", name: "SPEED BUILD (DEV)", desc: "Quick build pace for rapid experimentation and a straightforward score multiplier." },
   ] as const;
 
   return (
     <GameplayStageCard
       stageKey="difficulty"
       title="Choose Your Pace"
-      subtitle="Decide how much time you want to budget for this hackathon. A shorter clock gives you less time to make decisions, but it increases your final score multiplier."
+      subtitle="Choose your pacing and score multiplier for this hackathon run."
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-lg mx-auto text-left">
         {options.map((opt) => (
@@ -803,12 +790,11 @@ function ProblemRevealStage() {
     <GameplayStageCard
       stageKey="problemReveal"
       title="Round 1: Choose a Challenge"
-      subtitle="Every great hackathon project starts with a real-world problem. Shuffle the challenge statement until you find one that inspires you. The timer starts when you accept."
+      subtitle="Every great hackathon project starts with a real-world problem. Shuffle the challenge statement until you find one that inspires you and begin your build."
     >
       <div className="space-y-4 text-left max-w-md mx-auto font-mono text-[11px] leading-relaxed">
-        {/* Notice of timer start */}
         <div className="p-3 rounded border border-neutral-900 bg-neutral-50/50 text-center font-mono text-[10px] text-neutral-800 tracking-wide select-none uppercase font-bold">
-          ⏱️ STATUS: READY // THE TIMER WILL START AS SOON AS YOU ACCEPT A CHALLENGE.
+          ⚡ STATUS: READY // ACCEPT A CHALLENGE TO LAUNCH YOUR HACKATHON RUN.
         </div>
 
         <div className="flex justify-end">
@@ -3611,10 +3597,6 @@ function JudgingStage() {
     }
   ];
 
-  // Pause the game countdown timer during the judging evaluation phase
-  useEffect(() => {
-    useGameStore.getState().pauseTimer();
-  }, []);
 
   // Run evaluation immediately on mount
   useEffect(() => {
@@ -4612,7 +4594,7 @@ function ResultsStage() {
           <span className="text-neutral-400 block text-[8px] uppercase border-b border-neutral-200 pb-1 mb-2 font-bold">RUN SUMMARY</span>
           <div className="grid grid-cols-2 sm:grid-cols-3 gap-y-2.5 text-[10px]">
             <div><span className="text-neutral-400">PLAY MODE:</span> <span className="text-neutral-900 font-bold uppercase">{gameMode}</span></div>
-            <div><span className="text-neutral-400">TIMER PACING:</span> <span className="text-neutral-900 font-bold uppercase">{difficulty || "N/A"}</span></div>
+            <div><span className="text-neutral-400">BUILD PACE:</span> <span className="text-neutral-900 font-bold uppercase">{difficulty || "N/A"}</span></div>
             <div><span className="text-neutral-400">CHAOS COMPLICATIONS:</span> <span className="text-neutral-900 font-bold uppercase">
               {CHAOS_EVENTS.filter((e) => chaosHistory.includes(e.id) && (e.category === "technical" || e.category === "team")).length}
             </span></div>
@@ -5144,24 +5126,13 @@ function ResultsStage() {
 function DevDebugPanel() {
   const {
     stage,
-    isTimerPaused,
-    globalTimeRemaining,
-    globalTotalTime,
     score,
     jumpToStage,
-    pauseTimer,
-    resumeTimer,
     resetGame,
     nextStage,
     hasFinishedOnce
   } = useGameStore();
   const [isOpen, setIsOpen] = useState(false);
-
-  const formatTime = (sec: number) => {
-    const mins = Math.floor(sec / 60);
-    const secs = sec % 60;
-    return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-  };
 
   if (!isOpen) {
     return (
@@ -5186,8 +5157,6 @@ function DevDebugPanel() {
 
       <div className="space-y-1 text-[11px] mb-3 text-neutral-700">
         <div>STAGE: <span className="font-bold text-neutral-900">{stage}</span></div>
-        <div>TIMER: <span className="font-bold text-neutral-900">{formatTime(globalTimeRemaining)} / {formatTime(globalTotalTime)}</span> ({isTimerPaused ? "PAUSED" : "ACTIVE"})</div>
-        
         <div className="mt-2 pt-2 border-t border-dashed border-border/80 text-[10px] space-y-0.5">
           <div className="font-bold text-neutral-900 uppercase">HIDDEN_SCORES:</div>
           <div className="flex justify-between"><span>INNOVATION:</span><span>{score.innovation}/100</span></div>
@@ -5216,17 +5185,6 @@ function DevDebugPanel() {
       </div>
 
       <div className="grid grid-cols-2 gap-1.5 mb-3 pt-2 border-t border-border/60">
-        <Button
-          size="xs"
-          variant="outline"
-          onClick={() => {
-            playMutedClick();
-            if (isTimerPaused) resumeTimer(); else pauseTimer();
-          }}
-          className="text-[10px] h-7 focus-visible:ring-1 focus-visible:ring-neutral-900 focus-visible:outline-none focus:outline-none"
-        >
-          {isTimerPaused ? "RESUME_TIME" : "PAUSE_TIME"}
-        </Button>
         <Button
           size="xs"
           variant="outline"
@@ -6327,8 +6285,6 @@ export default function GamePage() {
     stage,
     isGameStarted,
     startGame,
-    tickTimer,
-    isTimerPaused,
     activeChaosEvent,
     selectedProblem,
     activeTeamChatMoment,
@@ -6403,21 +6359,6 @@ export default function GamePage() {
     }
   }, [isGameStarted, startGame]);
 
-  useEffect(() => {
-    if (isTimerPaused) return;
-    const interval = setInterval(() => {
-      tickTimer();
-      const remaining = useGameStore.getState().globalTimeRemaining;
-      if (remaining > 0 && remaining <= 60) {
-        if (remaining <= 10) {
-          playWarningTick(); // tick every second in final 10 seconds
-        } else if (remaining % 10 === 0) {
-          playWarningTick(); // tick every 10 seconds in final minute
-        }
-      }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [isTimerPaused, tickTimer]);
 
   const renderStageContent = () => {
     switch (stage) {

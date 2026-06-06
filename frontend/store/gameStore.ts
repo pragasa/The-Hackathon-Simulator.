@@ -1,12 +1,11 @@
 /**
  * @fileoverview Zustand store for The Hackathon Simulator game state.
  *
- * Implements exactly 5 logical slices composed into a single unified store:
+ * Implements logical slices composed into a single unified store:
  * 1. coreSlice: Stage state machine, difficulty setting, drag-drop arrays, and navigation.
- * 2. timerSlice: Unified global countdown ticking, dynamically loaded difficulty seconds, pause/resume.
- * 3. scoringSlice: Categories and calculated total score tracking.
- * 4. mentorSlice: Count of warnings/hints utilized.
- * 5. judgingSlice: Active judge evaluation status, feedback logs, spin wheel states.
+ * 2. scoringSlice: Categories and calculated total score tracking.
+ * 3. mentorSlice: Count of warnings/hints utilized.
+ * 4. judgingSlice: Active judge evaluation status, feedback logs, spin wheel states.
  *
  * Fully integrated with devtools for debugging and persist middleware for crash resilience.
  *
@@ -67,15 +66,7 @@ export const STAGE_ORDER: GameStage[] = [
   'results',
 ];
 
-/**
- * Seconds allocated for each difficulty level.
- */
-export const DIFFICULTY_TIMERS = {
-  easy: 10 * 60,   // 10 minutes (600s)
-  medium: 7 * 60,  // 7 minutes (420s)
-  hard: 5 * 60,   // 5 minutes (300s)
-  dev: 60,         // 60 seconds (quick debugging)
-};
+// Difficulty timers removed; game operates in relaxed (no-countdown) mode.
 
 /**
  * Phase relevance checker for teammate roles in Update v2.1.
@@ -109,23 +100,10 @@ export function isRoleRelevantForStage(role: string | null, stage: string): bool
 }
 
 /**
- * Helper to get a simulated time string from globalTimeRemaining and globalTotalTime.
+ * Helper to generate a current event timestamp string.
  */
-export function getSimulatedTime(globalTimeRemaining: number, globalTotalTime: number): string {
-  if (globalTotalTime <= 0) return "Day 1, 09:00.";
-  const elapsedRatio = Math.max(0, Math.min(1, 1 - (globalTimeRemaining / globalTotalTime)));
-  const totalMinutes = 24 * 60;
-  const elapsedMinutes = Math.floor(elapsedRatio * totalMinutes);
-  const startMinutes = 9 * 60;
-  const currentTotalMinutes = startMinutes + elapsedMinutes;
-  
-  const day = currentTotalMinutes >= 1440 ? 2 : 1;
-  const hour = Math.floor((currentTotalMinutes % 1440) / 60);
-  const minute = currentTotalMinutes % 60;
-  
-  const hourStr = String(hour).padStart(2, '0');
-  const minStr = String(minute).padStart(2, '0');
-  return `Day ${day}, ${hourStr}:${minStr}`;
+export function getSimulatedTime(): string {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 }
 
 /**
@@ -272,8 +250,6 @@ export function buildProjectContext(state: GameState): string {
   const viability = Math.round((hasUsp ? 30 : 0) + (hasBizModel ? 30 : 0) + (pitchVal * 0.4));
   const health = `Innovation: ${state.score.innovation}%, Execution: ${state.score.execution}%, Feasibility: ${feasibility}%, Viability: ${viability}%`;
   
-  const timerState = `${state.globalTimeRemaining} seconds remaining out of ${state.globalTotalTime}`;
-  
   const mentorHistory = state.generatedAdvisorAdvice
     .filter(a => a.status === 'applied')
     .map(a => a.title)
@@ -293,7 +269,6 @@ Pitch Deck: [${pitchDeck}]
 Business Model: ${businessModel}
 Mentor History: ${mentorHistory}
 Teammate History: ${teammateHistory}
-Timer: ${timerState}
 Health: ${health}
 `.trim();
 }
@@ -1329,15 +1304,6 @@ const initialGameState = {
   businessModel: null as string | null,
   pitchText: '',
   
-  // Legacy countdown support
-  timeRemaining: 0,
-  totalTime: 0,
-
-  // Sprint 2 Global Timer System
-  globalTimeRemaining: 0,
-  globalTotalTime: 0,
-  isTimerPaused: true,
-
   // Scores & Analytics
   score: initialScore,
   
@@ -1425,16 +1391,9 @@ export const useGameStore = create<GameState & GameActions>()(
           ),
 
         setDifficulty: (difficulty) => {
-          const isSpeedRun = get().gameMode === 'speedrun';
-          const seconds = isSpeedRun ? 180 : DIFFICULTY_TIMERS[difficulty];
           set(
             {
               difficulty,
-              globalTotalTime: seconds,
-              globalTimeRemaining: seconds,
-              timeRemaining: seconds, // Legacy support
-              totalTime: seconds,     // Legacy support
-              isTimerPaused: true,
               stage: 'teamFormation',
               phase: mapStageToPhase('teamFormation'),
             },
@@ -1462,7 +1421,6 @@ export const useGameStore = create<GameState & GameActions>()(
                 if (moment) {
                   set({
                     activeTeamChatMoment: moment,
-                    isTimerPaused: true,
                     stage: next,
                     phase: mapStageToPhase(next),
                     isGameOver: next === 'results',
@@ -1479,7 +1437,6 @@ export const useGameStore = create<GameState & GameActions>()(
                 set(
                   {
                     activeChaosEvent: event,
-                    isTimerPaused: true, // pause standard clock
                     stage: next,
                     phase: mapStageToPhase(next),
                     isGameOver: next === 'results',
@@ -1499,7 +1456,6 @@ export const useGameStore = create<GameState & GameActions>()(
                 phase: mapStageToPhase(next),
                 isGameOver: next === 'results',
                 hasFinishedOnce: get().hasFinishedOnce || next === 'results',
-                isTimerPaused: next === 'results' ? true : (stage === 'problemReveal' ? false : get().isTimerPaused),
                 judgeDecisionMemory: compileDecisionMemory(get()),
               },
               false,
@@ -1535,7 +1491,6 @@ export const useGameStore = create<GameState & GameActions>()(
               phase: mapStageToPhase(targetStage),
               isGameOver: targetStage === 'results',
               hasFinishedOnce: get().hasFinishedOnce || targetStage === 'results',
-              isTimerPaused: targetStage === 'results' ? true : get().isTimerPaused,
             },
             false,
             'core/jumpToStage'
@@ -1898,61 +1853,7 @@ export const useGameStore = create<GameState & GameActions>()(
             'core/resetGame'
           ),
 
-        // ─── timerSlice Actions ───
-
-        tickTimer: () => {
-          const { globalTimeRemaining, isTimerPaused, isGameOver, isGameStarted } = get();
-          if (isTimerPaused || isGameOver || !isGameStarted) return;
-
-          if (globalTimeRemaining <= 1) {
-            // Time expired -> trigger results phase automatically
-            set(
-              {
-                globalTimeRemaining: 0,
-                timeRemaining: 0,
-                isTimerPaused: true,
-                isGameOver: true,
-                stage: 'results',
-                phase: mapStageToPhase('results'),
-              },
-              false,
-              'timer/timeExpired'
-            );
-          } else {
-            const nextTime = globalTimeRemaining - 1;
-            set(
-              {
-                globalTimeRemaining: nextTime,
-                timeRemaining: nextTime,
-              },
-              false,
-              'timer/tick'
-            );
-
-            const { globalTotalTime } = get();
-            const thresholds = [0.5, 0.3, 0.1];
-            thresholds.forEach(ratio => {
-              const targetSeconds = Math.floor(globalTotalTime * ratio);
-              if (nextTime === targetSeconds) {
-                get().triggerTeamChatMessage('timer_milestone', ratio);
-              }
-            });
-          }
-        },
-
-        pauseTimer: () => set({ isTimerPaused: true }, false, 'timer/pause'),
-
-        resumeTimer: () => set({ isTimerPaused: false }, false, 'timer/resume'),
-
-        setTimeRemaining: (time) =>
-          set(
-            {
-              globalTimeRemaining: time,
-              timeRemaining: time,
-            },
-            false,
-            'timer/setTimeRemaining'
-          ),
+        // ─── misc Actions ───
 
         // ─── scoringSlice Actions ───
 
@@ -2019,7 +1920,7 @@ export const useGameStore = create<GameState & GameActions>()(
           ),
 
         resolveChaosEvent: (choiceIndex) => {
-          const { activeChaosEvent, score, globalTimeRemaining, chaosHistory } = get();
+          const { activeChaosEvent, score, chaosHistory } = get();
           if (!activeChaosEvent) return;
 
           const choice = activeChaosEvent.choices[choiceIndex];
@@ -2028,7 +1929,6 @@ export const useGameStore = create<GameState & GameActions>()(
           // Apply score modifiers
           const mods = choice.modifiers;
           
-          // Modify score categories immediately
           const nextScore = { ...score };
           if (mods.innovation !== undefined) nextScore.innovation = Math.max(0, Math.min(100, nextScore.innovation + mods.innovation));
           if (mods.execution !== undefined) nextScore.execution = Math.max(0, Math.min(100, nextScore.execution + mods.execution));
@@ -2044,42 +1944,17 @@ export const useGameStore = create<GameState & GameActions>()(
             nextScore.bonus;
           nextScore.total = total;
 
-          // Adjust time remaining
-          let timeOffset = mods.timeOffset || 0;
-          if (timeOffset > 0 && get().activeModifiers.includes('SOLO_DEV')) {
-            timeOffset = 0; // Solo Dev can't get teammate time boosts
-          }
-          const nextTime = Math.max(0, globalTimeRemaining + timeOffset);
-
-          // Pushing the event ID to chaosHistory
           const nextHistory = [...chaosHistory, activeChaosEvent.id];
           if (activeChaosEvent.id === 'team-pivot-idea' && choiceIndex === 0) {
             nextHistory.push('team-pivot-executed');
           }
 
-          // If nextTime <= 0, trigger results stage (game over)
-          if (nextTime <= 0) {
-            set({
-              score: nextScore,
-              globalTimeRemaining: 0,
-              timeRemaining: 0,
-              activeChaosEvent: null,
-              chaosHistory: nextHistory,
-              isTimerPaused: true,
-              isGameOver: true,
-              stage: 'results',
-              phase: mapStageToPhase('results'),
-            }, false, 'core/resolveChaosEventGameOver');
-          } else {
-            set({
-              score: nextScore,
-              globalTimeRemaining: nextTime,
-              timeRemaining: nextTime,
-              activeChaosEvent: null,
-              chaosHistory: nextHistory,
-              isTimerPaused: false, // resume timer
-            }, false, 'core/resolveChaosEvent');
-          }
+          set({
+            score: nextScore,
+            activeChaosEvent: null,
+            chaosHistory: nextHistory,
+          }, false, 'core/resolveChaosEvent');
+
           get().updateTeammateContext();
         },
 
@@ -2103,7 +1978,6 @@ export const useGameStore = create<GameState & GameActions>()(
 
         initializeDailyChallenge: () => {
           const { problem, difficulty, judge, modifier } = getDailyChallenge();
-          const seconds = DIFFICULTY_TIMERS[difficulty];
           set(
             {
               gameMode: 'daily',
@@ -2112,11 +1986,6 @@ export const useGameStore = create<GameState & GameActions>()(
               selectedProblem: problem,
               difficulty,
               currentJudge: judge,
-              globalTotalTime: seconds,
-              globalTimeRemaining: seconds,
-              timeRemaining: seconds,
-              totalTime: seconds,
-              isTimerPaused: false,
               isGameStarted: true,
               stage: 'solutionDirection',
               phase: mapStageToPhase('solutionDirection'),
@@ -2186,7 +2055,6 @@ export const useGameStore = create<GameState & GameActions>()(
               isGameOver: true,
               stage: 'results',
               phase: mapStageToPhase('results'),
-              isTimerPaused: true,
             },
             false,
             'core/endGame'
@@ -2224,7 +2092,7 @@ export const useGameStore = create<GameState & GameActions>()(
           const adviceCard = generateTeammateAdvice(teammateId, state);
           if (!adviceCard) return;
 
-          const timestamp = getSimulatedTime(state.globalTimeRemaining, state.globalTotalTime);
+          const timestamp = getSimulatedTime();
           const newMessage: TeamChatMessage = {
             id: teammateId + "-advice-" + Date.now(),
             senderId: teammateId,
@@ -2464,7 +2332,7 @@ export const useGameStore = create<GameState & GameActions>()(
           const logMsg = advice.contributionLog || "";
           const nextLogs = logMsg ? [...(get().teamContributionLogs || []), logMsg] : (get().teamContributionLogs || []);
 
-          const timestamp = getSimulatedTime(get().globalTimeRemaining, get().globalTotalTime);
+          const timestamp = getSimulatedTime();
           const timelineEvent = `${teammateName}: Applied advice - "${advice.title}".`;
           const nextTimeline = [...(get().teamTimeline || []), {
             time: timestamp,
@@ -2821,7 +2689,7 @@ export const useGameStore = create<GameState & GameActions>()(
           };
           const nextDecisions = [...(state.teammateDecisions || []), newDecision];
 
-          const timestamp = getSimulatedTime(state.globalTimeRemaining, state.globalTotalTime);
+          const timestamp = getSimulatedTime();
           const timelineEvent = `${message.senderName}: Resolved debate - "${choice.label}" -> ${choice.outcomeText}`;
           const nextTimeline = [...state.teamTimeline, {
             time: timestamp,
@@ -2848,7 +2716,7 @@ export const useGameStore = create<GameState & GameActions>()(
           if (team.length === 0) return;
 
           const defaultTeammate = getTeammateForEvent(team, event);
-          const timestamp = getSimulatedTime(state.globalTimeRemaining, state.globalTotalTime);
+          const timestamp = getSimulatedTime();
 
           let messageText = "";
           let debateChoices: any[] | undefined = undefined;
@@ -3167,10 +3035,10 @@ export const useGameStore = create<GameState & GameActions>()(
             msgType = 'action_completed';
             isSilent = false;
             teammateToUse = advisingTeammate;
-          } else if (event === 'timer_milestone') {
+          } else if (event === 'milestone') {
             const ratio = payload as number;
             const pct = Math.round(ratio * 100);
-            const triggeredKey = `timer-${pct}`;
+            const triggeredKey = `milestone-${pct}`;
             if (state.triggeredThresholds.includes(triggeredKey)) return;
 
             if (pct === 50) {
@@ -3195,13 +3063,13 @@ export const useGameStore = create<GameState & GameActions>()(
               ];
               teammateToUse = backendMate;
             } else if (pct === 30) {
-              messageText = `Only 30% time remaining. We should make sure we structure our pitch deck properly. Slide count: ${state.pitchDeck.length}.`;
-              msgType = 'warning';
+              messageText = `You're making solid progress. Keep refining your pitch deck structure and slide flow.`;
+              msgType = 'info';
               isSilent = false;
               debateChoices = [
                 {
                   label: "Focus UX",
-                  description: "Prioritize layout polish and slide drafting.",
+                  description: "Polish the user flow and refine slide messaging.",
                   outcomeText: "Reordered slide flow to demo first and simplified USP wording.",
                   modifiers: { pitch: 12 },
                   action: { type: 'focus_ux' }
@@ -3216,13 +3084,13 @@ export const useGameStore = create<GameState & GameActions>()(
               ];
               teammateToUse = designerMate;
             } else if (pct === 10) {
-              messageText = `Final stretch. 10% time remaining. Stop all coding. We need to deploy the demo and practice the pitch.`;
-              msgType = 'warning';
+              messageText = `Brush up the final pitch and deploy the demo with confidence.`;
+              msgType = 'info';
               isSilent = false;
               debateChoices = [
                 {
                   label: "Focus Market",
-                  description: "Practice the pitch slides and run scripts.",
+                  description: "Practice the pitch slides and finalize the demo setup.",
                   outcomeText: "Emphasized business slides and pricing model.",
                   modifiers: { pitch: 10 },
                   action: { type: 'focus_market' }
@@ -3240,7 +3108,7 @@ export const useGameStore = create<GameState & GameActions>()(
 
             set({
               triggeredThresholds: [...state.triggeredThresholds, triggeredKey]
-            }, false, 'team/triggerTimerThreshold');
+            }, false, 'team/triggerThreshold');
           }
 
           if (!messageText) return;
@@ -3281,7 +3149,7 @@ export const useGameStore = create<GameState & GameActions>()(
           const team = state.team;
           if (team.length === 0) return;
 
-          const timestamp = getSimulatedTime(state.globalTimeRemaining, state.globalTotalTime);
+          const timestamp = getSimulatedTime();
 
           // Get details of what we are voting on
           let subjectTitle = "";
@@ -3549,9 +3417,6 @@ export const useGameStore = create<GameState & GameActions>()(
           mentorName: state.mentorName,
           businessModel: state.businessModel,
           pitchText: state.pitchText,
-          globalTimeRemaining: state.globalTimeRemaining,
-          globalTotalTime: state.globalTotalTime,
-          isTimerPaused: state.isTimerPaused,
           score: state.score,
           judgeFeedback: state.judgeFeedback,
           isGameStarted: state.isGameStarted,

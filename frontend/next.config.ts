@@ -1,3 +1,4 @@
+import path from "path";
 import type { NextConfig } from "next";
 
 const securityHeaders = [
@@ -28,6 +29,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: path.join(__dirname),
+  allowedDevOrigins: ["192.168.1.3"],
   async headers() {
     return [
       {
@@ -37,10 +40,5 @@ const nextConfig: NextConfig = {
     ];
   },
 };
-
-// next.config.js
-module.exports = {
-  allowedDevOrigins: ['192.168.1.3'],
-}
 
 export default nextConfig;

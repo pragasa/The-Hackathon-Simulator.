@@ -368,7 +368,7 @@ export default function ResultScreen() {
       avatar: leadJudgeProfile.avatar,
       avatarImage: leadJudgeProfile.avatarImage,
       score: leadFb.score,
-      comment: loadingRoast ? "⏱️ DRAWING DYNAMIC JURY FEEDBACK CRITIQUE..." : (aiRoast || leadFb.comment),
+      comment: loadingRoast ? "Generating dynamic jury feedback..." : (aiRoast || leadFb.comment),
       highlight: leadFb.highlight,
       isLead: true,
     }];

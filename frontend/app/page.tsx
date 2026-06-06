@@ -6,7 +6,6 @@ import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Terminal,
-  Clock,
   ChevronRight,
   Code2,
   Cpu,
@@ -152,7 +151,6 @@ export default function LandingPage() {
       phase: 'RESULTS',
       isGameStarted: true,
       isGameOver: true,
-      isTimerPaused: true,
       selectedProblem: randomProblem,
       solutionDirection: `We built a web application powered by a Next.js frontend combined with a robust Node.js server to solve the core challenges of ${randomProblem.title}.`,
       techStack: mockTechStack,
@@ -237,8 +235,7 @@ export default function LandingPage() {
             className="text-xs sm:text-[13px] text-neutral-500 font-sans font-light leading-relaxed max-w-xl mx-auto"
           >
             Experience a complete hackathon journey from problem discovery to final judging. 
-            Build your project under time pressure, collaborate with AI-powered teammates, 
-            survive mentor reviews, create a pitch deck, and defend your decisions before specialist judges.
+            Build your project with AI-powered teammates, survive mentor reviews, create a pitch deck, and defend your decisions before specialist judges.
           </motion.p>
         </motion.div>
 
@@ -255,7 +252,7 @@ export default function LandingPage() {
 
           <div className="max-md:space-y-2 space-y-4 font-mono">
             <div className="flex items-center gap-2 border-b border-neutral-200 max-md:pb-1 pb-2">
-              <Clock className="w-4 h-4 text-neutral-850 animate-pulse" />
+              <Code2 className="w-4 h-4 text-neutral-850" />
               <span className="font-bold text-xs uppercase text-neutral-900">THE REAL GAME SEQUENCE</span>
             </div>
 
@@ -305,7 +302,7 @@ export default function LandingPage() {
           transition={{ delay: 0.3 }}
           className="flex flex-wrap justify-center items-center gap-x-6 gap-y-2 text-[10px] text-neutral-500 border-y border-neutral-200/80 py-3 w-full max-w-xl font-mono uppercase font-bold select-none text-center"
         >
-          <span>⏱️ 10 Minute Sessions</span>
+          <span>🎯 Fast focused builds</span>
           <span className="hidden sm:inline text-neutral-300">•</span>
           <span>💡 20+ Problem Categories</span>
           <span className="hidden sm:inline text-neutral-300">•</span>
@@ -360,7 +357,7 @@ export default function LandingPage() {
             className="p-4 bg-white border border-neutral-200 rounded text-left space-y-1.5 shadow-[0_1px_2px_rgba(0,0,0,0.01)] transition-colors"
           >
             <div className="flex items-center gap-2 text-neutral-900">
-              <Clock className="w-3.5 h-3.5 text-neutral-700" />
+              <Code2 className="w-3.5 h-3.5 text-neutral-700" />
               <span className="font-bold text-[10px] uppercase tracking-wide">REAL HACKATHON FLOW</span>
             </div>
             <p className="text-[9px] text-neutral-500 font-sans font-light leading-relaxed">

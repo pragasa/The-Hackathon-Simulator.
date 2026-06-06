@@ -252,18 +252,6 @@ export interface GameState {
   businessModel: string | null;
   /** Written elevator pitch text */
   pitchText: string;
-  
-  /** Seconds remaining in the current timed phase (legacy) */
-  timeRemaining: number;
-  /** Total seconds allocated for the current timed phase (legacy) */
-  totalTime: number;
-
-  /** Seconds remaining on the global game clock */
-  globalTimeRemaining: number;
-  /** Total seconds allocated for the game based on difficulty */
-  globalTotalTime: number;
-  /** Whether the global timer is currently paused */
-  isTimerPaused: boolean;
 
   /** Current score breakdown */
   score: ScoreBreakdown;
@@ -367,7 +355,7 @@ export interface TeammateDecision {
 export interface GameActions {
   /** Begin a new hackathon run */
   startGame: () => void;
-  /** Set chosen difficulty and initialize timer */
+  /** Set chosen difficulty */
   setDifficulty: (difficulty: 'easy' | 'medium' | 'hard' | 'dev') => void;
   /** Change the active game mode */
   setGameMode: (mode: 'classic' | 'daily' | 'speedrun' | 'chaos' | 'hardcore') => void;
@@ -425,15 +413,6 @@ export interface GameActions {
   applyAdvisorAdvice: (adviceId: string) => void;
   /** Reject advisor advice */
   rejectAdvisorAdvice: (adviceId: string) => void;
-
-  /** Decrement the global timer by one second */
-  tickTimer: () => void;
-  /** Pause the global timer */
-  pauseTimer: () => void;
-  /** Resume the global timer */
-  resumeTimer: () => void;
-  /** Manually set the remaining global time */
-  setTimeRemaining: (time: number) => void;
 
   /** Update score categories */
   updateScore: (category: keyof Omit<ScoreBreakdown, 'total'>, value: number) => void;
@@ -581,7 +560,7 @@ export interface ChaosEventChoice {
     design?: number;
     pitch?: number;
     bonus?: number;
-    timeOffset?: number; // adjusts global time remaining
+    timeOffset?: number; // optional simulated timestamp offset (non-countdown metadata)
   };
 }
 
